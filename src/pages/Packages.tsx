@@ -599,7 +599,7 @@ export const Packages: React.FC = () => {
                 {/* Atrativos */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-lg font-medium text-gray-900">Atrativos do Pacote</h4>
+                    <h4 className="text-lg font-medium text-gray-900">Atividades do Pacote</h4>
                     <button
                       type="button"
                       onClick={addAttraction}
@@ -613,7 +613,7 @@ export const Packages: React.FC = () => {
                   {packageAttractions.map((attraction, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm font-medium text-gray-700">Atrativo {index + 1}</span>
+                        <span className="text-sm font-medium text-gray-700">Atividade {index + 1}</span>
                         <button
                           type="button"
                           onClick={() => removeAttraction(index)}
@@ -626,7 +626,7 @@ export const Packages: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Atrativo *
+                            Atrativo/Passeio *
                           </label>
                           <select
                             required
