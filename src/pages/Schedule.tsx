@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { sendWhatsAppMessage } from '../utils/whatsapp';
+import { formatScheduleMessage } from '../utils/messageFormat';
 import { ChevronLeftIcon, ChevronRightIcon, FunnelIcon } from '@heroicons/react/24/outline';
 
 interface ScheduleItem {
@@ -15,10 +17,11 @@ interface ScheduleItem {
   packages: {
     id: string;
     title: string;
+    client_name: string;
     status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
     agencies: { name: string };
     vehicles: { id: string; license_plate: string; model: string };
-    drivers: { id: string; name: string };
+    drivers: { id: string; name: string; phone: string | null };
   };
   attractions: { name: string };
 }
@@ -157,10 +160,10 @@ export const Schedule: React.FC = () => {
         .select(`
           *,
           packages!inner(
-            id, title, status,
+            id, title, client_name, status,
             agencies!inner(name),
             vehicles!inner(id, license_plate, model),
-            drivers!inner(id, name)
+            drivers!inner(id, name, phone)
           ),
           attractions(name)
         `)
@@ -271,6 +274,24 @@ export const Schedule: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({ vehicle: '', agency: '', driver: '' });
+  };
+
+  const handleSendSchedule = (item: ScheduleItem) => {
+    const message = formatScheduleMessage({
+      driverName: item.packages.drivers.name,
+      clientName: item.packages.client_name || 'Não informado',
+      date: item.scheduled_date,
+      startTime: formatTime(item.start_time) || '',
+      tourStartTime: formatTime(item.start_time),
+      attractions: [item.attractions.name],
+    });
+
+    if (!item.packages.drivers?.phone) {
+      toast.error('Número de telefone do motorista não cadastrado!');
+      return;
+    }
+
+    sendWhatsAppMessage(item.packages.drivers.phone, message);
   };
 
   if (loading) {
@@ -404,8 +425,9 @@ export const Schedule: React.FC = () => {
                     return (
                       <div
                         key={item.id}
-                        className={`${colors.bg} border-l-4 ${colors.border} p-2 rounded-r-md text-sm hover:opacity-80 transition-colors duration-200 cursor-pointer`}
-                        title={`${item.packages.title} - ${item.attractions.name}`}
+                        className={`${colors.bg} border-l-4 ${colors.border} p-2 rounded-r-md text-sm group hover:opacity-80 transition-colors duration-200 cursor-pointer`}
+                        onClick={() => handleSendSchedule(item)}
+                        title="Clique para enviar a programação via WhatsApp"
                       >
                         <div className={`font-medium ${colors.title}`}>
                           {formatTime(item.start_time)}
