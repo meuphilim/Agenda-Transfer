@@ -523,7 +523,7 @@ export const Schedule: React.FC = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-700">Data</p>
                   <p className="text-sm text-gray-900">
-                    {format(parseISO(selectedItem.scheduled_date), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                    {format(parseISO(selectedItem.scheduled_date), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
                 </div>
 
@@ -538,15 +538,16 @@ export const Schedule: React.FC = () => {
                       .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
                       .map(item => (
                         <div key={item.id} className="bg-gray-50 p-2 rounded">
-                          <div className="text-sm font-medium text-gray-900">
-                            {formatTime(item.start_time)}
-                            {item.end_time && ` - ${formatTime(item.end_time)}`}
-                          </div>
                           <div className="text-sm text-gray-700">
                             Cliente: {item.packages.client_name || 'Não informado'}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {item.attractions.name}
+                            Passeio: {item.attractions.name}
+                          </div>
+                          <div className="text-sm font-medium text-gray-900">
+                            Horário de saída: {formatTime(item.start_time)}
+                            {item.end_time && `
+                            Horário de término: ${formatTime(item.end_time)}`}
                           </div>
                         </div>
                       ))
