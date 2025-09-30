@@ -77,7 +77,7 @@ export const Schedule: React.FC = () => {
     const availableDrivers = new Set<string>();
 
     // Processa cada par de recursos
-    activePackages.forEach((packageInfo, key) => {
+    activePackages.forEach(packageInfo => {
       const isActiveToday = 
         packageInfo.status === 'in_progress' || 
         (packageInfo.status === 'confirmed' && isSameDay(packageInfo.date, now));
