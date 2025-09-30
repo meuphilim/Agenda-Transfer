@@ -5,6 +5,14 @@ import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+enum PackageStatus {
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled'
+}
+
 interface Package {
   id: string;
   title: string;
@@ -14,7 +22,7 @@ interface Package {
   start_date: string;
   end_date: string;
   total_participants: number;
-  status: string;
+  status: PackageStatus;
   notes: string | null;
   agencies?: { name: string };
   vehicles?: { license_plate: string; model: string };
@@ -244,26 +252,42 @@ export const Packages: React.FC = () => {
     setPackageAttractions(updated);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: PackageStatus) => {
     const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-green-100 text-green-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-gray-100 text-gray-800',
-      cancelled: 'bg-red-100 text-red-800',
+      [PackageStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
+      [PackageStatus.CONFIRMED]: 'bg-green-100 text-green-800',
+      [PackageStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
+      [PackageStatus.COMPLETED]: 'bg-gray-100 text-gray-800',
+      [PackageStatus.CANCELLED]: 'bg-red-100 text-red-800',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: PackageStatus) => {
     const statusText = {
-      pending: 'Pendente',
-      confirmed: 'Confirmado',
-      in_progress: 'Em Andamento',
-      completed: 'Concluído',
-      cancelled: 'Cancelado',
+      [PackageStatus.PENDING]: 'Pendente',
+      [PackageStatus.CONFIRMED]: 'Confirmado',
+      [PackageStatus.IN_PROGRESS]: 'Em Andamento',
+      [PackageStatus.COMPLETED]: 'Concluído',
+      [PackageStatus.CANCELLED]: 'Cancelado',
     };
-    return statusText[status as keyof typeof statusText] || status;
+    return statusText[status];
+  };
+
+  const handleUpdateStatus = async (packageId: string, newStatus: PackageStatus) => {
+    try {
+      const { error } = await supabase
+        .from('packages')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', packageId);
+
+      if (error) throw error;
+      
+      toast.success('Status atualizado com sucesso!');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erro ao atualizar status: ' + error.message);
+    }
   };
 
   if (loading) {
@@ -348,9 +372,45 @@ export const Packages: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pkg.status)}`}>
-                      {getStatusText(pkg.status)}
-                    </span>
+                    <div className="flex flex-col gap-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pkg.status)}`}>
+                        {getStatusText(pkg.status)}
+                      </span>
+                      <div className="flex gap-1">
+                        {pkg.status === PackageStatus.PENDING && (
+                          <button
+                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED)}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors duration-200"
+                          >
+                            Confirmar
+                          </button>
+                        )}
+                        {pkg.status === PackageStatus.CONFIRMED && (
+                          <button
+                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS)}
+                            className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors duration-200"
+                          >
+                            Iniciar
+                          </button>
+                        )}
+                        {pkg.status === PackageStatus.IN_PROGRESS && (
+                          <button
+                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.COMPLETED)}
+                            className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors duration-200"
+                          >
+                            Concluir
+                          </button>
+                        )}
+                        {[PackageStatus.PENDING, PackageStatus.CONFIRMED].includes(pkg.status) && (
+                          <button
+                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.CANCELLED)}
+                            className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors duration-200"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
