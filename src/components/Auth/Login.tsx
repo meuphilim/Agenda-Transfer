@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,6 +9,7 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,9 +19,13 @@ export const Login: React.FC = () => {
       if (isSignUp) {
         await signUp(email, password);
         toast.success('Conta criada com sucesso!');
+        // Após criar a conta, vamos fazer login automaticamente
+        await signIn(email, password);
+        navigate('/');
       } else {
         await signIn(email, password);
         toast.success('Login realizado com sucesso!');
+        navigate('/');
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao fazer login');
