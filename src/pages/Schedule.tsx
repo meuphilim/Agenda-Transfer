@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
-import { ChevronLeftIcon, ChevronRightIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, FunnelIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ScheduleItem {
   id: string;
@@ -37,10 +37,24 @@ export const Schedule: React.FC = () => {
     agency: '',
     driver: '',
   });
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [quickAddFormData, setQuickAddFormData] = useState({
+    client_name: '',
+    agency_id: '',
+    vehicle_id: '',
+    driver_id: '',
+    attraction_id: '',
+    start_time: '',
+    end_time: '',
+    total_participants: 1,
+  });
+
   const [filterOptions, setFilterOptions] = useState({
     vehicles: [] as any[],
     agencies: [] as any[],
     drivers: [] as any[],
+    attractions: [] as any[],
   });
 
   useEffect(() => {
@@ -198,16 +212,18 @@ export const Schedule: React.FC = () => {
 
   const fetchFilterOptions = async () => {
     try {
-      const [vehiclesResult, agenciesResult, driversResult] = await Promise.all([
+      const [vehiclesResult, agenciesResult, driversResult, attractionsResult] = await Promise.all([
         supabase.from('vehicles').select('id, license_plate, model').eq('active', true).order('license_plate'),
         supabase.from('agencies').select('id, name').eq('active', true).order('name'),
         supabase.from('drivers').select('id, name').eq('active', true).order('name'),
+        supabase.from('attractions').select('id, name').eq('active', true).order('name'),
       ]);
 
       setFilterOptions({
         vehicles: vehiclesResult.data || [],
         agencies: agenciesResult.data || [],
         drivers: driversResult.data || [],
+        attractions: attractionsResult.data || [],
       });
     } catch (error) {
       console.error('Erro ao carregar opções de filtro:', error);
@@ -319,6 +335,65 @@ export const Schedule: React.FC = () => {
   const handleCancelSend = () => {
     setShowConfirmModal(false);
     setSelectedItem(null);
+  };
+
+  const handleQuickAddSubmit = async () => {
+    if (!selectedDate) return;
+
+    try {
+      // Criar o pacote primeiro
+      const { data: packageData, error: packageError } = await supabase
+        .from('packages')
+        .insert([
+          {
+            title: 'Pacote de Atividade',
+            client_name: quickAddFormData.client_name,
+            agency_id: quickAddFormData.agency_id,
+            vehicle_id: quickAddFormData.vehicle_id,
+            driver_id: quickAddFormData.driver_id,
+            start_date: format(selectedDate, 'yyyy-MM-dd'),
+            end_date: format(selectedDate, 'yyyy-MM-dd'),
+            total_participants: quickAddFormData.total_participants,
+            status: 'confirmed'
+          }
+        ])
+        .select()
+        .single();
+
+      if (packageError) throw packageError;
+
+      // Adicionar a atividade ao pacote
+      const { error: attractionError } = await supabase
+        .from('package_attractions')
+        .insert([
+          {
+            package_id: packageData.id,
+            attraction_id: quickAddFormData.attraction_id,
+            scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
+            start_time: quickAddFormData.start_time,
+            end_time: quickAddFormData.end_time || null
+          }
+        ]);
+
+      if (attractionError) throw attractionError;
+
+      toast.success('Atividade adicionada com sucesso!');
+      setShowQuickAddModal(false);
+      setSelectedDate(null);
+      setQuickAddFormData({
+        client_name: '',
+        agency_id: '',
+        vehicle_id: '',
+        driver_id: '',
+        attraction_id: '',
+        start_time: '',
+        end_time: '',
+        total_participants: 1,
+      });
+      fetchScheduleData();
+    } catch (error: any) {
+      toast.error('Erro ao adicionar atividade: ' + error.message);
+    }
   };
 
   if (loading) {
@@ -474,8 +549,20 @@ export const Schedule: React.FC = () => {
                   })}
                   
                   {dayItems.length === 0 && (
-                    <div className="text-center text-gray-400 text-sm mt-8">
-                      Nenhuma atividade
+                    <div className="flex flex-col items-center justify-center mt-8 space-y-2">
+                      <div className="text-gray-400 text-sm">
+                        Nenhuma atividade
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedDate(day);
+                          setShowQuickAddModal(true);
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                      >
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Adicionar
+                      </button>
                     </div>
                   )}
                 </div>
@@ -504,6 +591,174 @@ export const Schedule: React.FC = () => {
           Hoje
         </div>
       </div>
+
+      {/* Modal de Adição Rápida */}
+      {showQuickAddModal && selectedDate && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Nova Atividade - {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })}
+                </h3>
+                <button
+                  onClick={() => setShowQuickAddModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={quickAddFormData.client_name}
+                    onChange={(e) => setQuickAddFormData({...quickAddFormData, client_name: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Agência *
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={quickAddFormData.agency_id}
+                    onChange={(e) => setQuickAddFormData({...quickAddFormData, agency_id: e.target.value})}
+                  >
+                    <option value="">Selecione uma agência</option>
+                    {filterOptions.agencies.map((agency) => (
+                      <option key={agency.id} value={agency.id}>
+                        {agency.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Veículo *
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={quickAddFormData.vehicle_id}
+                    onChange={(e) => setQuickAddFormData({...quickAddFormData, vehicle_id: e.target.value})}
+                  >
+                    <option value="">Selecione um veículo</option>
+                    {filterOptions.vehicles.map((vehicle) => (
+                      <option key={vehicle.id} value={vehicle.id}>
+                        {vehicle.license_plate} - {vehicle.brand} {vehicle.model}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motorista *
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={quickAddFormData.driver_id}
+                    onChange={(e) => setQuickAddFormData({...quickAddFormData, driver_id: e.target.value})}
+                  >
+                    <option value="">Selecione um motorista</option>
+                    {filterOptions.drivers.map((driver) => (
+                      <option key={driver.id} value={driver.id}>
+                        {driver.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Atrativo/Passeio *
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={quickAddFormData.attraction_id}
+                    onChange={(e) => setQuickAddFormData({...quickAddFormData, attraction_id: e.target.value})}
+                  >
+                    <option value="">Selecione um atrativo</option>
+                    {filterOptions.attractions.map((attraction) => (
+                      <option key={attraction.id} value={attraction.id}>
+                        {attraction.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Horário Início *
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={quickAddFormData.start_time}
+                      onChange={(e) => setQuickAddFormData({...quickAddFormData, start_time: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Horário Fim
+                    </label>
+                    <input
+                      type="time"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={quickAddFormData.end_time}
+                      onChange={(e) => setQuickAddFormData({...quickAddFormData, end_time: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número de Participantes *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={quickAddFormData.total_participants}
+                    onChange={(e) => setQuickAddFormData({...quickAddFormData, total_participants: parseInt(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowQuickAddModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleQuickAddSubmit}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors duration-200"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Confirmação */}
       {showConfirmModal && selectedItem && (
