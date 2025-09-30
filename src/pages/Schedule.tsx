@@ -44,49 +44,84 @@ export const Schedule: React.FC = () => {
   }, [currentWeek, filters]);
 
   const updateResourceStatus = async (items: ScheduleItem[]) => {
-    // Coleta todos os IDs únicos de motoristas e veículos em uso
+    const now = new Date();
     const busyDrivers = new Set<string>();
     const busyVehicles = new Set<string>();
+    const completedPackageResources = new Set<string>();
 
     items.forEach(item => {
       const startTime = item.start_time ? new Date(`${item.scheduled_date}T${item.start_time}`) : null;
       const endTime = item.end_time ? new Date(`${item.scheduled_date}T${item.end_time}`) : null;
+      const scheduleDate = new Date(item.scheduled_date);
       
-      if (startTime && endTime) {
-        const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60); // Duração em horas
-        
+      // Verifica se o pacote está em andamento ou agendado para hoje
+      const isActiveToday = (
+        item.packages.status === 'in_progress' || 
+        (item.packages.status === 'confirmed' && isSameDay(scheduleDate, now))
+      );
+
+      // Se o pacote está ativo e tem duração >= 1 hora
+      if (startTime && endTime && isActiveToday) {
+        const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
         if (duration >= 1) {
           busyDrivers.add(item.packages.drivers.id);
           busyVehicles.add(item.packages.vehicles.id);
         }
       }
+
+      // Se o pacote está concluído ou cancelado, registra os recursos para liberar
+      if (item.packages.status === 'completed' || item.packages.status === 'cancelled') {
+        completedPackageResources.add(item.packages.drivers.id);
+        completedPackageResources.add(item.packages.vehicles.id);
+      }
+    });
+
+    // Remove recursos de pacotes concluídos/cancelados das listas de ocupados
+    completedPackageResources.forEach(id => {
+      busyDrivers.delete(id);
+      busyVehicles.delete(id);
     });
 
     // Atualiza status dos motoristas
+    const driverUpdates = [];
     if (busyDrivers.size > 0) {
-      await supabase
-        .from('drivers')
-        .update({ status: 'busy' })
-        .in('id', Array.from(busyDrivers));
-
-      await supabase
+      driverUpdates.push(
+        supabase
+          .from('drivers')
+          .update({ status: 'busy' })
+          .in('id', Array.from(busyDrivers))
+      );
+    }
+    
+    // Libera motoristas que não estão mais ocupados
+    driverUpdates.push(
+      supabase
         .from('drivers')
         .update({ status: 'available' })
-        .not('id', 'in', `(${Array.from(busyDrivers).join(',')})`);
-    }
+        .not('id', 'in', busyDrivers.size > 0 ? `(${Array.from(busyDrivers).join(',')})` : '(null)')
+    );
 
     // Atualiza status dos veículos
+    const vehicleUpdates = [];
     if (busyVehicles.size > 0) {
-      await supabase
-        .from('vehicles')
-        .update({ status: 'in_use' })
-        .in('id', Array.from(busyVehicles));
+      vehicleUpdates.push(
+        supabase
+          .from('vehicles')
+          .update({ status: 'in_use' })
+          .in('id', Array.from(busyVehicles))
+      );
+    }
 
-      await supabase
+    // Libera veículos que não estão mais em uso
+    vehicleUpdates.push(
+      supabase
         .from('vehicles')
         .update({ status: 'available' })
-        .not('id', 'in', `(${Array.from(busyVehicles).join(',')})`);
-    }
+        .not('id', 'in', busyVehicles.size > 0 ? `(${Array.from(busyVehicles).join(',')})` : '(null)')
+    );
+
+    // Executa todas as atualizações em paralelo
+    await Promise.all([...driverUpdates, ...vehicleUpdates]);
   };
 
   const fetchScheduleData = async () => {
