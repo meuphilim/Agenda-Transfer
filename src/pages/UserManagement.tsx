@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserProfile, UserStatus } from '../types/database.types';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<(UserProfile & { email?: string })[]>([]);
