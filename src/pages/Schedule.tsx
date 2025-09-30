@@ -17,8 +17,8 @@ interface ScheduleItem {
     title: string;
     status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
     agencies: { name: string };
-    vehicles: { license_plate: string; model: string };
-    drivers: { name: string };
+    vehicles: { id: string; license_plate: string; model: string };
+    drivers: { id: string; name: string };
   };
   attractions: { name: string };
 }
@@ -43,6 +43,52 @@ export const Schedule: React.FC = () => {
     fetchFilterOptions();
   }, [currentWeek, filters]);
 
+  const updateResourceStatus = async (items: ScheduleItem[]) => {
+    // Coleta todos os IDs únicos de motoristas e veículos em uso
+    const busyDrivers = new Set<string>();
+    const busyVehicles = new Set<string>();
+
+    items.forEach(item => {
+      const startTime = item.start_time ? new Date(`${item.scheduled_date}T${item.start_time}`) : null;
+      const endTime = item.end_time ? new Date(`${item.scheduled_date}T${item.end_time}`) : null;
+      
+      if (startTime && endTime) {
+        const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60); // Duração em horas
+        
+        if (duration >= 1) {
+          busyDrivers.add(item.packages.drivers.id);
+          busyVehicles.add(item.packages.vehicles.id);
+        }
+      }
+    });
+
+    // Atualiza status dos motoristas
+    if (busyDrivers.size > 0) {
+      await supabase
+        .from('drivers')
+        .update({ status: 'busy' })
+        .in('id', Array.from(busyDrivers));
+
+      await supabase
+        .from('drivers')
+        .update({ status: 'available' })
+        .not('id', 'in', `(${Array.from(busyDrivers).join(',')})`);
+    }
+
+    // Atualiza status dos veículos
+    if (busyVehicles.size > 0) {
+      await supabase
+        .from('vehicles')
+        .update({ status: 'in_use' })
+        .in('id', Array.from(busyVehicles));
+
+      await supabase
+        .from('vehicles')
+        .update({ status: 'available' })
+        .not('id', 'in', `(${Array.from(busyVehicles).join(',')})`);
+    }
+  };
+
   const fetchScheduleData = async () => {
     try {
       setLoading(true);
@@ -56,8 +102,8 @@ export const Schedule: React.FC = () => {
           packages!inner(
             id, title, status,
             agencies!inner(name),
-            vehicles!inner(license_plate, model),
-            drivers!inner(name)
+            vehicles!inner(id, license_plate, model),
+            drivers!inner(id, name)
           ),
           attractions(name)
         `)
@@ -78,7 +124,9 @@ export const Schedule: React.FC = () => {
       const { data, error } = await query.order('scheduled_date').order('start_time');
 
       if (error) throw error;
-      setScheduleItems(data || []);
+      const items = data || [];
+      setScheduleItems(items);
+      await updateResourceStatus(items);
     } catch (error: any) {
       toast.error('Erro ao carregar agenda: ' + error.message);
     } finally {
