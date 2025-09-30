@@ -176,6 +176,32 @@ export const Drivers: React.FC = () => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove todos os caracteres não numéricos
+    const numbers = value.replace(/\D/g, '');
+    
+    // Aplica a máscara (xx) xxxxx-xxxx
+    if (numbers.length <= 11) {
+      return numbers.replace(
+        /^(\d{0,2})(\d{0,5})(\d{0,4})/,
+        (_, ddd, first, second) => {
+          let formatted = '';
+          if (ddd) formatted += `(${ddd}`;
+          if (ddd) formatted += ') ';
+          if (first) formatted += first;
+          if (second) formatted += `-${second}`;
+          return formatted;
+        }
+      );
+    }
+    return numbers.slice(0, 11);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setFormData({...formData, phone: formatted});
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -236,8 +262,8 @@ export const Drivers: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{driver.phone}</div>
-                    <div className="text-sm text-gray-500">{driver.email}</div>
+                    <div className="text-sm text-gray-900">{driver.phone ? formatPhoneNumber(driver.phone) : '-'}</div>
+                    <div className="text-sm text-gray-500">{driver.email || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{driver.license_number}</div>
@@ -303,10 +329,12 @@ export const Drivers: React.FC = () => {
                   Telefone
                 </label>
                 <input
-                  type="text"
+                  type="tel"
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={handlePhoneChange}
                 />
               </div>
               
