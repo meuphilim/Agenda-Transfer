@@ -15,6 +15,7 @@ interface ScheduleItem {
   packages: {
     id: string;
     title: string;
+    status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
     agencies: { name: string };
     vehicles: { license_plate: string; model: string };
     drivers: { name: string };
@@ -53,7 +54,7 @@ export const Schedule: React.FC = () => {
         .select(`
           *,
           packages!inner(
-            id, title,
+            id, title, status,
             agencies!inner(name),
             vehicles!inner(license_plate, model),
             drivers!inner(name)
@@ -117,6 +118,38 @@ export const Schedule: React.FC = () => {
   const formatTime = (time: string | null) => {
     if (!time) return '';
     return time.slice(0, 5); // Remove segundos
+  };
+
+  const getItemColors = (status: string) => {
+    switch(status) {
+      case 'completed':
+        return {
+          bg: 'bg-green-100',
+          border: 'border-green-500',
+          title: 'text-green-900',
+          text: 'text-green-800',
+          subtext: 'text-green-700',
+          details: 'text-green-600'
+        };
+      case 'cancelled':
+        return {
+          bg: 'bg-red-100',
+          border: 'border-red-500',
+          title: 'text-red-900',
+          text: 'text-red-800',
+          subtext: 'text-red-700',
+          details: 'text-red-600'
+        };
+      default: // pending, confirmed, in_progress
+        return {
+          bg: 'bg-blue-100',
+          border: 'border-blue-500',
+          title: 'text-blue-900',
+          text: 'text-blue-800',
+          subtext: 'text-blue-700',
+          details: 'text-blue-600'
+        };
+    }
   };
 
   const previousWeek = () => {
@@ -261,27 +294,30 @@ export const Schedule: React.FC = () => {
 
                 {/* Items do Dia */}
                 <div className="p-2 space-y-2">
-                  {dayItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-blue-100 border-l-4 border-blue-500 p-2 rounded-r-md text-sm hover:bg-blue-200 transition-colors duration-200 cursor-pointer"
-                      title={`${item.packages.title} - ${item.attractions.name}`}
-                    >
-                      <div className="font-medium text-blue-900">
-                        {formatTime(item.start_time)}
-                        {item.end_time && ` - ${formatTime(item.end_time)}`}
+                  {dayItems.map((item) => {
+                    const colors = getItemColors(item.packages.status);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`${colors.bg} border-l-4 ${colors.border} p-2 rounded-r-md text-sm hover:opacity-80 transition-colors duration-200 cursor-pointer`}
+                        title={`${item.packages.title} - ${item.attractions.name}`}
+                      >
+                        <div className={`font-medium ${colors.title}`}>
+                          {formatTime(item.start_time)}
+                          {item.end_time && ` - ${formatTime(item.end_time)}`}
+                        </div>
+                        <div className={`${colors.text} truncate`}>
+                          {item.attractions.name}
+                        </div>
+                        <div className={`${colors.subtext} text-xs truncate`}>
+                          {item.packages.agencies.name}
+                        </div>
+                        <div className={`${colors.details} text-xs truncate`}>
+                          {item.packages.vehicles.license_plate} • {item.packages.drivers.name}
+                        </div>
                       </div>
-                      <div className="text-blue-800 truncate">
-                        {item.attractions.name}
-                      </div>
-                      <div className="text-blue-700 text-xs truncate">
-                        {item.packages.agencies.name}
-                      </div>
-                      <div className="text-blue-600 text-xs truncate">
-                        {item.packages.vehicles.license_plate} • {item.packages.drivers.name}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {dayItems.length === 0 && (
                     <div className="text-center text-gray-400 text-sm mt-8">
@@ -299,7 +335,15 @@ export const Schedule: React.FC = () => {
       <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-gray-600">
         <div className="flex items-center">
           <div className="w-3 h-3 bg-blue-100 border-l-4 border-blue-500 mr-2"></div>
-          Atividade Programada
+          Em Andamento/Agendado
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-green-100 border-l-4 border-green-500 mr-2"></div>
+          Concluído
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-red-100 border-l-4 border-red-500 mr-2"></div>
+          Cancelado
         </div>
         <div className="flex items-center">
           <div className="w-3 h-3 bg-blue-50 border mr-2"></div>
