@@ -10,16 +10,26 @@ import {
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 
-const navigation = [
+import { UserGroupIcon } from '@heroicons/react/24/outline';
+
+const getNavigation = (isAdmin: boolean): NavigationItem[] => [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon },
   { name: 'Reservas', href: '/reservas', icon: ClipboardDocumentListIcon },
   { name: 'Cadastros', href: '/cadastros', icon: Cog6ToothIcon },
+  ...(isAdmin ? [{ name: 'Usuários', href: '/usuarios', icon: UserGroupIcon }] : []),
 ];
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
 export const Sidebar: React.FC = () => {
-  const { signOut, user } = useAuth();
+  const { signOut, user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const navigation = getNavigation(isAdmin);
 
   const handleSignOut = async () => {
     try {

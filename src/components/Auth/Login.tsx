@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const { signIn, signUp } = useAuth();
@@ -17,14 +19,8 @@ export const Login: React.FC = () => {
 
     try {
       if (isSignUp) {
-        await signUp(email, password);
-        toast.success('Conta criada com sucesso!');
-        // Após criar a conta, vamos fazer login automaticamente
-        await signIn(email, password);
-        // Pequeno delay para garantir que o estado de autenticação foi atualizado
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 100);
+        await signUp(email, password, fullName, phone);
+        toast.success('Conta criada com sucesso! Aguarde a aprovação do administrador.');
       } else {
         await signIn(email, password);
         toast.success('Login realizado com sucesso!');
@@ -52,7 +48,41 @@ export const Login: React.FC = () => {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div className="rounded-md shadow-sm space-y-2">
+            {isSignUp && (
+              <>
+                <div>
+                  <label htmlFor="fullName" className="sr-only">
+                    Nome Completo
+                  </label>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    required
+                    className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="Nome Completo"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="phone" className="sr-only">
+                    Telefone
+                  </label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    required
+                    className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="Telefone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label htmlFor="email" className="sr-only">
                 Email
@@ -63,7 +93,7 @@ export const Login: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -79,7 +109,7 @@ export const Login: React.FC = () => {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

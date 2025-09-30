@@ -9,6 +9,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Schedule } from './pages/Schedule';
 import { Packages } from './pages/Packages';
 import { Settings } from './pages/Settings';
+import { UserManagement } from './pages/UserManagement';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
                     <Route path="agenda" element={<Schedule />} />
                     <Route path="reservas" element={<Packages />} />
                     <Route path="cadastros" element={<Settings />} />
+                    <Route path="usuarios" element={<UserManagement />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
