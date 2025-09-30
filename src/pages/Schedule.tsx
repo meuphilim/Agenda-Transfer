@@ -45,66 +45,64 @@ export const Schedule: React.FC = () => {
 
   const updateResourceStatus = async (items: ScheduleItem[]) => {
     const now = new Date();
-    const busyDrivers = new Set<string>();
-    const busyVehicles = new Set<string>();
-    const completedPackageResources = new Set<string>();
+    const activePackages = new Map<string, {
+      vehicleId: string;
+      driverId: string;
+      status: 'in_progress' | 'confirmed' | 'completed' | 'cancelled';
+      date: Date;
+    }>();
 
+    // Primeiro, mapeia todos os pacotes ativos
     items.forEach(item => {
-      const startTime = item.start_time ? new Date(`${item.scheduled_date}T${item.start_time}`) : null;
-      const endTime = item.end_time ? new Date(`${item.scheduled_date}T${item.end_time}`) : null;
       const scheduleDate = new Date(item.scheduled_date);
       
-      // Verifica se o pacote está em andamento ou agendado para hoje
-      const isActiveToday = (
-        item.packages.status === 'in_progress' || 
-        (item.packages.status === 'confirmed' && isSameDay(scheduleDate, now))
-      );
-
-      // Se o pacote está ativo e tem duração >= 1 hora
-      if (startTime && endTime && isActiveToday) {
-        const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        if (duration >= 1) {
-          busyDrivers.add(item.packages.drivers.id);
-          busyVehicles.add(item.packages.vehicles.id);
-        }
-      }
-
-      // Se o pacote está concluído ou cancelado, registra os recursos para liberar
-      if (item.packages.status === 'completed' || item.packages.status === 'cancelled') {
-        completedPackageResources.add(item.packages.drivers.id);
-        completedPackageResources.add(item.packages.vehicles.id);
+      // Registra o pacote mais recente para cada par motorista/veículo
+      const packageKey = `${item.packages.vehicles.id}-${item.packages.drivers.id}`;
+      const existingPackage = activePackages.get(packageKey);
+      
+      if (!existingPackage || new Date(item.scheduled_date) > existingPackage.date) {
+        activePackages.set(packageKey, {
+          vehicleId: item.packages.vehicles.id,
+          driverId: item.packages.drivers.id,
+          status: item.packages.status as any,
+          date: scheduleDate
+        });
       }
     });
 
-    // Remove recursos de pacotes concluídos/cancelados das listas de ocupados
-    completedPackageResources.forEach(id => {
-      busyDrivers.delete(id);
-      busyVehicles.delete(id);
+    // Separa recursos ocupados e livres
+    const busyVehicles = new Set<string>();
+    const busyDrivers = new Set<string>();
+    const availableVehicles = new Set<string>();
+    const availableDrivers = new Set<string>();
+
+    // Processa cada par de recursos
+    activePackages.forEach((packageInfo, key) => {
+      const isActiveToday = 
+        packageInfo.status === 'in_progress' || 
+        (packageInfo.status === 'confirmed' && isSameDay(packageInfo.date, now));
+
+      if (isActiveToday) {
+        // Se o pacote está ativo, tanto o veículo quanto o motorista estão ocupados
+        busyVehicles.add(packageInfo.vehicleId);
+        busyDrivers.add(packageInfo.driverId);
+      } else if (packageInfo.status === 'completed' || packageInfo.status === 'cancelled') {
+        // Se o pacote está concluído ou cancelado, ambos os recursos estão livres
+        availableVehicles.add(packageInfo.vehicleId);
+        availableDrivers.add(packageInfo.driverId);
+      }
     });
 
-    // Atualiza status dos motoristas
-    const driverUpdates = [];
-    if (busyDrivers.size > 0) {
-      driverUpdates.push(
-        supabase
-          .from('drivers')
-          .update({ status: 'busy' })
-          .in('id', Array.from(busyDrivers))
-      );
-    }
-    
-    // Libera motoristas que não estão mais ocupados
-    driverUpdates.push(
-      supabase
-        .from('drivers')
-        .update({ status: 'available' })
-        .not('id', 'in', busyDrivers.size > 0 ? `(${Array.from(busyDrivers).join(',')})` : '(null)')
-    );
+    // Remove das listas de disponíveis os recursos que estão ocupados
+    busyVehicles.forEach(id => availableVehicles.delete(id));
+    busyDrivers.forEach(id => availableDrivers.delete(id));
 
-    // Atualiza status dos veículos
-    const vehicleUpdates = [];
+    // Prepara as atualizações
+    const updates = [];
+
+    // Atualiza veículos ocupados
     if (busyVehicles.size > 0) {
-      vehicleUpdates.push(
+      updates.push(
         supabase
           .from('vehicles')
           .update({ status: 'in_use' })
@@ -112,16 +110,40 @@ export const Schedule: React.FC = () => {
       );
     }
 
-    // Libera veículos que não estão mais em uso
-    vehicleUpdates.push(
-      supabase
-        .from('vehicles')
-        .update({ status: 'available' })
-        .not('id', 'in', busyVehicles.size > 0 ? `(${Array.from(busyVehicles).join(',')})` : '(null)')
-    );
+    // Atualiza motoristas ocupados
+    if (busyDrivers.size > 0) {
+      updates.push(
+        supabase
+          .from('drivers')
+          .update({ status: 'busy' })
+          .in('id', Array.from(busyDrivers))
+      );
+    }
+
+    // Atualiza veículos disponíveis
+    if (availableVehicles.size > 0) {
+      updates.push(
+        supabase
+          .from('vehicles')
+          .update({ status: 'available' })
+          .in('id', Array.from(availableVehicles))
+      );
+    }
+
+    // Atualiza motoristas disponíveis
+    if (availableDrivers.size > 0) {
+      updates.push(
+        supabase
+          .from('drivers')
+          .update({ status: 'available' })
+          .in('id', Array.from(availableDrivers))
+      );
+    }
 
     // Executa todas as atualizações em paralelo
-    await Promise.all([...driverUpdates, ...vehicleUpdates]);
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
   };
 
   const fetchScheduleData = async () => {
