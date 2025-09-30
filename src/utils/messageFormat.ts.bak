@@ -18,7 +18,7 @@ export const formatScheduleMessage = ({
   driverName,
   date,
   activities,
-}: FormatMessageProps): string => {
+}: FormatMessageProps) => {
   const formattedDate = format(new Date(date), "EEEE, dd 'de' MMMM", { locale: ptBR });
 
   // Ordenar atividades por horário
@@ -31,11 +31,4 @@ export const formatScheduleMessage = ({
   Passeio: ${activity.attractionName}`)
     .join('\n\n');
 
-  return `Olá ${driverName}
-
-Segue sua agenda para ${formattedDate}:
-
-${activitiesText}
-
-Por favor, confirmar o recebimento e a programação.`;
-}
+    return `Olá ${driverName}\n\nSegue sua agenda para ${formattedDate}:\n\n${activitiesText}\n\nPor favor, confirmar o recebimento e a programação.`;;

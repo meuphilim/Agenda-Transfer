@@ -24,6 +24,7 @@ interface Package {
   total_participants: number;
   status: PackageStatus;
   notes: string | null;
+  client_name: string;
   agencies?: { name: string };
   vehicles?: { license_plate: string; model: string };
   drivers?: { name: string };
@@ -38,6 +39,7 @@ interface PackageFormData {
   end_date: string;
   total_participants: number;
   notes: string;
+  client_name: string;
 }
 
 interface PackageAttraction {
@@ -67,6 +69,7 @@ export const Packages: React.FC = () => {
     end_date: '',
     total_participants: 1,
     notes: '',
+    client_name: '',
   });
   const [packageAttractions, setPackageAttractions] = useState<PackageAttraction[]>([]);
 
@@ -178,6 +181,7 @@ export const Packages: React.FC = () => {
       end_date: pkg.end_date,
       total_participants: pkg.total_participants,
       notes: pkg.notes || '',
+      client_name: pkg.client_name || '',
     });
 
     // Carregar atrativos do pacote
@@ -222,6 +226,7 @@ export const Packages: React.FC = () => {
       end_date: '',
       total_participants: 1,
       notes: '',
+      client_name: '',
     });
     setPackageAttractions([]);
   };
@@ -349,6 +354,9 @@ export const Packages: React.FC = () => {
                       {pkg.title}
                     </div>
                     <div className="text-sm text-gray-500">
+                      Cliente: {pkg.client_name}
+                    </div>
+                    <div className="text-sm text-gray-500">
                       {pkg.total_participants} participante{pkg.total_participants !== 1 ? 's' : ''}
                     </div>
                   </td>
@@ -462,6 +470,19 @@ export const Packages: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       value={formData.title}
                       onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome do Cliente *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={formData.client_name}
+                      onChange={(e) => setFormData({...formData, client_name: e.target.value})}
                     />
                   </div>
 
