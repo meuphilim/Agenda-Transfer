@@ -13,6 +13,8 @@ interface Driver {
   status: 'available' | 'busy' | 'unavailable';
   active: boolean;
   created_at: string;
+  category: string;
+  ear: boolean;
 }
 
 interface DriverFormData {
@@ -22,6 +24,8 @@ interface DriverFormData {
   license_number: string;
   license_expiry: string;
   status: 'available' | 'busy' | 'unavailable';
+  category: string;
+  ear: boolean;
 }
 
 export const Drivers: React.FC = () => {
@@ -36,6 +40,8 @@ export const Drivers: React.FC = () => {
     license_number: '',
     license_expiry: '',
     status: 'available',
+    category: 'B',
+    ear: false,
   });
 
   useEffect(() => {
@@ -105,6 +111,8 @@ export const Drivers: React.FC = () => {
       license_number: driver.license_number,
       license_expiry: driver.license_expiry || '',
       status: driver.status,
+      category: driver.category,
+      ear: driver.ear,
     });
     setShowModal(true);
   };
@@ -134,6 +142,8 @@ export const Drivers: React.FC = () => {
       license_number: '',
       license_expiry: '',
       status: 'available',
+      category: 'B',
+      ear: false,
     });
   };
 
@@ -207,6 +217,9 @@ export const Drivers: React.FC = () => {
                   CNH
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Categoria
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -230,6 +243,12 @@ export const Drivers: React.FC = () => {
                     <div className="text-sm text-gray-900">{driver.license_number}</div>
                     <div className="text-sm text-gray-500">
                       Vence: {formatDate(driver.license_expiry)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{driver.category}</div>
+                    <div className="text-sm text-gray-500">
+                      {driver.ear ? 'EAR' : 'Sem EAR'}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -341,6 +360,38 @@ export const Drivers: React.FC = () => {
                   <option value="busy">Ocupado</option>
                   <option value="unavailable">Indisponível</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categoria da CNH *
+                </label>
+                <select
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                >
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                  <option value="E">E</option>
+                  <option value="AB">AB</option>
+                </select>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="ear"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  checked={formData.ear}
+                  onChange={(e) => setFormData({...formData, ear: e.target.checked})}
+                />
+                <label htmlFor="ear" className="ml-2 block text-sm text-gray-700">
+                  Possui EAR (Exerce Atividade Remunerada)
+                </label>
               </div>
               
               <div className="flex justify-end space-x-3 pt-4">
