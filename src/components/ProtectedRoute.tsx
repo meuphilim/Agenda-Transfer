@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, profile, signOut } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -18,8 +18,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       </div>
     );
   }
-
-  const { profile, signOut } = useAuth();
 
   if (!user) {
     return <Login />;

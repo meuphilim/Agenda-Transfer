@@ -8,7 +8,7 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ user: User; session: Session } | void>;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ user: User | null; session: Session | null; }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
@@ -31,33 +31,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      // Log para debug
+      console.log('Profile fetched:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in fetchProfile:', error);
       return null;
     }
-    return data;
   };
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error getting session:', error);
-      } else {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          setProfile(profile);
+      try {
+        setLoading(true);
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          return;
         }
+
+        console.log('Session loaded:', session);
+        
+        if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+          
+          // Carrega o perfil
+          const profile = await fetchProfile(session.user.id);
+          console.log('Initial profile loaded:', profile);
+          setProfile(profile);
+        } else {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Error in getSession:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     getSession();
@@ -65,26 +90,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      console.log('Auth state changed:', _event, session);
+      
       if (session?.user) {
+        setSession(session);
+        setUser(session.user);
+        
+        // Carrega o perfil quando o estado de autenticação muda
         const profile = await fetchProfile(session.user.id);
+        console.log('Profile loaded after auth change:', profile);
         setProfile(profile);
       } else {
+        setSession(null);
+        setUser(null);
         setProfile(null);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      if (data.user) {
+        // Carrega o perfil imediatamente após o login
+        const profile = await fetchProfile(data.user.id);
+        setProfile(profile);
+        console.log('Profile loaded after signin:', profile);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in signIn:', error);
+      throw error;
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
