@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   CalendarDaysIcon, 
@@ -6,7 +6,6 @@ import {
   UserIcon, 
   ClipboardDocumentListIcon,
   CheckCircleIcon,
-  ClockIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
