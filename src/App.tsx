@@ -8,10 +8,7 @@ import { Layout } from './components/Layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Schedule } from './pages/Schedule';
 import { Packages } from './pages/Packages';
-import { Agencies } from './pages/Agencies';
-import { Vehicles } from './pages/Vehicles';
-import { Attractions } from './pages/Attractions';
-import { Drivers } from './pages/Drivers';
+import { Settings } from './pages/Settings';
 
 function App() {
   return (
@@ -24,10 +21,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/agenda" element={<Schedule />} />
                 <Route path="/reservas" element={<Packages />} />
-                <Route path="/agencias" element={<Agencies />} />
-                <Route path="/veiculos" element={<Vehicles />} />
-                <Route path="/atrativos" element={<Attractions />} />
-                <Route path="/motoristas" element={<Drivers />} />
+                <Route path="/cadastros" element={<Settings />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

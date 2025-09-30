@@ -5,9 +5,7 @@ import {
   HomeIcon, 
   CalendarDaysIcon, 
   ClipboardDocumentListIcon,
-  UserGroupIcon,
-  TruckIcon,
-  MapPinIcon,
+  Cog6ToothIcon,
   UserIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
@@ -16,10 +14,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon },
   { name: 'Reservas', href: '/reservas', icon: ClipboardDocumentListIcon },
-  { name: 'Agências', href: '/agencias', icon: UserGroupIcon },
-  { name: 'Veículos', href: '/veiculos', icon: TruckIcon },
-  { name: 'Motoristas', href: '/motoristas', icon: UserIcon },
-  { name: 'Atrativos', href: '/atrativos', icon: MapPinIcon },
+  { name: 'Cadastros', href: '/cadastros', icon: Cog6ToothIcon },
 ];
 
 export const Sidebar: React.FC = () => {
