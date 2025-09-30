@@ -18,8 +18,8 @@ const navigation = [
   { name: 'Reservas', href: '/reservas', icon: ClipboardDocumentListIcon },
   { name: 'Agências', href: '/agencias', icon: UserGroupIcon },
   { name: 'Veículos', href: '/veiculos', icon: TruckIcon },
-  { name: 'Atrativos', href: '/atrativos', icon: MapPinIcon },
   { name: 'Motoristas', href: '/motoristas', icon: UserIcon },
+  { name: 'Atrativos', href: '/atrativos', icon: MapPinIcon },
 ];
 
 export const Sidebar: React.FC = () => {
