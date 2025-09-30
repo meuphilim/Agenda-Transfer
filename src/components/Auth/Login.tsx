@@ -21,11 +21,17 @@ export const Login: React.FC = () => {
         toast.success('Conta criada com sucesso!');
         // Após criar a conta, vamos fazer login automaticamente
         await signIn(email, password);
-        navigate('/');
+        // Pequeno delay para garantir que o estado de autenticação foi atualizado
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 100);
       } else {
         await signIn(email, password);
         toast.success('Login realizado com sucesso!');
-        navigate('/');
+        // Pequeno delay para garantir que o estado de autenticação foi atualizado
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 100);
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao fazer login');

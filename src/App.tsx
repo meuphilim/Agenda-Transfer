@@ -15,16 +15,20 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <ProtectedRoute>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/agenda" element={<Schedule />} />
-                <Route path="/reservas" element={<Packages />} />
-                <Route path="/cadastros" element={<Settings />} />
-              </Routes>
-            </Layout>
-          </ProtectedRoute>
+          <Routes>
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Routes>
+                    <Route index element={<Dashboard />} />
+                    <Route path="agenda" element={<Schedule />} />
+                    <Route path="reservas" element={<Packages />} />
+                    <Route path="cadastros" element={<Settings />} />
+                  </Routes>
+                </Layout>
+              </ProtectedRoute>
+            } />
+          </Routes>
           <ToastContainer
             position="top-right"
             autoClose={3000}
