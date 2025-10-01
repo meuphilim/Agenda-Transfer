@@ -1,6 +1,8 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Auth/Login';
+import { supabase } from '../lib/supabase';
+import { toast } from 'react-toastify';
 import { ExclamationTriangleIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 interface ProtectedRouteProps {
@@ -107,6 +109,38 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
                   className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
                 >
                   Tentar Novamente
+                </button>
+                <button
+                  onClick={async () => {
+                    // Força a criação do perfil
+                    try {
+                      const { data, error } = await supabase
+                        .from('profiles')
+                        .insert([
+                          {
+                            id: user.id,
+                            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',
+                            phone: user.user_metadata?.phone || null,
+                            is_admin: false,
+                            status: 'pending'
+                          }
+                        ])
+                        .select()
+                        .single();
+                      
+                      if (!error && data) {
+                        await refreshProfile();
+                        toast.success('Perfil criado com sucesso!');
+                      } else {
+                        toast.error('Erro ao criar perfil: ' + (error?.message || 'Erro desconhecido'));
+                      }
+                    } catch (error: any) {
+                      toast.error('Erro ao criar perfil: ' + error.message);
+                    }
+                  }}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                >
+                  Criar Perfil Manualmente
                 </button>
                 <button
                   onClick={() => signOut()}

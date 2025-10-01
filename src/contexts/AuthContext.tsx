@@ -52,8 +52,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // Profile doesn't exist, this is normal for new users
-          return null;
+          // Profile doesn't exist, create one for the user
+          console.log('Profile not found, creating new profile for user:', userId);
+          
+          // Try to create a basic profile
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: userId,
+                full_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário',
+                phone: user?.user_metadata?.phone || null,
+                is_admin: false,
+                status: 'pending'
+              }
+            ])
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            return null;
+          }
+          
+          return newProfile;
         }
         console.error('Error fetching profile:', error);
         return null;
@@ -70,7 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       const profile = await fetchProfile(user.id);
       setProfile(profile);
+      return profile;
     }
+    return null;
   }, [user]);
 
   useEffect(() => {
@@ -91,6 +115,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Carrega o perfil
           const profile = await fetchProfile(session.user.id);
           setProfile(profile);
+          
+          // Se não conseguiu carregar o perfil, tenta novamente após um delay
+          if (!profile) {
+            setTimeout(async () => {
+              const retryProfile = await fetchProfile(session.user.id);
+              setProfile(retryProfile);
+            }, 2000);
+          }
         } else {
           setSession(null);
           setUser(null);
@@ -115,6 +147,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Carrega o perfil quando o estado de autenticação muda
         const profile = await fetchProfile(session.user.id);
         setProfile(profile);
+        
+        // Se não conseguiu carregar o perfil, tenta novamente após um delay
+        if (!profile) {
+          setTimeout(async () => {
+            const retryProfile = await fetchProfile(session.user.id);
+            setProfile(retryProfile);
+          }, 2000);
+        }
       } else {
         setSession(null);
         setUser(null);
