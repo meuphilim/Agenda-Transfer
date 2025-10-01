@@ -1,7 +1,18 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { UserProfile } from '../types/database.types';
+
+export type UserStatus = 'pending' | 'active' | 'inactive';
+
+export interface UserProfile {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  is_admin: boolean;
+  status: UserStatus;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +23,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ user: User | null; session: Session | null; }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,42 +41,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lastActivity, setLastActivity] = useState(Date.now());
-
-  const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setProfile(null);
-  }, []);
-
-  useEffect(() => {
-    const checkTimeout = () => {
-      if (Date.now() - lastActivity > 5 * 60 * 1000) {
-        signOut();
-      }
-    };
-
-    const intervalId = setInterval(checkTimeout, 60 * 1000); // Check every minute
-
-    return () => clearInterval(intervalId);
-  }, [lastActivity, signOut]);
-
-  const resetActivity = useCallback(() => {
-    setLastActivity(Date.now());
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('mousemove', resetActivity);
-    window.addEventListener('keydown', resetActivity);
-    window.addEventListener('scroll', resetActivity);
-
-    return () => {
-      window.removeEventListener('mousemove', resetActivity);
-      window.removeEventListener('keydown', resetActivity);
-      window.removeEventListener('scroll', resetActivity);
-    };
-  }, [resetActivity]);
-
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -75,18 +51,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, this is normal for new users
+          return null;
+        }
         console.error('Error fetching profile:', error);
         return null;
       }
 
-      // Log para debug
-      console.log('Profile fetched:', data);
       return data;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
       return null;
     }
   };
+
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      const profile = await fetchProfile(user.id);
+      setProfile(profile);
+    }
+  }, [user]);
 
   useEffect(() => {
     const getSession = async () => {
@@ -99,15 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        console.log('Session loaded:', session);
-        
         if (session?.user) {
           setSession(session);
           setUser(session.user);
           
           // Carrega o perfil
           const profile = await fetchProfile(session.user.id);
-          console.log('Initial profile loaded:', profile);
           setProfile(profile);
         } else {
           setSession(null);
@@ -126,15 +108,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('Auth state changed:', _event, session);
-      
       if (session?.user) {
         setSession(session);
         setUser(session.user);
         
         // Carrega o perfil quando o estado de autenticação muda
         const profile = await fetchProfile(session.user.id);
-        console.log('Profile loaded after auth change:', profile);
         setProfile(profile);
       } else {
         setSession(null);
@@ -144,6 +123,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -158,7 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Carrega o perfil imediatamente após o login
         const profile = await fetchProfile(data.user.id);
         setProfile(profile);
-        console.log('Profile loaded after signin:', profile);
       }
 
       return data;
@@ -169,18 +160,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone: phone,
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone,
+          },
         },
-      },
-    });
-    if (error) throw error;
-    return data;
+      });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error in signUp:', error);
+      throw error;
+    }
   };
 
   const value = {
@@ -192,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     isAdmin: profile?.is_admin ?? false,
+    refreshProfile,
   };
 
   return (
