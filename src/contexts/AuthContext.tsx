@@ -65,6 +65,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       logger.log(`Buscando profile para usuário: ${userId}`);
       
+      // Verifica se userId é válido
+      if (!userId) {
+        logger.error('userId é null ou undefined');
+        return null;
+      }
+      
       // Busca profile existente
       const { data, error } = await supabase
         .from('profiles')
@@ -118,9 +124,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return existingProfile;
           }
           
-          // Erro de RLS - retorna null para não travar
-          if (createError.code === '42501' || createError.message?.includes('infinite recursion')) {
-            logger.error('Erro de RLS detectado, retornando null');
+          // Erro de RLS ou outro problema
+          if (createError.code === '42501') {
+            logger.error('Erro de permissão/RLS:', createError);
             return null;
           }
           
@@ -309,44 +315,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       logger.log('Attempting sign up...');
       
-      const { error, data } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone: phone,
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      logger.log('Sign up successful:', data.user?.id);
-      
-      return data;
-    } catch (error) {
-      logger.error('Error in signUp:', error);
-      throw error;
-    }
-  };
-
-  const value = {
-    user,
-    session,
-    profile,
-    loading,
-    accountSetup,
-    signIn,
-    signUp,
-    signOut,
-    isAdmin: profile?.is_admin ?? false,
-    refreshProfile,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+      const { error,
