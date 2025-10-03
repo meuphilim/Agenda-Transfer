@@ -11,7 +11,6 @@ export const AccountSetup: React.FC = () => {
   useEffect(() => {
     const setupAccount = async () => {
       const interval = setInterval(async () => {
-        // Atualiza progresso (máx 90% até completar)
         setProgress(prev => {
           if (prev >= 90) return 90;
           return prev + 10;
@@ -21,19 +20,16 @@ export const AccountSetup: React.FC = () => {
           const profile = await refreshProfile();
           
           if (profile) {
-            // Sucesso! Completa progresso
             setProgress(100);
             setError(null);
             clearInterval(interval);
             
-            // Aguarda um momento e recarrega
             setTimeout(() => {
               window.location.reload();
             }, 1000);
             return;
           }
           
-          // Incrementa retry
           setRetryCount(prev => {
             const newCount = prev + 1;
             if (newCount >= maxRetries) {
@@ -111,31 +107,4 @@ export const AccountSetup: React.FC = () => {
             <>
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
                 <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">Erro na Configuração</h2>
-              <p className="mt-2 text-red-600">
-                {error}
-              </p>
-              <div className="mt-6 space-y-3">
-                <button
-                  onClick={handleRetry}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Tentar Novamente
-                </button>
-                <button
-                  onClick={signOut}
-                  className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Sair e Tentar Depois
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0
