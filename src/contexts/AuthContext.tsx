@@ -353,7 +353,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('Attempting sign up...');
       
       const { error,
+      }
 
       // Após cadastro, usuário precisa completar perfil
+    }
     needsProfileCompletion,
     completeProfile,
+  }
+}
