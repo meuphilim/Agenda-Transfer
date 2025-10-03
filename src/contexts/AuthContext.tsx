@@ -37,7 +37,7 @@ export const useAuth = () => {
   return context;
 };
 
-// Logger condicional
+// Logger condicional para desenvolvimento
 const logger = {
   log: (...args: any[]) => {
     if (import.meta.env.DEV) {
@@ -56,35 +56,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accountSetup, setAccountSetup] = useState(false);
-  const fetchProfileRef = useRef<NodeJS.Timeout | null>(null);
+  const [accountSetup, setAccountSetup] = useState(true);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
-  // Função para buscar/criar profile SEM dependência de estado externo
-  const fetchProfile = async (userId: string, userData: User | null) => {
-    logger.log(`Fetching profile for user: ${userId}`);
-    
+  // Função corrigida: remove dependência do estado user
+  const fetchProfile = async (userId: string, userData?: User | null) => {
     try {
-      // Primeiro: tenta buscar o profile existente
+      logger.log(`Buscando profile para usuário: ${userId}`);
+      
+      // Busca profile existente
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
+      // Profile encontrado
       if (data) {
-        logger.log('Profile found:', data);
+        logger.log('Profile encontrado:', data);
         return data;
       }
 
-      // Profile não existe - precisa criar
+      // Profile não existe - tenta criar
       if (error?.code === 'PGRST116' || !data) {
-        logger.log('Profile not found, creating new profile');
+        logger.log('Profile não encontrado, criando novo...');
         
-        // Prepara dados para criação
+        // Usa userData passado como parâmetro
         const userMetadata = userData?.user_metadata || {};
         const email = userData?.email || '';
         
-        // Dados padrão para novo profile
         const profileData = {
           id: userId,
           full_name: userMetadata.full_name || email.split('@')[0] || 'Usuário',
@@ -95,9 +96,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updated_at: new Date().toISOString()
         };
 
-        logger.log('Creating profile with data:', profileData);
+        logger.log('Criando profile com dados:', profileData);
 
-        // Tenta criar o profile
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert([profileData])
@@ -105,39 +105,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (createError) {
-          logger.error('Error creating profile:', createError);
+          logger.error('Erro ao criar profile:', createError);
           
-          // Se já existe (concorrente), busca novamente
+          // Se já existe (concorrência), busca novamente
           if (createError.code === '23505') {
-            logger.log('Profile already exists, fetching again');
+            logger.log('Profile já existe, buscando novamente...');
             const { data: existingProfile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', userId)
               .single();
-            
             return existingProfile;
+          }
+          
+          // Erro de RLS - retorna null para não travar
+          if (createError.code === '42501' || createError.message?.includes('infinite recursion')) {
+            logger.error('Erro de RLS detectado, retornando null');
+            return null;
           }
           
           return null;
         }
 
-        logger.log('Profile created successfully:', newProfile);
+        logger.log('Profile criado com sucesso:', newProfile);
         return newProfile;
       }
 
-      // Outro erro qualquer
-      logger.error('Error fetching profile:', error);
+      // Outros erros
+      logger.error('Erro ao buscar profile:', error);
       return null;
     } catch (error) {
-      logger.error('Exception in fetchProfile:', error);
+      logger.error('Exceção em fetchProfile:', error);
       return null;
     }
   };
 
   const refreshProfile = useCallback(async () => {
     if (user) {
-      logger.log('Refreshing profile for user:', user.id);
       const profile = await fetchProfile(user.id, user);
       setProfile(profile);
       return profile;
@@ -145,20 +149,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   }, [user]);
 
-  // Estado de configuração de conta
-  const checkAccountSetup = useCallback(async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', userId)
-        .single();
-
-      return !error && !!data;
-    } catch {
-      return false;
+  // Controle de retry inteligente
+  const setupAccountWithRetry = async (userId: string, userData: User | null) => {
+    retryCountRef.current = 0;
+    
+    while (retryCountRef.current < maxRetries) {
+      try {
+        const profile = await fetchProfile(userId, userData);
+        
+        if (profile) {
+          logger.log('Account setup completed successfully');
+          return profile;
+        }
+        
+        // Incrementa retry e aguarda
+        retryCountRef.current++;
+        logger.log(`Retry attempt ${retryCountRef.current}/${maxRetries}`);
+        
+        if (retryCountRef.current < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
+        }
+      } catch (error) {
+        logger.error('Error in setupAccountWithRetry:', error);
+        retryCountRef.current++;
+        if (retryCountRef.current < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
+        }
+      }
     }
-  }, []);
+    
+    logger.error('Max retries reached, returning null');
+    return null;
+  };
 
   useEffect(() => {
     const getSession = async () => {
@@ -180,38 +202,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(session);
           setUser(session.user);
 
-          // Verifica se a conta está configurada
-          const isSetup = await checkAccountSetup(session.user.id);
+          // Tenta configurar account com retry controlado
+          const profile = await setupAccountWithRetry(session.user.id, session.user);
           
-          if (!isSetup) {
-            logger.log('Account not setup, configuring...');
+          if (!profile) {
+            // Profile não foi criado - mostra tela de configuração
             setAccountSetup(false);
-            
-            // Tenta configurar o profile
-            const profile = await fetchProfile(session.user.id, session.user);
-            
-            if (profile) {
-              setProfile(profile);
-              setAccountSetup(true);
-              logger.log('Account setup completed');
-            } else {
-              logger.error('Failed to setup account');
-              // Não fica em loop - permite continuar mesmo sem profile
-              setAccountSetup(true);
-            }
+            logger.log('Account setup failed, will show setup screen');
           } else {
-            logger.log('Account already setup, loading profile...');
-            setAccountSetup(true);
-            
-            // Busca o profile existente
-            const profile = await fetchProfile(session.user.id, session.user);
             setProfile(profile);
+            setAccountSetup(true);
+            logger.log('Account setup completed');
           }
         } else {
           setSession(null);
           setUser(null);
           setProfile(null);
-          setAccountSetup(false);
+          setAccountSetup(true);
         }
       } catch (error) {
         logger.error('Error in getSession:', error);
@@ -224,46 +231,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      logger.log('Auth state changed:', event, session);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      logger.log('Auth state changed:', _event, session);
 
       if (session?.user) {
         setSession(session);
         setUser(session.user);
 
-        // Verifica configuração da conta
-        const isSetup = await checkAccountSetup(session.user.id);
+        const profile = await setupAccountWithRetry(session.user.id, session.user);
         
-        if (!isSetup) {
+        if (!profile) {
           setAccountSetup(false);
-          const profile = await fetchProfile(session.user.id, session.user);
-          
-          if (profile) {
-            setProfile(profile);
-            setAccountSetup(true);
-          } else {
-            setAccountSetup(true); // Evita loop
-          }
         } else {
-          setAccountSetup(true);
-          const profile = await fetchProfile(session.user.id, session.user);
           setProfile(profile);
+          setAccountSetup(true);
         }
       } else {
         setSession(null);
         setUser(null);
         setProfile(null);
-        setAccountSetup(false);
+        setAccountSetup(true);
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-      if (fetchProfileRef.current) {
-        clearTimeout(fetchProfileRef.current);
-      }
-    };
-  }, [checkAccountSetup]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signOut = useCallback(async () => {
     try {
@@ -274,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
-      setAccountSetup(false);
+      setAccountSetup(true);
       logger.log('Sign out successful');
     } catch (error) {
       logger.error('Error signing out:', error);
@@ -296,9 +288,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('Sign in successful:', data.user?.id);
 
       if (data.user) {
-        // Aguarda configuração do profile
-        const profile = await fetchProfile(data.user.id, data.user);
+        const profile = await setupAccountWithRetry(data.user.id, data.user);
         setProfile(profile);
+        
+        if (!profile) {
+          setAccountSetup(false);
+        } else {
+          setAccountSetup(true);
+        }
       }
 
       return data;
