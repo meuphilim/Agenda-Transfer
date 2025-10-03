@@ -87,7 +87,14 @@ export const CompleteProfile: React.FC = () => {
       await completeProfile(formData.fullName, formData.phone);
       toast.success('Perfil completado com sucesso! Aguarde a aprovação do administrador.');
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao completar perfil');
+      if (error.message?.includes('duplicate key')) {
+        toast.error('Perfil já existe. Recarregando página...');
+        setTimeout(() => window.location.reload(), 2000);
+      } else if (error.message?.includes('permission denied')) {
+        toast.error('Erro de permissão. Tente novamente ou contate o suporte.');
+      } else {
+        toast.error(error.message || 'Erro ao completar perfil');
+      }
     } finally {
       setLoading(false);
     }

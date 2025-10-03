@@ -110,8 +110,7 @@ export const Login: React.FC = () => {
       if (isSignUp) {
         await signUp(formData.email, formData.password, formData.fullName, formData.phone);
         toast.success('Conta criada com sucesso! Aguarde a aprovação do administrador.');
-        setIsSignUp(false);
-        setFormData({ email: formData.email, password: '', fullName: '', phone: '' });
+        // Não resetar o formulário nem mudar para login - o usuário será redirecionado automaticamente
       } else {
         await signIn(formData.email, formData.password);
         toast.success('Login realizado com sucesso!');
@@ -121,6 +120,9 @@ export const Login: React.FC = () => {
         toast.error('Verifique seu email para confirmar a conta');
       } else if (error.message?.includes('invalid_credentials')) {
         toast.error('Email ou senha incorretos');
+      } else if (error.message?.includes('User already registered')) {
+        toast.error('Este email já está cadastrado. Tente fazer login.');
+        setIsSignUp(false);
       } else {
         toast.error(error.message || (isSignUp ? 'Erro ao criar conta' : 'Erro ao fazer login'));
       }

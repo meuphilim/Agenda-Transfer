@@ -214,14 +214,21 @@ export const UserManagement = () => {
       if (profilesError) throw profilesError;
 
       // Buscar emails dos usuários
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) {
-        console.warn('Não foi possível carregar emails dos usuários:', authError);
+      let authUsers: any[] = [];
+      try {
+        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
+        if (authError) {
+          console.warn('Não foi possível carregar emails dos usuários:', authError);
+        } else {
+          authUsers = users || [];
+        }
+      } catch (error) {
+        console.warn('Erro ao acessar admin API:', error);
       }
 
       const usersWithEmail = profiles?.map(profile => ({
         ...profile,
-        email: authUsers?.find(user => user.id === profile.id)?.email || 'Email não disponível'
+        email: authUsers.find(user => user.id === profile.id)?.email || 'Email não disponível'
       }));
 
       setUsers(usersWithEmail || []);

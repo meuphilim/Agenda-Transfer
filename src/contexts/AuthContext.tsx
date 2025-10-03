@@ -352,10 +352,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       logger.log('Attempting sign up...');
       
-      const { error,
-      }
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone,
+          }
+        }
+      });
+      
+      if (error) throw error;
 
+      logger.log('Sign up successful:', data.user?.id);
+      
       // Após cadastro, usuário precisa completar perfil
+      if (data.user) {
+        setNeedsProfileCompletion(true);
+      }
+      
+      return data;
     }
     needsProfileCompletion,
     completeProfile,
