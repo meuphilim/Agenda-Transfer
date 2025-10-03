@@ -1,4 +1,3 @@
-// src/components/ProtectedRoute.tsx
 import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Auth/Login';
 import { AccountSetup } from './Auth/AccountSetup';
@@ -24,12 +23,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Login />;
   }
 
-  // NOVO: Verifica se a conta está em configuração
+  // NOVO: Verifica se a conta está em processo de configuração
   if (!accountSetup) {
     return <AccountSetup />;
   }
 
-  // Resto do código permanece igual...
   if (profile?.status === 'pending') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
