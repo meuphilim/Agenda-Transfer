@@ -19,7 +19,7 @@ const getNavigation = (isAdmin: boolean): NavigationItem[] => [
   { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon },
   { name: 'Reservas', href: '/reservas', icon: ClipboardDocumentListIcon },
   { name: 'Cadastros', href: '/cadastros', icon: Cog6ToothIcon },
-  ...(isAdmin ? [{ name: 'Usuários', href: '/usuarios', icon: UserGroupIcon }] : []),
+  ...(isAdmin ? [{ name: 'Gerenciar Usuários', href: '/usuarios', icon: UserGroupIcon }] : []),
 ];
 
 interface NavigationItem {

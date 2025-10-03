@@ -24,6 +24,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ user: User | null; session: Session | null; }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<UserProfile>;
   refreshProfile: () => Promise<void>;
 }
 

@@ -1,8 +1,8 @@
 import { Fragment, useState } from 'react';
+import { useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
-import { supabase } from '../../lib/supabase';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ProfileModalProps {

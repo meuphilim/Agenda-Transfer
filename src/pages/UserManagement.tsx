@@ -195,6 +195,7 @@ export const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const { isAdmin } = useAuth();
 
   useEffect(() => {
@@ -239,6 +240,37 @@ export const UserManagement = () => {
     }
   };
 
+  const deleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      // Primeiro remove o perfil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (profileError) throw profileError;
+
+      // Tenta remover do auth (pode falhar se não tiver permissão admin)
+      try {
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+        if (authError) {
+          console.warn('Não foi possível remover usuário do auth:', authError);
+        }
+      } catch (error) {
+        console.warn('Erro ao remover usuário do auth:', error);
+      }
+
+      setUsers(users.filter(user => user.id !== userId));
+      toast.success('Usuário excluído com sucesso!');
+      setShowDetailsModal(false);
+    } catch (error: any) {
+      toast.error('Erro ao excluir usuário: ' + error.message);
+    }
+  };
   const updateUserStatus = async (userId: string, status: UserStatus) => {
     try {
       const { error } = await supabase
@@ -306,8 +338,13 @@ export const UserManagement = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    if (filter === 'all') return true;
-    return user.status === filter;
+    const matchesFilter = filter === 'all' || user.status === filter;
+    const matchesSearch = searchTerm === '' || 
+      user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone?.includes(searchTerm);
+    
+    return matchesFilter && matchesSearch;
   });
 
   const getFilterCount = (status: 'all' | UserStatus) => {
@@ -508,6 +545,7 @@ export const UserManagement = () => {
         }}
         onStatusUpdate={updateUserStatus}
         onAdminToggle={updateUserAdmin}
+        onDeleteUser={deleteUser}
       />
     </div>
   );
