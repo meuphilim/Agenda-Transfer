@@ -40,12 +40,12 @@ function App() {
             rtl={false}
             pauseOnFocusLoss
             draggable
-            pauseOnHover
+            pauseOnHover"
             theme="light"
           />
         </div>
       </Router>
-    </AuthProvider> 
+    </AuthProvider>
   );
 }
 
