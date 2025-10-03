@@ -1,13 +1,200 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { UserProfile, UserStatus } from '../types/database.types';
+import { UserStatus } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  UserGroupIcon, 
+  CheckCircleIcon, 
+  XCircleIcon, 
+  ClockIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon
+} from '@heroicons/react/24/outline';
+
+interface UserProfile {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  is_admin: boolean;
+  status: UserStatus;
+  created_at: string;
+  updated_at: string;
+  email?: string;
+}
+
+interface UserDetailsModalProps {
+  user: UserProfile | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onStatusUpdate: (userId: string, status: UserStatus) => void;
+  onAdminToggle: (userId: string, isAdmin: boolean) => void;
+}
+
+const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ 
+  user, 
+  isOpen, 
+  onClose, 
+  onStatusUpdate,
+  onAdminToggle 
+}) => {
+  if (!isOpen || !user) return null;
+
+  const getStatusIcon = (status: UserStatus) => {
+    switch (status) {
+      case 'active':
+        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+      case 'inactive':
+        return <XCircleIcon className="h-5 w-5 text-red-500" />;
+      case 'pending':
+        return <ClockIcon className="h-5 w-5 text-yellow-500" />;
+      default:
+        return <ClockIcon className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const getStatusText = (status: UserStatus) => {
+    switch (status) {
+      case 'active': return 'Ativo';
+      case 'inactive': return 'Inativo';
+      case 'pending': return 'Pendente';
+      default: return status;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">
+              Detalhes do Usuário
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XCircleIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
+              <p className="mt-1 text-sm text-gray-900">{user.full_name}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <p className="mt-1 text-sm text-gray-900">{user.email}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Telefone</label>
+              <p className="mt-1 text-sm text-gray-900">{user.phone || 'Não informado'}</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Status Atual</label>
+              <div className="mt-1 flex items-center">
+                {getStatusIcon(user.status)}
+                <span className="ml-2 text-sm text-gray-900">{getStatusText(user.status)}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Tipo de Usuário</label>
+              <p className="mt-1 text-sm text-gray-900">
+                {user.is_admin ? 'Administrador' : 'Usuário'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Data de Cadastro</label>
+              <p className="mt-1 text-sm text-gray-900">
+                {new Date(user.created_at).toLocaleDateString('pt-BR')}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t pt-6">
+            <h4 className="text-sm font-medium text-gray-900 mb-4">Ações</h4>
+            
+            <div className="space-y-3">
+              {/* Ações de Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Alterar Status</label>
+                <div className="flex space-x-2">
+                  {user.status !== 'active' && (
+                    <button
+                      onClick={() => onStatusUpdate(user.id, 'active')}
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircleIcon className="h-4 w-4 mr-1" />
+                      Ativar
+                    </button>
+                  )}
+                  {user.status !== 'inactive' && (
+                    <button
+                      onClick={() => onStatusUpdate(user.id, 'inactive')}
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                    >
+                      <XCircleIcon className="h-4 w-4 mr-1" />
+                      Desativar
+                    </button>
+                  )}
+                  {user.status !== 'pending' && (
+                    <button
+                      onClick={() => onStatusUpdate(user.id, 'pending')}
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700"
+                    >
+                      <ClockIcon className="h-4 w-4 mr-1" />
+                      Pendente
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Toggle Admin */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Privilégios</label>
+                <button
+                  onClick={() => onAdminToggle(user.id, !user.is_admin)}
+                  className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white ${
+                    user.is_admin 
+                      ? 'bg-orange-600 hover:bg-orange-700' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  <UserGroupIcon className="h-4 w-4 mr-1" />
+                  {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 export const UserManagement = () => {
-  const [users, setUsers] = useState<(UserProfile & { email?: string })[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
   const { isAdmin } = useAuth();
 
   useEffect(() => {
@@ -27,12 +214,14 @@ export const UserManagement = () => {
       if (profilesError) throw profilesError;
 
       // Buscar emails dos usuários
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      if (authError) throw authError;
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      if (authError) {
+        console.warn('Não foi possível carregar emails dos usuários:', authError);
+      }
 
       const usersWithEmail = profiles?.map(profile => ({
         ...profile,
-        email: authUsers.users.find(user => user.id === profile.id)?.email
+        email: authUsers?.find(user => user.id === profile.id)?.email || 'Email não disponível'
       }));
 
       setUsers(usersWithEmail || []);
@@ -62,15 +251,77 @@ export const UserManagement = () => {
     }
   };
 
+  const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_admin: isAdmin })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, is_admin: isAdmin } : user
+      ));
+
+      toast.success(`Usuário ${isAdmin ? 'promovido a' : 'removido de'} administrador!`);
+      setShowDetailsModal(false);
+    } catch (error: any) {
+      toast.error('Erro ao atualizar privilégios: ' + error.message);
+    }
+  };
+
+  const handleViewUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setShowDetailsModal(true);
+  };
+
+  const getStatusColor = (status: UserStatus) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'inactive':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status: UserStatus) => {
+    switch (status) {
+      case 'active': return 'Ativo';
+      case 'pending': return 'Pendente';
+      case 'inactive': return 'Inativo';
+      default: return status;
+    }
+  };
+
+  const filteredUsers = users.filter(user => {
+    if (filter === 'all') return true;
+    return user.status === filter;
+  });
+
+  const getFilterCount = (status: 'all' | UserStatus) => {
+    if (status === 'all') return users.length;
+    return users.filter(user => user.status === status).length;
+  };
+
   if (!isAdmin) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-red-600">
-          Acesso Negado
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Você não tem permissão para acessar esta página.
-        </p>
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+            <XCircleIcon className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-red-600">
+            Acesso Negado
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Você não tem permissão para acessar esta página.
+          </p>
+        </div>
       </div>
     );
   }
@@ -85,19 +336,45 @@ export const UserManagement = () => {
 
   return (
     <div className="p-6">
-      <div className="sm:flex sm:items-center">
+      <div className="mb-6 flex justify-between items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Gerenciamento de Usuários</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Lista de todos os usuários do sistema e seus status
+            Gerencie usuários, status e permissões do sistema
           </p>
         </div>
       </div>
+
+      {/* Filtros */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { key: 'all', label: 'Todos', count: getFilterCount('all') },
+              { key: 'pending', label: 'Pendentes', count: getFilterCount('pending') },
+              { key: 'active', label: 'Ativos', count: getFilterCount('active') },
+              { key: 'inactive', label: 'Inativos', count: getFilterCount('inactive') },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key as any)}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  filter === tab.key
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
       
-      <div className="mt-8 flex flex-col">
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle">
-            <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
+            <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
@@ -116,13 +393,16 @@ export const UserManagement = () => {
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Tipo
                     </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Cadastro
+                    </th>
                     <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6 lg:pr-8">
                       <span className="sr-only">Ações</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <tr key={user.id}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
                         {user.full_name}
@@ -131,56 +411,97 @@ export const UserManagement = () => {
                         {user.email}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {user.phone}
+                        {user.phone || '-'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                          ${user.status === 'active' ? 'bg-green-100 text-green-800' : ''}
-                          ${user.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-                          ${user.status === 'inactive' ? 'bg-red-100 text-red-800' : ''}
-                        `}>
-                          {user.status === 'active' ? 'Ativo' : ''}
-                          {user.status === 'pending' ? 'Pendente' : ''}
-                          {user.status === 'inactive' ? 'Inativo' : ''}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                          {getStatusText(user.status)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {user.is_admin ? 'Administrador' : 'Usuário'}
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.is_admin ? 'Admin' : 'Usuário'}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {new Date(user.created_at).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 lg:pr-8">
-                        {user.status === 'pending' && (
+                        <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => updateUserStatus(user.id, 'active')}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
+                            onClick={() => handleViewUser(user)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                            title="Ver detalhes"
                           >
-                            Aprovar
+                            <EyeIcon className="h-4 w-4" />
                           </button>
-                        )}
-                        {user.status === 'active' && (
-                          <button
-                            onClick={() => updateUserStatus(user.id, 'inactive')}
-                            className="text-red-600 hover:text-red-900 mr-4"
-                          >
-                            Desativar
-                          </button>
-                        )}
-                        {user.status === 'inactive' && (
-                          <button
-                            onClick={() => updateUserStatus(user.id, 'active')}
-                            className="text-green-600 hover:text-green-900 mr-4"
-                          >
-                            Reativar
-                          </button>
-                        )}
+                          
+                          {user.status === 'pending' && (
+                            <button
+                              onClick={() => updateUserStatus(user.id, 'active')}
+                              className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                              title="Aprovar usuário"
+                            >
+                              <CheckCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          {user.status === 'active' && (
+                            <button
+                              onClick={() => updateUserStatus(user.id, 'inactive')}
+                              className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                              title="Desativar usuário"
+                            >
+                              <XCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          {user.status === 'inactive' && (
+                            <button
+                              onClick={() => updateUserStatus(user.id, 'active')}
+                              className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                              title="Reativar usuário"
+                            >
+                              <CheckCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-12">
+                  <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {filter === 'all' 
+                      ? 'Não há usuários cadastrados no sistema.'
+                      : `Não há usuários com status "${getStatusText(filter as UserStatus)}".`
+                    }
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modal de Detalhes */}
+      <UserDetailsModal
+        user={selectedUser}
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedUser(null);
+        }}
+        onStatusUpdate={updateUserStatus}
+        onAdminToggle={updateUserAdmin}
+      />
     </div>
   );
 };

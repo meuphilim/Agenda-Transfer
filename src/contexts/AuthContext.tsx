@@ -19,12 +19,13 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
-  accountSetup: boolean;
+  needsProfileCompletion: boolean;
   signIn: (email: string, password: string) => Promise<{ user: User; session: Session } | void>;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ user: User | null; session: Session | null; }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   refreshProfile: () => Promise<void>;
+  completeProfile: (fullName: string, phone: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,11 +57,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accountSetup, setAccountSetup] = useState(true);
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
 
-  // Função corrigida: remove dependência do estado user
+  // Função para buscar perfil existente (não cria automaticamente)
   const fetchProfile = async (userId: string, userData?: User | null) => {
     try {
       logger.log(`Buscando profile para usuário: ${userId}`);
@@ -83,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logger.log('Profile encontrado:', data);
         return data;
       }
-
+      // Se não encontrou, indica que precisa completar perfil
       // Profile não existe - tenta criar
       if (error?.code === 'PGRST116' || !data) {
         logger.log('Profile não encontrado, criando novo...');
@@ -134,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         logger.log('Profile criado com sucesso:', newProfile);
-        return newProfile;
+        logger.log('Profile não encontrado - usuário precisa completar perfil');
       }
 
       // Outros erros
@@ -146,10 +147,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Função para completar perfil do usuário
+  const completeProfile = useCallback(async (fullName: string, phone: string) => {
+    if (!user) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    try {
+      logger.log('Completando perfil do usuário:', user.id);
+
+      const profileData = {
+        id: user.id,
+        full_name: fullName,
+        phone: phone,
+        is_admin: false,
+        status: 'pending' as UserStatus,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: newProfile, error } = await supabase
+        .from('profiles')
+        .insert([profileData])
+        .select()
+        .single();
+
+      if (error) {
+        logger.error('Erro ao criar profile:', error);
+        throw new Error('Erro ao completar perfil: ' + error.message);
+      }
+
+      logger.log('Profile criado com sucesso:', newProfile);
+      setProfile(newProfile);
+      setNeedsProfileCompletion(false);
+    } catch (error) {
+      logger.error('Erro em completeProfile:', error);
+      throw error;
+    }
+  }, [user]);
+
   const refreshProfile = useCallback(async () => {
     if (user) {
       const profile = await fetchProfile(user.id, user);
       setProfile(profile);
+      setNeedsProfileCompletion(!profile);
       return profile;
     }
     return null;
@@ -175,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (retryCountRef.current < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
         }
-      } catch (error) {
+          // Busca perfil existente
         logger.error('Error in setupAccountWithRetry:', error);
         retryCountRef.current++;
         if (retryCountRef.current < maxRetries) {
@@ -212,19 +253,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const profile = await setupAccountWithRetry(session.user.id, session.user);
           
           if (!profile) {
-            // Profile não foi criado - mostra tela de configuração
-            setAccountSetup(false);
+            setNeedsProfileCompletion(true);
+            logger.log('Profile não encontrado - redirecionando para completar perfil');
             logger.log('Account setup failed, will show setup screen');
           } else {
             setProfile(profile);
-            setAccountSetup(true);
+            setNeedsProfileCompletion(false);
             logger.log('Account setup completed');
           }
         } else {
           setSession(null);
           setUser(null);
           setProfile(null);
-          setAccountSetup(true);
+          setNeedsProfileCompletion(false);
         }
       } catch (error) {
         logger.error('Error in getSession:', error);
@@ -247,16 +288,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = await setupAccountWithRetry(session.user.id, session.user);
         
         if (!profile) {
-          setAccountSetup(false);
+          setNeedsProfileCompletion(true);
         } else {
           setProfile(profile);
-          setAccountSetup(true);
+          setNeedsProfileCompletion(false);
         }
       } else {
         setSession(null);
         setUser(null);
         setProfile(null);
-        setAccountSetup(true);
+        setNeedsProfileCompletion(false);
       }
     });
 
@@ -272,7 +313,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
-      setAccountSetup(true);
+      setNeedsProfileCompletion(false);
       logger.log('Sign out successful');
     } catch (error) {
       logger.error('Error signing out:', error);
@@ -297,11 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = await setupAccountWithRetry(data.user.id, data.user);
         setProfile(profile);
         
-        if (!profile) {
-          setAccountSetup(false);
-        } else {
-          setAccountSetup(true);
-        }
+        setNeedsProfileCompletion(!profile);
       }
 
       return data;
@@ -316,3 +353,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('Attempting sign up...');
       
       const { error,
+
+      // Após cadastro, usuário precisa completar perfil
+    needsProfileCompletion,
+    completeProfile,

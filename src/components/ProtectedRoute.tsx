@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.tsx
 import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Auth/Login';
-import { AccountSetup } from './Auth/AccountSetup';
+import { CompleteProfile } from './Auth/CompleteProfile';
 import { Navigate, useLocation } from 'react-router-dom';
 
 interface ProtectedRouteProps {
@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, loading, profile, signOut, accountSetup } = useAuth();
+  const { user, loading, profile, signOut, needsProfileCompletion } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -24,9 +24,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Login />;
   }
 
-  // NOVO: Verifica se a conta está em configuração
-  if (!accountSetup) {
-    return <AccountSetup />;
+  // Verifica se precisa completar perfil
+  if (needsProfileCompletion) {
+    return <CompleteProfile />;
   }
 
   // Resto do código permanece igual...
