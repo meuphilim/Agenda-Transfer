@@ -20,12 +20,14 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   accountSetup: boolean;
+  needsProfileCompletion: boolean;
   signIn: (email: string, password: string) => Promise<{ user: User; session: Session } | void>;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ user: User | null; session: Session | null; }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   updateProfile: (updates: Partial<UserProfile>) => Promise<UserProfile>;
-  refreshProfile: () => Promise<void>;
+  completeProfile: (fullName: string, phone: string) => Promise<void>;
+  refreshProfile: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -191,6 +193,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return null;
   }, [user]);
+
+  const updateProfile = async (updates: Partial<UserProfile>): Promise<UserProfile> => {
+    if (!user) throw new Error('No user logged in');
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Failed to update profile');
+
+    setProfile(data);
+    return data;
+  };
+
+  const completeProfile = async (fullName: string, phone: string): Promise<void> => {
+    if (!user) throw new Error('No user logged in');
+
+    logger.log('Completing profile for user:', user.id);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        full_name: fullName,
+        phone: phone,
+        is_admin: false,
+        status: 'pending' as UserStatus,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      logger.error('Error completing profile:', error);
+      throw error;
+    }
+
+    if (data) {
+      logger.log('Profile completed successfully:', data);
+      setProfile(data);
+      setAccountSetup(true);
+    }
+  };
 
   // Controle de retry inteligente com validação
   const setupAccountWithRetry = async (userId: string, userData: User | null) => {
@@ -411,10 +459,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     loading,
     accountSetup,
+    needsProfileCompletion: user !== null && profile === null && !loading,
     signIn,
     signUp,
     signOut,
     isAdmin: profile?.is_admin ?? false,
+    updateProfile,
+    completeProfile,
     refreshProfile,
   };
 
