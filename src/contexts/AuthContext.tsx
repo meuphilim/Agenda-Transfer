@@ -63,23 +63,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const retryCountRef = useRef(0);
   const maxRetries = 3;
 
-  // FUNÇÃO CORRIGIDA: Lida com RLS e recursão
+  // FUNÇÃO SIMPLIFICADA: Apenas busca o perfil, o trigger cria automaticamente
   const fetchProfile = async (userId: string, userData?: User | null) => {
     try {
       logger.log(`Buscando profile para usuário: ${userId}`);
 
-      // VALIDAÇÃO 1: Verifica se userId é válido
+      // VALIDAÇÃO: Verifica se userId é válido
       if (!userId || typeof userId !== 'string') {
         logger.error('ERRO: userId é inválido:', userId);
         return null;
       }
 
-      // Tenta buscar profile existente
+      // Busca o profile (que deve ter sido criado pelo trigger)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+
+      // Tratamento de erro de recursão
+      if (error) {
+        if (error.message?.includes('infinite recursion')) {
+          logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
+          return null;
+        }
+        logger.error('❌ Erro ao buscar profile:', error);
+        return null;
+      }
 
       // Profile encontrado
       if (data) {
@@ -87,81 +97,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return data;
       }
 
-      // Profile não existe - tenta criar com cuidado
-      if (error?.code === 'PGRST116' || !data) {
-        logger.log('📄 Profile não encontrado, criando novo...');
-
-        // Prepara dados seguros
-        const userMetadata = userData?.user_metadata || {};
-        const email = userData?.email || '';
-        
-        const profileData = {
-          id: userId,
-          full_name: userMetadata.full_name || email.split('@')[0] || 'Usuário',
-          phone: userMetadata.phone || null,
-          is_admin: false,
-          status: 'pending' as UserStatus,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        logger.log('📤 Criando profile com dados:', profileData);
-
-        // Tenta criar com tratamento de erros específicos
-        try {
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert([profileData])
-            .select()
-            .single();
-
-          if (createError) {
-            // ERRO CRÍTICO: Recursão detectada
-            if (createError.message?.includes('infinite recursion')) {
-              logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
-              logger.error('Políticas RLS estão causando recursão. Execute o SQL de correção.');
-              toast.error('Erro de configuração do banco de dados. Contate o administrador.');
-              return null;
-            }
-
-            // Outros erros
-            if (createError.code === '23505') {
-              logger.log('🔄 Profile já existe, buscando novamente...');
-              const { data: existingProfile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-              return existingProfile;
-            }
-
-            logger.error('❌ Erro ao criar profile:', createError);
-            return null;
-          }
-
-          logger.log('✅ Profile criado com sucesso:', newProfile);
-          return newProfile;
-
-        } catch (insertError) {
-          // Captura qualquer erro durante a inserção
-          logger.error('🚨 Erro durante inserção:', insertError);
-          return null;
-        }
-      }
-
-      logger.error('❌ Erro ao buscar profile:', error);
+      // Profile não existe ainda (trigger pode estar processando)
+      logger.log('⏳ Profile ainda não existe, pode estar sendo criado pelo trigger');
       return null;
 
     } catch (error) {
       logger.error('🚨 Exceção em fetchProfile:', error);
-      
+
       // Tratamento específico para recursão
       if (error instanceof Error && error.message?.includes('infinite recursion')) {
         logger.error('🚨 RECURSÃO INFINITA DETECTADA NO CATCH!');
-        toast.error('Erro de configuração. Execute: npm run fix:rls');
         return null;
       }
-      
+
       return null;
     }
   };
