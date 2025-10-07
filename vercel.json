@@ -1,9 +1,208 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
-  ],
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "installCommand": "npm ci --prefer-offline --no-audit --no-fund",
   "framework": "vite",
+  "name": "agenda-transfer",
+  "version": 2,
+  "regions": ["gru1"],
+  
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  
+  "routes": [
+    {
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/(.*)\\.(js|css|woff|woff2|ttf|eot|ico|png|jpg|jpeg|gif|svg|webp|br|gz)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/sw.js",
+      "dest": "/sw.js",
+      "headers": {
+        "Cache-Control": "public, max-age=0, must-revalidate"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.vercel.app; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+      },
+      "dest": "/index.html"
+    }
+  ],
+  
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://$1.supabase.co/rest/v1/$2"
+    }
+  ],
+  
+  "redirects": [
+    {
+      "source": "/home",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
+      "source": "/login",
+      "destination": "/",
+      "statusCode": 200
+    }
+  ],
+  
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.js$",
+      "headers": [
+        {
+          "key": "Content-Encoding",
+          "value": "gzip"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)\\.br$",
+      "headers": [
+        {
+          "key": "Content-Encoding",
+          "value": "br"
+        }
+      ]
+    }
+  ],
+  
+  "env": {
+    "VITE_SUPABASE_URL": "@vite_supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
+  },
+  
+  "functions": {
+    "api/*.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "develop": true,
+      "staging": true
+    }
+  },
+  
+  "github": {
+    "enabled": true,
+    "autoAlias": true,
+    "silent": true,
+    "autoJobCancelation": true
+  },
+  
+  "cleanUrls": true,
+  "trailingSlash": false,
+  
+  "probes": [
+    {
+      "path": "/",
+      "mustContain": "Tourism Management Web Platform"
+    },
+    {
+      "path": "/login",
+      "mustContain": "Sistema de Gestão de Turismo"
+    },
+    {
+      "path": "/agenda",
+      "mustContain": "Agenda"
+    }
+  ],
+  
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  
+  "sourceFilesOutsideRootDirectory": false,
+  
+  "analyticsId": "agenda-transfer-analytics",
+  
+  "crons": [],
+  
+  "public": true,
+  
+  "installCommand": "npm ci --prefer-offline --no-audit --no-fund",
+  
+  "devCommand": "npm run dev",
+  
+  "outputDirectory": "dist",
+  
+  "alias": ["ecoexpedicoes.vercel.app"],
+  
+  "envVars": {
+    "VITE_SUPABASE_URL": {
+      "source": "secret",
+      "key": "vite_supabase_url"
+    },
+    "VITE_SUPABASE_ANON_KEY": {
+      "source": "secret", 
+      "key": "vite_supabase_anon_key"
+    }
+  }
 }
