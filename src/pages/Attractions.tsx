@@ -194,7 +194,7 @@ export const Attractions: React.FC = () => {
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(attraction.id)}
+                      // onClick={() => handleDelete(attraction.id)}
                       onClick={() => handleDelete(attraction.id, attraction.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
