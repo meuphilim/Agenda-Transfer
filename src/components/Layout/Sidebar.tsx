@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProfileModal } from '../Profile/ProfileModal';
@@ -28,10 +28,18 @@ interface NavigationItem {
 }
 
 export const Sidebar: React.FC = () => {
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut, isAdmin, refreshProfile } = useAuth();
   const navigation = getNavigation(isAdmin);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  // ✅ NOVO: Atualiza perfil quando usuário existe mas perfil está incompleto
+  useEffect(() => {
+    if (user && profile && !profile.full_name) {
+      // Se perfil existe mas está incompleto, tenta atualizar
+      refreshProfile();
+    }
+  }, [user, profile, refreshProfile]);
 
   // ✅ CORRIGIDO - Remove navigate e adiciona feedback
   const handleSignOut = async () => {
@@ -99,14 +107,30 @@ export const Sidebar: React.FC = () => {
             className="w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="flex-1 flex items-center min-w-0">
-              <UserIcon className="mr-3 h-5 w-5 flex-shrink-0" />
+              <div className="flex-shrink-0 mr-3">
+                {/* Avatar com iniciais */}
+                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                  {profile?.full_name 
+                    ? profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                    : user?.email?.[0]?.toUpperCase() || 'U'
+                  }
+                </div>
+              </div>
               <div className="flex flex-col items-start min-w-0 flex-1">
-                <span className="font-medium truncate w-full">
-                  {profile?.full_name || user?.email || 'Usuário'}
+                <span className="font-medium truncate w-full text-gray-900">
+                  {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
                 </span>
-                {isAdmin && (
+                {isAdmin ? (
                   <span className="text-xs text-blue-600 font-semibold">
                     Administrador
+                  </span>
+                ) : profile?.full_name ? (
+                  <span className="text-xs text-gray-500 truncate w-full">
+                    {user?.email}
+                  </span>
+                ) : (
+                  <span className="text-xs text-orange-600 font-medium">
+                    Completar perfil
                   </span>
                 )}
               </div>
