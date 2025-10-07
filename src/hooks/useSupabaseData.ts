@@ -1,5 +1,4 @@
-// src/hooks/useSupabaseData.ts
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
 
@@ -28,18 +27,15 @@ export function useSupabaseData<T extends { id: string }>({
   filters = {},
   orderBy,
   realtime = false,
-  enabled = true,
+  enabled = true
 }: UseSupabaseDataOptions): UseSupabaseDataReturn<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Memorizar objetos para evitar re-renders infinitos
-  const memoizedFilters = useMemo(() => filters, [JSON.stringify(filters)]);
-  const memoizedOrderBy = useMemo(
-    () => orderBy,
-    [orderBy?.column, orderBy?.ascending]
-  );
+  // Serializar dependências de forma estável
+  const filtersKey = useMemo(() => JSON.stringify(filters), [JSON.stringify(filters)]);
+  const orderByKey = useMemo(() => JSON.stringify(orderBy), [JSON.stringify(orderBy)]);
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
@@ -47,132 +43,132 @@ export function useSupabaseData<T extends { id: string }>({
       return;
     }
 
-    let isCancelled = false;
-    setLoading(true);
-    setError(null);
-
     try {
+      setLoading(true);
+      setError(null);
+
       let query = supabase.from(table).select(select);
 
-      Object.entries(memoizedFilters).forEach(([key, value]) => {
+      // Aplicar filtros
+      Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           query = query.eq(key, value);
         }
       });
 
-      if (memoizedOrderBy) {
-        query = query.order(memoizedOrderBy.column, {
-          ascending: memoizedOrderBy.ascending ?? true,
-        });
+      // Aplicar ordenação
+      if (orderBy) {
+        query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
       }
 
       const { data: result, error: fetchError } = await query;
 
-      if (!isCancelled) {
-        if (fetchError) throw fetchError;
-        setData(result || []);
-      }
+      if (fetchError) throw fetchError;
+
+      setData(result || []);
     } catch (err: any) {
-      if (!isCancelled) {
-        const msg = err.message || 'Erro ao carregar dados';
-        setError(msg);
-        console.error(`Erro ao buscar dados de ${table}:`, err);
-        toast.error(msg);
-      }
+      const errorMessage = err.message || 'Erro ao carregar dados';
+      setError(errorMessage);
+      console.error(`Erro ao buscar dados de ${table}:`, err);
+      toast.error(errorMessage);
     } finally {
-      if (!isCancelled) setLoading(false);
+      setLoading(false);
     }
+  }, [table, select, filtersKey, orderByKey, enabled]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [table, select, memoizedFilters, memoizedOrderBy, enabled]);
+  const create = useCallback(async (item: Partial<T>): Promise<T | null> => {
+    try {
+      const { data: result, error: createError } = await supabase
+        .from(table)
+        .insert([item])
+        .select()
+        .single();
 
-  const create = useCallback(
-    async (item: Partial<T>): Promise<T | null> => {
-      try {
-        const { data: result, error: createError } = await supabase
-          .from(table)
-          .insert([item])
-          .select()
-          .single();
+      if (createError) throw createError;
 
-        if (createError) throw createError;
-        setData(prev => [result, ...prev]);
-        return result;
-      } catch (err: any) {
-        toast.error(err.message || 'Erro ao criar item');
-        return null;
-      }
-    },
-    [table]
-  );
+      // Atualizar estado local imediatamente
+      setData(prev => [result, ...prev]);
+      
+      return result;
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erro ao criar item';
+      toast.error(errorMessage);
+      return null;
+    }
+  }, [table]);
 
-  const update = useCallback(
-    async (id: string, updates: Partial<T>): Promise<T | null> => {
-      try {
-        const { data: result, error: updateError } = await supabase
-          .from(table)
-          .update({ ...updates, updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .select()
-          .single();
+  const update = useCallback(async (id: string, updates: Partial<T>): Promise<T | null> => {
+    try {
+      const { data: result, error: updateError } = await supabase
+        .from(table)
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
 
-        if (updateError) throw updateError;
-        setData(prev => prev.map(item => (item.id === id ? result : item)));
-        return result;
-      } catch (err: any) {
-        toast.error(err.message || 'Erro ao atualizar item');
-        return null;
-      }
-    },
-    [table]
-  );
+      if (updateError) throw updateError;
 
-  const deleteItem = useCallback(
-    async (id: string): Promise<boolean> => {
-      try {
-        const { error: deleteError } = await supabase
-          .from(table)
-          .delete()
-          .eq('id', id);
+      // Atualizar estado local imediatamente
+      setData(prev => prev.map(item => item.id === id ? result : item));
+      
+      return result;
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erro ao atualizar item';
+      toast.error(errorMessage);
+      return null;
+    }
+  }, [table]);
 
-        if (deleteError) throw deleteError;
-        setData(prev => prev.filter(item => item.id !== id));
-        return true;
-      } catch (err: any) {
-        toast.error(err.message || 'Erro ao excluir item');
-        return false;
-      }
-    },
-    [table]
-  );
+  const deleteItem = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      const { error: deleteError } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
 
+      if (deleteError) throw deleteError;
+
+      // Atualizar estado local imediatamente
+      setData(prev => prev.filter(item => item.id !== id));
+      
+      return true;
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erro ao excluir item';
+      toast.error(errorMessage);
+      return false;
+    }
+  }, [table]);
+
+  // Configurar realtime se habilitado
   useEffect(() => {
     if (!realtime || !enabled) return;
+
     const channel = supabase
       .channel(`${table}_changes`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, payload => {
-        switch (payload.eventType) {
-          case 'INSERT':
-            setData(prev =>
-              prev.find(item => item.id === payload.new.id)
-                ? prev
-                : [payload.new as T, ...prev]
-            );
-            break;
-          case 'UPDATE':
-            setData(prev =>
-              prev.map(item =>
-                item.id === payload.new.id ? (payload.new as T) : item
-              )
-            );
-            break;
-          case 'DELETE':
-            setData(prev => prev.filter(item => item.id !== payload.old.id));
-            break;
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table }, 
+        (payload) => {
+          switch (payload.eventType) {
+            case 'INSERT':
+              setData(prev => {
+                // Evitar duplicatas
+                if (prev.find(item => item.id === payload.new.id)) {
+                  return prev;
+                }
+                return [payload.new as T, ...prev];
+              });
+              break;
+            case 'UPDATE':
+              setData(prev => prev.map(item => 
+                item.id === payload.new.id ? payload.new as T : item
+              ));
+              break;
+            case 'DELETE':
+              setData(prev => prev.filter(item => item.id !== payload.old.id));
+              break;
+          }
         }
-      })
+      )
       .subscribe();
 
     return () => {
@@ -180,9 +176,18 @@ export function useSupabaseData<T extends { id: string }>({
     };
   }, [table, realtime, enabled]);
 
+  // Fetch inicial
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  return { data, loading, error, refresh: fetchData, create, update, delete: deleteItem };
+  return {
+    data,
+    loading,
+    error,
+    refresh: fetchData,
+    create,
+    update,
+    delete: deleteItem
+  };
 }
