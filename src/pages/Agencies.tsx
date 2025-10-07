@@ -13,7 +13,7 @@ interface Agency {
   address: string | null;
   active: boolean;
   created_at: string;
-}
+} 
 
 interface AgencyFormData {
   name: string;
