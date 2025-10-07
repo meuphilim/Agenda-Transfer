@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { toast } from 'react-toastify';
+import { useState } from 'react';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface Driver {
@@ -29,8 +28,18 @@ interface DriverFormData {
 }
 
 export const Drivers: React.FC = () => {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    data: drivers, 
+    loading, 
+    create, 
+    update, 
+    delete: deleteDriver 
+  } = useSupabaseData<Driver>({
+    table: 'drivers',
+    orderBy: { column: 'name' },
+    realtime: true
+  });
+  
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [formData, setFormData] = useState<DriverFormData>({
@@ -44,26 +53,6 @@ export const Drivers: React.FC = () => {
     ear: false,
   });
 
-  useEffect(() => {
-    fetchDrivers();
-  }, []);
-
-  const fetchDrivers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('drivers')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setDrivers(data || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar motoristas: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -74,29 +63,22 @@ export const Drivers: React.FC = () => {
       };
 
       if (editingDriver) {
-        const { error } = await supabase
-          .from('drivers')
-          .update({
-            ...data,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingDriver.id);
-
-        if (error) throw error;
-        toast.success('Motorista atualizado com sucesso!');
+        const result = await update(editingDriver.id, data);
+        if (result) {
+          toast.success('Motorista atualizado com sucesso!');
+        }
       } else {
-        const { error } = await supabase
-          .from('drivers')
-          .insert([data]);
-
-        if (error) throw error;
-        toast.success('Motorista cadastrado com sucesso!');
+        const result = await create(data);
+        if (result) {
+          toast.success('Motorista cadastrado com sucesso!');
+        }
       }
 
-      setShowModal(false);
-      setEditingDriver(null);
-      resetForm();
-      fetchDrivers();
+      if (editingDriver || await create(data)) {
+        setShowModal(false);
+        setEditingDriver(null);
+        resetForm();
+      }
     } catch (error: any) {
       toast.error('Erro ao salvar motorista: ' + error.message);
     }
@@ -117,20 +99,12 @@ export const Drivers: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este motorista?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o motorista "${name}"?`)) return;
 
-    try {
-      const { error } = await supabase
-        .from('drivers')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+    const success = await deleteDriver(id);
+    if (success) {
       toast.success('Motorista excluído com sucesso!');
-      fetchDrivers();
-    } catch (error: any) {
-      toast.error('Erro ao excluir motorista: ' + error.message);
     }
   };
 
@@ -291,6 +265,7 @@ export const Drivers: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(driver.id)}
+                      onClick={() => handleDelete(driver.id, driver.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
                       <TrashIcon className="h-4 w-4" />

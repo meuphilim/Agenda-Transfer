@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { toast } from 'react-toastify';
+import { useState } from 'react';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface Agency {
@@ -25,8 +24,18 @@ interface AgencyFormData {
 }
 
 export const Agencies: React.FC = () => {
-  const [agencies, setAgencies] = useState<Agency[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    data: agencies, 
+    loading, 
+    create, 
+    update, 
+    delete: deleteAgency 
+  } = useSupabaseData<Agency>({
+    table: 'agencies',
+    orderBy: { column: 'name' },
+    realtime: true
+  });
+  
   const [showModal, setShowModal] = useState(false);
   const [editingAgency, setEditingAgency] = useState<Agency | null>(null);
   const [formData, setFormData] = useState<AgencyFormData>({
@@ -38,54 +47,27 @@ export const Agencies: React.FC = () => {
     address: '',
   });
 
-  useEffect(() => {
-    fetchAgencies();
-  }, []);
-
-  const fetchAgencies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('agencies')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setAgencies(data || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar agências: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       if (editingAgency) {
-        const { error } = await supabase
-          .from('agencies')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingAgency.id);
-
-        if (error) throw error;
-        toast.success('Agência atualizada com sucesso!');
+        const result = await update(editingAgency.id, formData);
+        if (result) {
+          toast.success('Agência atualizada com sucesso!');
+        }
       } else {
-        const { error } = await supabase
-          .from('agencies')
-          .insert([formData]);
-
-        if (error) throw error;
-        toast.success('Agência cadastrada com sucesso!');
+        const result = await create(formData);
+        if (result) {
+          toast.success('Agência cadastrada com sucesso!');
+        }
       }
 
-      setShowModal(false);
-      setEditingAgency(null);
-      resetForm();
-      fetchAgencies();
+      if (editingAgency || await create(formData)) {
+        setShowModal(false);
+        setEditingAgency(null);
+        resetForm();
+      }
     } catch (error: any) {
       toast.error('Erro ao salvar agência: ' + error.message);
     }
@@ -104,20 +86,12 @@ export const Agencies: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta agência?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a agência "${name}"?`)) return;
 
-    try {
-      const { error } = await supabase
-        .from('agencies')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+    const success = await deleteAgency(id);
+    if (success) {
       toast.success('Agência excluída com sucesso!');
-      fetchAgencies();
-    } catch (error: any) {
-      toast.error('Erro ao excluir agência: ' + error.message);
     }
   };
 
@@ -222,6 +196,7 @@ export const Agencies: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(agency.id)}
+                      onClick={() => handleDelete(agency.id, agency.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
                       <TrashIcon className="h-4 w-4" />

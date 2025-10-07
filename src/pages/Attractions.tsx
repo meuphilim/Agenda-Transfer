@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { toast } from 'react-toastify';
+import { useState } from 'react';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface Attraction {
@@ -21,8 +20,18 @@ interface AttractionFormData {
 }
 
 export const Attractions: React.FC = () => {
-  const [attractions, setAttractions] = useState<Attraction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    data: attractions, 
+    loading, 
+    create, 
+    update, 
+    delete: deleteAttraction 
+  } = useSupabaseData<Attraction>({
+    table: 'attractions',
+    orderBy: { column: 'name' },
+    realtime: true
+  });
+  
   const [showModal, setShowModal] = useState(false);
   const [editingAttraction, setEditingAttraction] = useState<Attraction | null>(null);
   const [formData, setFormData] = useState<AttractionFormData>({
@@ -32,54 +41,27 @@ export const Attractions: React.FC = () => {
     location: '',
   });
 
-  useEffect(() => {
-    fetchAttractions();
-  }, []);
-
-  const fetchAttractions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('attractions')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setAttractions(data || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar atrativos: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       if (editingAttraction) {
-        const { error } = await supabase
-          .from('attractions')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingAttraction.id);
-
-        if (error) throw error;
-        toast.success('Atrativo atualizado com sucesso!');
+        const result = await update(editingAttraction.id, formData);
+        if (result) {
+          toast.success('Atrativo atualizado com sucesso!');
+        }
       } else {
-        const { error } = await supabase
-          .from('attractions')
-          .insert([formData]);
-
-        if (error) throw error;
-        toast.success('Atrativo cadastrado com sucesso!');
+        const result = await create(formData);
+        if (result) {
+          toast.success('Atrativo cadastrado com sucesso!');
+        }
       }
 
-      setShowModal(false);
-      setEditingAttraction(null);
-      resetForm();
-      fetchAttractions();
+      if (editingAttraction || await create(formData)) {
+        setShowModal(false);
+        setEditingAttraction(null);
+        resetForm();
+      }
     } catch (error: any) {
       toast.error('Erro ao salvar atrativo: ' + error.message);
     }
@@ -96,20 +78,12 @@ export const Attractions: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este atrativo?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o atrativo "${name}"?`)) return;
 
-    try {
-      const { error } = await supabase
-        .from('attractions')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+    const success = await deleteAttraction(id);
+    if (success) {
       toast.success('Atrativo excluído com sucesso!');
-      fetchAttractions();
-    } catch (error: any) {
-      toast.error('Erro ao excluir atrativo: ' + error.message);
     }
   };
 
@@ -220,6 +194,7 @@ export const Attractions: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(attraction.id)}
+                      onClick={() => handleDelete(attraction.id, attraction.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
                       <TrashIcon className="h-4 w-4" />

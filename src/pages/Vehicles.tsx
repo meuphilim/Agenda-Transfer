@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { toast } from 'react-toastify';
+import { useState } from 'react';
+import { useSupabaseData } from '../hooks/useSupabaseData';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface Vehicle {
@@ -23,8 +22,18 @@ interface VehicleFormData {
 }
 
 export const Vehicles: React.FC = () => {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    data: vehicles, 
+    loading, 
+    create, 
+    update, 
+    delete: deleteVehicle 
+  } = useSupabaseData<Vehicle>({
+    table: 'vehicles',
+    orderBy: { column: 'license_plate' },
+    realtime: true
+  });
+  
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState<VehicleFormData>({
@@ -35,54 +44,27 @@ export const Vehicles: React.FC = () => {
     status: 'available',
   });
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
-
-  const fetchVehicles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('license_plate');
-
-      if (error) throw error;
-      setVehicles(data || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar veículos: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
       if (editingVehicle) {
-        const { error } = await supabase
-          .from('vehicles')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingVehicle.id);
-
-        if (error) throw error;
-        toast.success('Veículo atualizado com sucesso!');
+        const result = await update(editingVehicle.id, formData);
+        if (result) {
+          toast.success('Veículo atualizado com sucesso!');
+        }
       } else {
-        const { error } = await supabase
-          .from('vehicles')
-          .insert([formData]);
-
-        if (error) throw error;
-        toast.success('Veículo cadastrado com sucesso!');
+        const result = await create(formData);
+        if (result) {
+          toast.success('Veículo cadastrado com sucesso!');
+        }
       }
 
-      setShowModal(false);
-      setEditingVehicle(null);
-      resetForm();
-      fetchVehicles();
+      if (editingVehicle || await create(formData)) {
+        setShowModal(false);
+        setEditingVehicle(null);
+        resetForm();
+      }
     } catch (error: any) {
       toast.error('Erro ao salvar veículo: ' + error.message);
     }
@@ -100,20 +82,12 @@ export const Vehicles: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este veículo?')) return;
+  const handleDelete = async (id: string, licensePlate: string) => {
+    if (!confirm(`Tem certeza que deseja excluir o veículo "${licensePlate}"?`)) return;
 
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+    const success = await deleteVehicle(id);
+    if (success) {
       toast.success('Veículo excluído com sucesso!');
-      fetchVehicles();
-    } catch (error: any) {
-      toast.error('Erro ao excluir veículo: ' + error.message);
     }
   };
 
@@ -227,6 +201,7 @@ export const Vehicles: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(vehicle.id)}
+                      onClick={() => handleDelete(vehicle.id, vehicle.license_plate)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
                       <TrashIcon className="h-4 w-4" />

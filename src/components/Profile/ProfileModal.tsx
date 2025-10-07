@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { toast } from 'react-toastify';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
