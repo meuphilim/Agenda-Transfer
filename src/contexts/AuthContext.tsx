@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - VERSÃO CORRIGIDA
+// src/contexts/AuthContext.tsx - VERSÃO OTIMIZADA
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -62,28 +62,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [accountSetup, setAccountSetup] = useState(true);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
-  const retryCountRef = useRef(0);
+  
+  // Controle de requisições em andamento
+  const fetchInProgressRef = useRef<Set<string>>(new Set());
+  const retryCountRef = useRef<Map<string, number>>(new Map());
   const maxRetries = 3;
 
-  // FUNÇÃO SIMPLIFICADA: Apenas busca o perfil, o trigger cria automaticamente
-  const fetchProfile = async (userId: string, userData?: User | null) => {
+  // FUNÇÃO OTIMIZADA: Cache e debounce de requisições
+  const fetchProfile = useCallback(async (userId: string, userData?: User | null): Promise<UserProfile | null> => {
     try {
-      logger.log(`Buscando profile para usuário: ${userId}`);
-
-      // VALIDAÇÃO: Verifica se userId é válido
+      // Validação de entrada
       if (!userId || typeof userId !== 'string') {
         logger.error('ERRO: userId é inválido:', userId);
         return null;
       }
 
-      // Busca o profile (que deve ter sido criado pelo trigger)
+      // Prevenir requisições duplicadas
+      if (fetchInProgressRef.current.has(userId)) {
+        logger.log('⏸️ Fetch já em andamento para:', userId);
+        return null;
+      }
+
+      fetchInProgressRef.current.add(userId);
+      logger.log(`Buscando profile para usuário: ${userId}`);
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      // Tratamento de erro de recursão
       if (error) {
         if (error.message?.includes('infinite recursion')) {
           logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
@@ -93,37 +101,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
 
-      // Profile encontrado
       if (data) {
         logger.log('✅ Profile encontrado:', data);
+        retryCountRef.current.delete(userId); // Reset contador de retries
         return data;
       }
 
-      // Profile não existe ainda (trigger pode estar processando)
-      logger.log('⏳ Profile ainda não existe, pode estar sendo criado pelo trigger');
+      logger.log('⏳ Profile ainda não existe');
       return null;
 
     } catch (error) {
       logger.error('🚨 Exceção em fetchProfile:', error);
-
-      // Tratamento específico para recursão
       if (error instanceof Error && error.message?.includes('infinite recursion')) {
-        logger.error('🚨 RECURSÃO INFINITA DETECTADA NO CATCH!');
-        return null;
+        logger.error('🚨 RECURSÃO INFINITA NO CATCH!');
       }
+      return null;
+    } finally {
+      fetchInProgressRef.current.delete(userId);
+    }
+  }, []); // ✅ Sem dependências externas
 
+  const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
+    if (!user) {
+      logger.log('⚠️ Cannot refresh profile - no user');
       return null;
     }
-  };
-
-  const refreshProfile = useCallback(async () => {
-    if (user) {
+    
+    try {
+      setLoading(true);
       const profile = await fetchProfile(user.id, user);
       setProfile(profile);
       return profile;
+    } catch (error) {
+      logger.error('❌ Error refreshing profile:', error);
+      return null;
+    } finally {
+      setLoading(false);
     }
-    return null;
-  }, [user]);
+  }, [user, fetchProfile]); // ✅ Dependências corretas
 
   const completeProfile = useCallback(async (fullName: string, phone: string) => {
     if (!user) throw new Error('Usuário não autenticado');
@@ -141,7 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      // Buscar o perfil criado
       const profile = await fetchProfile(user.id, user);
       if (profile) {
         setProfile(profile);
@@ -154,55 +168,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, fetchProfile]);
 
-  // Controle de retry inteligente com proteção contra recursão
-  const setupAccountWithRetry = async (userId: string, userData: User | null) => {
-    retryCountRef.current = 0;
-
-    while (retryCountRef.current < maxRetries) {
-      try {
-        if (!userId || !userData) {
-          logger.error('Parâmetros inválidos');
-          return null;
-        }
-
-        const profile = await fetchProfile(userId, userData);
-
-        if (profile) {
-          logger.log('✅ Account setup completed successfully');
-          setNeedsProfileCompletion(false);
-          return profile;
-        }
-
-        // Incrementa retry e aguarda
-        retryCountRef.current++;
-        logger.log(`🔄 Retry attempt ${retryCountRef.current}/${maxRetries}`);
-
-        if (retryCountRef.current < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
-        }
-
-      } catch (error) {
-        // Detecta recursão especificamente
-        if (error instanceof Error && error.message?.includes('infinite recursion')) {
-          logger.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
-          break; // Para as tentativas imediatamente
-        }
-        
-        logger.error('❌ Error in setupAccountWithRetry:', error);
-        retryCountRef.current++;
-        if (retryCountRef.current < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
-        }
-      }
+  // OTIMIZADO: Retry com backoff exponencial e limite por usuário
+  const setupAccountWithRetry = useCallback(async (userId: string, userData: User | null): Promise<UserProfile | null> => {
+    if (!userId || !userData) {
+      logger.error('Parâmetros inválidos');
+      return null;
     }
 
-    // Se chegou aqui, precisa completar o perfil
+    const currentRetries = retryCountRef.current.get(userId) || 0;
+    
+    if (currentRetries >= maxRetries) {
+      logger.error(`❌ Max retries alcançado para ${userId}`);
+      setNeedsProfileCompletion(true);
+      return null;
+    }
+
+    try {
+      const profile = await fetchProfile(userId, userData);
+
+      if (profile) {
+        logger.log('✅ Account setup completed successfully');
+        setNeedsProfileCompletion(false);
+        retryCountRef.current.delete(userId);
+        return profile;
+      }
+
+      // Incrementa contador de retry
+      retryCountRef.current.set(userId, currentRetries + 1);
+      logger.log(`🔄 Retry ${currentRetries + 1}/${maxRetries}`);
+
+      // Backoff exponencial: 1s, 2s, 4s
+      if (currentRetries < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, currentRetries)));
+        return await setupAccountWithRetry(userId, userData);
+      }
+
+    } catch (error) {
+      if (error instanceof Error && error.message?.includes('infinite recursion')) {
+        logger.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
+        retryCountRef.current.delete(userId);
+        return null;
+      }
+      
+      logger.error('❌ Error in setupAccountWithRetry:', error);
+      retryCountRef.current.set(userId, currentRetries + 1);
+    }
+
     setNeedsProfileCompletion(true);
-    logger.error('❌ Max retries reached');
     return null;
-  };
+  }, [fetchProfile]);
+
+  // OTIMIZADO: Prevenir múltiplas inicializações
+  const isInitialized = useRef(false);
 
   useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
     const getSession = async () => {
       try {
         setLoading(true);
@@ -212,37 +234,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (error) {
           logger.error('❌ Error getting session:', error);
-          setLoading(false);
           return;
         }
 
-        logger.log('✅ Session loaded:', session);
+        logger.log('✅ Session loaded:', !!session);
 
         if (session?.user) {
           const userId = session.user.id;
 
           if (!userId) {
             logger.error('❌ Session user ID is null/undefined');
-            setLoading(false);
             return;
           }
 
           setSession(session);
           setUser(session.user);
 
-          // Tenta configurar account com proteção contra recursão
           const profile = await setupAccountWithRetry(userId, session.user);
 
           if (!profile) {
-            logger.log('⚠️ Account setup failed, will show setup screen');
+            logger.log('⚠️ Account setup failed');
             setNeedsProfileCompletion(true);
-            setAccountSetup(true);
           } else {
             setProfile(profile);
             setNeedsProfileCompletion(false);
-            setAccountSetup(true);
-            logger.log('✅ Account setup completed');
           }
+          
+          setAccountSetup(true);
         } else {
           setSession(null);
           setUser(null);
@@ -253,10 +271,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         logger.error('🚨 Error in getSession:', error);
         
-        // Tratamento específico para recursão
         if (error instanceof Error && error.message?.includes('infinite recursion')) {
-          logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
-          setAccountSetup(false); // Mostra tela de erro
+          logger.error('🚨 RECURSÃO INFINITA!');
+          setAccountSetup(false);
           setNeedsProfileCompletion(false);
         }
       } finally {
@@ -266,10 +283,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     getSession();
 
+    // ✅ Listener de auth state separado do fetch inicial
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      logger.log('🔄 Auth state changed:', _event, session);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      logger.log('🔄 Auth state changed:', event);
+
+      // Ignora INITIAL_SESSION para evitar fetch duplicado
+      if (event === 'INITIAL_SESSION') {
+        logger.log('⏭️ Ignorando INITIAL_SESSION');
+        return;
+      }
 
       if (session?.user) {
         const userId = session.user.id;
@@ -286,12 +310,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!profile) {
           setNeedsProfileCompletion(true);
-          setAccountSetup(true);
         } else {
           setProfile(profile);
           setNeedsProfileCompletion(false);
-          setAccountSetup(true);
         }
+        
+        setAccountSetup(true);
       } else {
         setSession(null);
         setUser(null);
@@ -301,8 +325,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      subscription.unsubscribe();
+      isInitialized.current = false;
+    };
+  }, [setupAccountWithRetry]); // ✅ Dependência correta
 
   const signOut = useCallback(async () => {
     try {
@@ -315,6 +342,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
       setNeedsProfileCompletion(false);
       setAccountSetup(true);
+      retryCountRef.current.clear();
       logger.log('✅ Sign out successful');
     } catch (error) {
       logger.error('❌ Error signing out:', error);
@@ -348,11 +376,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!profile) {
           setNeedsProfileCompletion(true);
-          setAccountSetup(true);
         } else {
           setNeedsProfileCompletion(false);
-          setAccountSetup(true);
         }
+        
+        setAccountSetup(true);
       }
 
       return data;
