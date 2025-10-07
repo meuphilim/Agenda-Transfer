@@ -201,7 +201,7 @@ export const Vehicles: React.FC = () => {
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(vehicle.id)}
+                      // onClick={() => handleDelete(vehicle.id)}
                       onClick={() => handleDelete(vehicle.id, vehicle.license_plate)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
