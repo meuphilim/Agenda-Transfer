@@ -50,6 +50,7 @@ function App() {
         </Router>
       </DataProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
