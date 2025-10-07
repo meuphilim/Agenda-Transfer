@@ -43,6 +43,7 @@ export const Drivers: React.FC = () => {
   
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<DriverFormData>({
     name: '',
     phone: '',
@@ -54,34 +55,52 @@ export const Drivers: React.FC = () => {
     ear: false,
   });
 
+  // ✅ FUNÇÃO CORRIGIDA - Sem duplicação
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (submitting) return;
+
     try {
+      setSubmitting(true);
+      
       const data = {
         ...formData,
         license_expiry: formData.license_expiry || null,
+        phone: formData.phone || null,
+        email: formData.email || null,
       };
+
+      let success = false;
 
       if (editingDriver) {
         const result = await update(editingDriver.id, data);
         if (result) {
           toast.success('Motorista atualizado com sucesso!');
+          success = true;
+        } else {
+          toast.error('Erro ao atualizar motorista');
         }
       } else {
         const result = await create(data);
         if (result) {
           toast.success('Motorista cadastrado com sucesso!');
+          success = true;
+        } else {
+          toast.error('Erro ao cadastrar motorista');
         }
       }
 
-      if (editingDriver || await create(data)) {
+      if (success) {
         setShowModal(false);
         setEditingDriver(null);
         resetForm();
       }
     } catch (error: any) {
-      toast.error('Erro ao salvar motorista: ' + error.message);
+      console.error('Erro ao salvar motorista:', error);
+      toast.error('Erro ao salvar motorista: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -103,9 +122,16 @@ export const Drivers: React.FC = () => {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Tem certeza que deseja excluir o motorista "${name}"?`)) return;
 
-    const success = await deleteDriver(id);
-    if (success) {
-      toast.success('Motorista excluído com sucesso!');
+    try {
+      const success = await deleteDriver(id);
+      if (success) {
+        toast.success('Motorista excluído com sucesso!');
+      } else {
+        toast.error('Erro ao excluir motorista');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      toast.error('Erro ao excluir motorista');
     }
   };
 
@@ -123,6 +149,7 @@ export const Drivers: React.FC = () => {
   };
 
   const handleModalClose = () => {
+    if (submitting) return;
     setShowModal(false);
     setEditingDriver(null);
     resetForm();
@@ -152,17 +179,15 @@ export const Drivers: React.FC = () => {
   };
 
   const formatPhoneNumber = (value: string) => {
-    // Remove todos os caracteres não numéricos
     const numbers = value.replace(/\D/g, '');
     
-    // Aplica a máscara (xx) xxxxx-xxxx
     if (numbers.length <= 11) {
       return numbers.replace(
         /^(\d{0,2})(\d{0,5})(\d{0,4})/,
         (_, ddd, first, second) => {
           let formatted = '';
           if (ddd) formatted += `(${ddd}`;
-          if (ddd) formatted += ') ';
+          if (ddd && first) formatted += ') ';
           if (first) formatted += first;
           if (second) formatted += `-${second}`;
           return formatted;
@@ -175,6 +200,12 @@ export const Drivers: React.FC = () => {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setFormData({...formData, phone: formatted});
+  };
+
+  // ✅ Validação de CNH expirada
+  const isLicenseExpired = (expiryDate: string | null) => {
+    if (!expiryDate) return false;
+    return new Date(expiryDate) < new Date();
   };
 
   if (loading) {
@@ -204,85 +235,113 @@ export const Drivers: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nome
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contato
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  CNH
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoria
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {drivers.map((driver) => (
-                <tr key={driver.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {driver.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{driver.phone ? formatPhoneNumber(driver.phone) : '-'}</div>
-                    <div className="text-sm text-gray-500">{driver.email || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{driver.license_number}</div>
-                    <div className="text-sm text-gray-500">
-                      Vence: {formatDate(driver.license_expiry)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{driver.category}</div>
-                    <div className="text-sm text-gray-500">
-                      {driver.ear ? 'EAR' : 'Sem EAR'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(driver.status)}`}>
-                      {getStatusText(driver.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(driver)}
-                      className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      // onClick={() => handleDelete(driver.id)}
-                      onClick={() => handleDelete(driver.id, driver.name)}
-                      className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </td>
+        {drivers.length === 0 ? (
+          <div className="text-center py-12">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum motorista cadastrado</h3>
+            <p className="mt-1 text-sm text-gray-500">Comece cadastrando um novo motorista.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Nome
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contato
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    CNH
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Categoria
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {drivers.map((driver) => (
+                  <tr key={driver.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {driver.name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {driver.phone ? formatPhoneNumber(driver.phone) : '-'}
+                      </div>
+                      <div className="text-sm text-gray-500">{driver.email || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{driver.license_number}</div>
+                      <div className={`text-sm ${isLicenseExpired(driver.license_expiry) ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                        Vence: {formatDate(driver.license_expiry)}
+                        {isLicenseExpired(driver.license_expiry) && ' ⚠️'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{driver.category}</div>
+                      <div className="text-sm text-gray-500">
+                        {driver.ear ? (
+                          <span className="text-green-600 font-medium">✓ EAR</span>
+                        ) : (
+                          <span>Sem EAR</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(driver.status)}`}>
+                        {getStatusText(driver.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(driver)}
+                        className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
+                        title="Editar motorista"
+                      >
+                        <PencilIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(driver.id, driver.name)}
+                        className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                        title="Excluir motorista"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               {editingDriver ? 'Editar Motorista' : 'Novo Motorista'}
             </h3>
@@ -294,7 +353,9 @@ export const Drivers: React.FC = () => {
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="Nome completo"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
@@ -306,9 +367,10 @@ export const Drivers: React.FC = () => {
                 </label>
                 <input
                   type="tel"
+                  disabled={submitting}
                   placeholder="(00) 00000-0000"
                   maxLength={15}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.phone}
                   onChange={handlePhoneChange}
                 />
@@ -320,7 +382,9 @@ export const Drivers: React.FC = () => {
                 </label>
                 <input
                   type="email"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="email@exemplo.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                 />
@@ -333,9 +397,12 @@ export const Drivers: React.FC = () => {
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="00000000000"
+                  maxLength={11}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.license_number}
-                  onChange={(e) => setFormData({...formData, license_number: e.target.value})}
+                  onChange={(e) => setFormData({...formData, license_number: e.target.value.replace(/\D/g, '')})}
                 />
               </div>
               
@@ -345,7 +412,9 @@ export const Drivers: React.FC = () => {
                 </label>
                 <input
                   type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.license_expiry}
                   onChange={(e) => setFormData({...formData, license_expiry: e.target.value})}
                 />
@@ -353,35 +422,21 @@ export const Drivers: React.FC = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={formData.status}
-                  onChange={(e) => setFormData({...formData, status: e.target.value as any})}
-                >
-                  <option value="available">Disponível</option>
-                  <option value="busy">Ocupado</option>
-                  <option value="unavailable">Indisponível</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Categoria da CNH *
                 </label>
                 <select
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.category}
                   onChange={(e) => setFormData({...formData, category: e.target.value})}
                 >
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                  <option value="E">E</option>
-                  <option value="AB">AB</option>
+                  <option value="A">A - Motocicletas</option>
+                  <option value="B">B - Automóveis</option>
+                  <option value="C">C - Veículos de carga</option>
+                  <option value="D">D - Veículos de passageiros</option>
+                  <option value="E">E - Combinações de veículos</option>
+                  <option value="AB">AB - A + B</option>
                 </select>
               </div>
 
@@ -389,7 +444,8 @@ export const Drivers: React.FC = () => {
                 <input
                   type="checkbox"
                   id="ear"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  disabled={submitting}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                   checked={formData.ear}
                   onChange={(e) => setFormData({...formData, ear: e.target.checked})}
                 />
@@ -398,19 +454,47 @@ export const Drivers: React.FC = () => {
                 </label>
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  disabled={submitting}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  value={formData.status}
+                  onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+                >
+                  <option value="available">Disponível</option>
+                  <option value="busy">Ocupado</option>
+                  <option value="unavailable">Indisponível</option>
+                </select>
+              </div>
+              
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={handleModalClose}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                  disabled={submitting}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+                  disabled={submitting}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
-                  {editingDriver ? 'Atualizar' : 'Cadastrar'}
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Salvando...
+                    </>
+                  ) : (
+                    editingDriver ? 'Atualizar' : 'Cadastrar'
+                  )}
                 </button>
               </div>
             </form>
