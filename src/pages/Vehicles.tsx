@@ -37,6 +37,7 @@ export const Vehicles: React.FC = () => {
   
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<VehicleFormData>({
     license_plate: '',
     model: '',
@@ -45,29 +46,48 @@ export const Vehicles: React.FC = () => {
     status: 'available',
   });
 
+  // ✅ FUNÇÃO CORRIGIDA - Sem duplicação de chamadas
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Previne múltiplos submits
+    if (submitting) return;
+
     try {
+      setSubmitting(true);
+      let success = false;
+
       if (editingVehicle) {
+        // Modo de edição
         const result = await update(editingVehicle.id, formData);
         if (result) {
           toast.success('Veículo atualizado com sucesso!');
+          success = true;
+        } else {
+          toast.error('Erro ao atualizar veículo');
         }
       } else {
+        // Modo de criação
         const result = await create(formData);
         if (result) {
           toast.success('Veículo cadastrado com sucesso!');
+          success = true;
+        } else {
+          toast.error('Erro ao cadastrar veículo');
         }
       }
 
-      if (editingVehicle || await create(formData)) {
+      // Fecha modal e reseta form apenas se foi bem-sucedido
+      if (success) {
         setShowModal(false);
         setEditingVehicle(null);
         resetForm();
       }
     } catch (error: any) {
-      toast.error('Erro ao salvar veículo: ' + error.message);
+      console.error('Erro ao salvar veículo:', error);
+      toast.error('Erro ao salvar veículo: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -86,9 +106,16 @@ export const Vehicles: React.FC = () => {
   const handleDelete = async (id: string, licensePlate: string) => {
     if (!confirm(`Tem certeza que deseja excluir o veículo "${licensePlate}"?`)) return;
 
-    const success = await deleteVehicle(id);
-    if (success) {
-      toast.success('Veículo excluído com sucesso!');
+    try {
+      const success = await deleteVehicle(id);
+      if (success) {
+        toast.success('Veículo excluído com sucesso!');
+      } else {
+        toast.error('Erro ao excluir veículo');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      toast.error('Erro ao excluir veículo');
     }
   };
 
@@ -103,6 +130,7 @@ export const Vehicles: React.FC = () => {
   };
 
   const handleModalClose = () => {
+    if (submitting) return; // Previne fechar durante submit
     setShowModal(false);
     setEditingVehicle(null);
     resetForm();
@@ -153,71 +181,94 @@ export const Vehicles: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Placa
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Veículo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Capacidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {vehicles.map((vehicle) => (
-                <tr key={vehicle.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {vehicle.license_plate}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{vehicle.brand} {vehicle.model}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {vehicle.capacity} passageiros
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(vehicle.status)}`}>
-                      {getStatusText(vehicle.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(vehicle)}
-                      className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      // onClick={() => handleDelete(vehicle.id)}
-                      onClick={() => handleDelete(vehicle.id, vehicle.license_plate)}
-                      className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </td>
+        {vehicles.length === 0 ? (
+          <div className="text-center py-12">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum veículo cadastrado</h3>
+            <p className="mt-1 text-sm text-gray-500">Comece cadastrando um novo veículo.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Placa
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Veículo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Capacidade
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {vehicles.map((vehicle) => (
+                  <tr key={vehicle.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {vehicle.license_plate}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {vehicle.brand && `${vehicle.brand} `}{vehicle.model}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {vehicle.capacity} passageiro{vehicle.capacity !== 1 ? 's' : ''}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(vehicle.status)}`}>
+                        {getStatusText(vehicle.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(vehicle)}
+                        className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
+                        title="Editar veículo"
+                      >
+                        <PencilIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(vehicle.id, vehicle.license_plate)}
+                        className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                        title="Excluir veículo"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               {editingVehicle ? 'Editar Veículo' : 'Novo Veículo'}
@@ -230,9 +281,11 @@ export const Vehicles: React.FC = () => {
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="ABC-1234"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.license_plate}
-                  onChange={(e) => setFormData({...formData, license_plate: e.target.value})}
+                  onChange={(e) => setFormData({...formData, license_plate: e.target.value.toUpperCase()})}
                 />
               </div>
               
@@ -242,7 +295,9 @@ export const Vehicles: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="Ex: Toyota, Ford, Volkswagen"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.brand}
                   onChange={(e) => setFormData({...formData, brand: e.target.value})}
                 />
@@ -255,7 +310,9 @@ export const Vehicles: React.FC = () => {
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="Ex: Corolla, Fiesta, Gol"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.model}
                   onChange={(e) => setFormData({...formData, model: e.target.value})}
                 />
@@ -268,10 +325,13 @@ export const Vehicles: React.FC = () => {
                 <input
                   type="number"
                   min="1"
+                  max="100"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  placeholder="Número de passageiros"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.capacity}
-                  onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value)})}
+                  onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value) || 1})}
                 />
               </div>
               
@@ -280,7 +340,8 @@ export const Vehicles: React.FC = () => {
                   Status
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  disabled={submitting}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                 >
@@ -294,15 +355,27 @@ export const Vehicles: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleModalClose}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                  disabled={submitting}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+                  disabled={submitting}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
-                  {editingVehicle ? 'Atualizar' : 'Cadastrar'}
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Salvando...
+                    </>
+                  ) : (
+                    editingVehicle ? 'Atualizar' : 'Cadastrar'
+                  )}
                 </button>
               </div>
             </form>
