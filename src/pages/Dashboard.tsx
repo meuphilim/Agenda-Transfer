@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSupabaseData } from '../hooks/useSupabaseData';
-import { supabaseSync } from '../utils/supabaseSync';
+import { supabase } from '../lib/supabase';
 import { 
   CalendarDaysIcon, 
   TruckIcon, 
@@ -26,18 +25,8 @@ export const Dashboard: React.FC = () => {
     busyDrivers: 0,
     upcomingToday: 0,
   });
-  
-  const { data: recentPackages, loading } = useSupabaseData({
-    table: 'packages',
-    select: `
-      *,
-      agencies(name),
-      vehicles(license_plate, model),
-      drivers(name)
-    `,
-    orderBy: { column: 'created_at', ascending: false },
-    realtime: true
-  });
+  const [recentPackages, setRecentPackages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardData();
@@ -45,25 +34,34 @@ export const Dashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
       const today = new Date().toISOString().split('T')[0];
 
-      // Usar supabaseSync para garantir consistência
-      const [packages, vehicles, drivers, upcoming] = await Promise.all([
-        supabaseSync.forceSync('packages'),
-        supabaseSync.executeOperation('vehicles_active', () =>
-          supabase.from('vehicles').select('status').eq('active', true).then(r => r.data || [])
-        ),
-        supabaseSync.executeOperation('drivers_active', () =>
-          supabase.from('drivers').select('status').eq('active', true).then(r => r.data || [])
-        ),
-        supabaseSync.executeOperation('upcoming_today', () =>
-          supabase
-            .from('package_attractions')
-            .select('*, packages(*), attractions(*)')
-            .eq('scheduled_date', today)
-            .then(r => r.data || [])
-        )
+      const [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult] = await Promise.all([
+        supabase.from('packages').select('*'),
+        supabase.from('vehicles').select('status').eq('active', true),
+        supabase.from('drivers').select('status').eq('active', true),
+        supabase
+          .from('package_attractions')
+          .select('*, packages(*), attractions(*)')
+          .eq('scheduled_date', today),
+        supabase
+          .from('packages')
+          .select(`
+            *,
+            agencies(name),
+            vehicles(license_plate, model),
+            drivers(name)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(5)
       ]);
+
+      const packages = packagesResult.data || [];
+      const vehicles = vehiclesResult.data || [];
+      const drivers = driversResult.data || [];
+      const upcoming = upcomingResult.data || [];
+      const recent = recentResult.data || [];
 
       setStats({
         totalPackages: packages.length,
@@ -72,8 +70,12 @@ export const Dashboard: React.FC = () => {
         busyDrivers: drivers.filter(d => d.status === 'busy').length,
         upcomingToday: upcoming.length,
       });
+
+      setRecentPackages(recent);
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
+    } finally {
+      setLoading(false);
     }
   };
 

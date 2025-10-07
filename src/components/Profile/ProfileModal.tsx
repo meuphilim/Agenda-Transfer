@@ -1,5 +1,4 @@
 import { Fragment, useState } from 'react';
-import { useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -14,13 +13,46 @@ interface ProfileModalProps {
 export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const { profile, user, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ full_name?: string; phone?: string }>({});
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     phone: profile?.phone || '',
   });
 
+  // Atualizar formData quando profile mudar
+  useState(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name,
+        phone: profile.phone || '',
+      });
+    }
+  }, [profile]);
+
+  const validateForm = () => {
+    const newErrors: { full_name?: string; phone?: string } = {};
+
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = 'Nome completo é obrigatório';
+    } else if (formData.full_name.trim().length < 2) {
+      newErrors.full_name = 'Nome deve ter pelo menos 2 caracteres';
+    }
+
+    if (formData.phone && !/^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(formData.phone)) {
+      newErrors.phone = 'Formato: (00) 00000-0000';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -38,6 +70,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       await refreshProfile();
       toast.success('Perfil atualizado com sucesso!');
       onClose();
+      setErrors({});
     } catch (error: any) {
       toast.error('Erro ao atualizar perfil: ' + error.message);
     } finally {
@@ -66,6 +99,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     setFormData({ ...formData, phone: formatted });
+    
+    // Limpar erro quando usuário começar a digitar
+    if (errors.phone) {
+      setErrors({ ...errors, phone: undefined });
+    }
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, full_name: e.target.value });
+    
+    // Limpar erro quando usuário começar a digitar
+    if (errors.full_name) {
+      setErrors({ ...errors, full_name: undefined });
+    }
   };
 
   return (
@@ -120,15 +167,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                       id="full_name"
                       name="full_name"
                       value={formData.full_name}
-                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      onChange={handleNameChange}
+                      className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
+                        errors.full_name ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                      }`}
                       required
                     />
+                    {errors.full_name && <p className="mt-1 text-sm text-red-600">{errors.full_name}</p>}
                   </div>
 
                   <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                      Telefone *
+                      Telefone
                     </label>
                     <input
                       type="tel"
@@ -138,9 +188,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                       placeholder="(00) 00000-0000"
                       value={formData.phone}
                       onChange={handlePhoneChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      required
+                      className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
+                        errors.phone ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                      }`}
                     />
+                    {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
                   </div>
 
                   <div>

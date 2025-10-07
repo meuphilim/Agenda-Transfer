@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
+import { toast } from 'react-toastify';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface Attraction {

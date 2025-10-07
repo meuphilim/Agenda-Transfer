@@ -10,7 +10,8 @@ import {
   ClockIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon
+  EyeIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 interface UserProfile {
@@ -24,12 +25,200 @@ interface UserProfile {
   email?: string;
 }
 
+interface UserEditModalProps {
+  user: UserProfile | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (userId: string, updates: Partial<UserProfile>) => void;
+}
+
+const UserEditModal: React.FC<UserEditModalProps> = ({ 
+  user, 
+  isOpen, 
+  onClose, 
+  onSave 
+}) => {
+  const [formData, setFormData] = useState({
+    full_name: '',
+    phone: '',
+    is_admin: false,
+    status: 'pending' as UserStatus,
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        full_name: user.full_name,
+        phone: user.phone || '',
+        is_admin: user.is_admin,
+        status: user.status,
+      });
+    }
+  }, [user]);
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 11) {
+      return numbers.replace(
+        /^(\d{0,2})(\d{0,5})(\d{0,4})/,
+        (_, ddd, first, second) => {
+          let formatted = '';
+          if (ddd) formatted += `(${ddd}`;
+          if (ddd.length === 2) formatted += ') ';
+          if (first) formatted += first;
+          if (second) formatted += `-${second}`;
+          return formatted;
+        }
+      );
+    }
+    return value;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setFormData({ ...formData, phone: formatted });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      await onSave(user.id, formData);
+      onClose();
+    } catch (error) {
+      console.error('Erro ao salvar usuário:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen || !user) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">
+              Editar Usuário
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nome Completo *
+              </label>
+              <input
+                type="text"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.full_name}
+                onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+                value={user.email || ''}
+              />
+              <p className="mt-1 text-xs text-gray-500">O email não pode ser alterado</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefone
+              </label>
+              <input
+                type="tel"
+                maxLength={15}
+                placeholder="(00) 00000-0000"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.phone}
+                onChange={handlePhoneChange}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value as UserStatus})}
+              >
+                <option value="pending">Pendente</option>
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+              </select>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="is_admin"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                checked={formData.is_admin}
+                onChange={(e) => setFormData({...formData, is_admin: e.target.checked})}
+              />
+              <label htmlFor="is_admin" className="ml-2 block text-sm text-gray-700">
+                Administrador
+              </label>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Salvando...
+                  </div>
+                ) : (
+                  'Salvar'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface UserDetailsModalProps {
   user: UserProfile | null;
   isOpen: boolean;
   onClose: () => void;
   onStatusUpdate: (userId: string, status: UserStatus) => void;
   onAdminToggle: (userId: string, isAdmin: boolean) => void;
+  onDeleteUser: (userId: string) => void;
 }
 
 const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ 
@@ -37,7 +226,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   isOpen, 
   onClose, 
   onStatusUpdate,
-  onAdminToggle 
+  onAdminToggle,
+  onDeleteUser
 }) => {
   if (!isOpen || !user) return null;
 
@@ -75,7 +265,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <XCircleIcon className="h-6 w-6" />
+              <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
@@ -119,7 +309,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
           </div>
 
           <div className="mt-6 border-t pt-6">
-            <h4 className="text-sm font-medium text-gray-900 mb-4">Ações</h4>
+            <h4 className="text-sm font-medium text-gray-900 mb-4">Ações Rápidas</h4>
             
             <div className="space-y-3">
               {/* Ações de Status */}
@@ -171,6 +361,22 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
                 </button>
               </div>
+
+              {/* Excluir Usuário */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Zona de Perigo</label>
+                <button
+                  onClick={() => {
+                    if (confirm(`Tem certeza que deseja excluir o usuário "${user.full_name}"? Esta ação não pode ser desfeita.`)) {
+                      onDeleteUser(user.id);
+                    }
+                  }}
+                  className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                >
+                  <TrashIcon className="h-4 w-4 mr-1" />
+                  Excluir Usuário
+                </button>
+              </div>
             </div>
           </div>
 
@@ -188,12 +394,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   );
 };
 
-
 export const UserManagement = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { isAdmin } = useAuth();
@@ -207,6 +413,9 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
+      
+      // Buscar perfis
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -214,37 +423,68 @@ export const UserManagement = () => {
 
       if (profilesError) throw profilesError;
 
-      // Buscar emails dos usuários
-      let authUsers: any[] = [];
-      try {
-        const { data: { users }, error: authError } = await supabase.auth.admin.listUsers();
-        if (authError) {
-          console.warn('Não foi possível carregar emails dos usuários:', authError);
-        } else {
-          authUsers = users || [];
-        }
-      } catch (error) {
-        console.warn('Erro ao acessar admin API:', error);
+      // Buscar emails dos usuários do auth
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.warn('Não foi possível carregar emails dos usuários:', authError);
       }
 
+      // Combinar dados
       const usersWithEmail = profiles?.map(profile => ({
         ...profile,
-        email: authUsers.find(user => user.id === profile.id)?.email || 'Email não disponível'
-      }));
+        email: authUsers?.find(user => user.id === profile.id)?.email || 'Email não disponível'
+      })) || [];
 
-      setUsers(usersWithEmail || []);
+      setUsers(usersWithEmail);
     } catch (error: any) {
       toast.error('Erro ao carregar usuários: ' + error.message);
+      console.error('Erro ao carregar usuários:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteUser = async (userId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
-      return;
-    }
+  const updateUserStatus = async (userId: string, status: UserStatus) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', userId);
 
+      if (error) throw error;
+
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, status } : user
+      ));
+
+      toast.success('Status do usuário atualizado com sucesso!');
+    } catch (error: any) {
+      toast.error('Erro ao atualizar status: ' + error.message);
+    }
+  };
+
+  const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_admin: isAdmin, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, is_admin: isAdmin } : user
+      ));
+
+      toast.success(`Usuário ${isAdmin ? 'promovido a' : 'removido de'} administrador!`);
+      setShowDetailsModal(false);
+    } catch (error: any) {
+      toast.error('Erro ao atualizar privilégios: ' + error.message);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
     try {
       // Primeiro remove o perfil
       const { error: profileError } = await supabase
@@ -271,42 +511,29 @@ export const UserManagement = () => {
       toast.error('Erro ao excluir usuário: ' + error.message);
     }
   };
-  const updateUserStatus = async (userId: string, status: UserStatus) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status })
-        .eq('id', userId);
 
-      if (error) throw error;
-
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status } : user
-      ));
-
-      toast.success('Status do usuário atualizado com sucesso!');
-    } catch (error: any) {
-      toast.error('Erro ao atualizar status: ' + error.message);
-    }
+  const handleEditUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
   };
 
-  const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
+  const handleSaveUser = async (userId: string, updates: Partial<UserProfile>) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ is_admin: isAdmin })
+        .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', userId);
 
       if (error) throw error;
 
       setUsers(users.map(user => 
-        user.id === userId ? { ...user, is_admin: isAdmin } : user
+        user.id === userId ? { ...user, ...updates } : user
       ));
 
-      toast.success(`Usuário ${isAdmin ? 'promovido a' : 'removido de'} administrador!`);
-      setShowDetailsModal(false);
+      toast.success('Usuário atualizado com sucesso!');
     } catch (error: any) {
-      toast.error('Erro ao atualizar privilégios: ' + error.message);
+      toast.error('Erro ao atualizar usuário: ' + error.message);
+      throw error;
     }
   };
 
@@ -387,10 +614,16 @@ export const UserManagement = () => {
             Gerencie usuários, status e permissões do sistema
           </p>
         </div>
+        <button
+          onClick={fetchUsers}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Atualizar
+        </button>
       </div>
 
-      {/* Filtros */}
-      <div className="mb-6">
+      {/* Filtros e Busca */}
+      <div className="mb-6 space-y-4">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             {[
@@ -412,6 +645,16 @@ export const UserManagement = () => {
               </button>
             ))}
           </nav>
+        </div>
+
+        <div className="max-w-md">
+          <input
+            type="text"
+            placeholder="Buscar por nome, email ou telefone..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
       
@@ -473,13 +716,21 @@ export const UserManagement = () => {
                         {new Date(user.created_at).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 lg:pr-8">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => handleViewUser(user)}
                             className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
                             title="Ver detalhes"
                           >
                             <EyeIcon className="h-4 w-4" />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                            title="Editar usuário"
+                          >
+                            <PencilIcon className="h-4 w-4" />
                           </button>
                           
                           {user.status === 'pending' && (
@@ -546,6 +797,17 @@ export const UserManagement = () => {
         onStatusUpdate={updateUserStatus}
         onAdminToggle={updateUserAdmin}
         onDeleteUser={deleteUser}
+      />
+
+      {/* Modal de Edição */}
+      <UserEditModal
+        user={selectedUser}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedUser(null);
+        }}
+        onSave={handleSaveUser}
       />
     </div>
   );

@@ -26,8 +26,9 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ user: User | null; session: Session | null; }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<UserProfile>;
   refreshProfile: () => Promise<void>;
+  needsProfileCompletion: boolean;
+  completeProfile: (fullName: string, phone: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [accountSetup, setAccountSetup] = useState(true);
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
 
@@ -123,6 +125,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   }, [user]);
 
+  const completeProfile = useCallback(async (fullName: string, phone: string) => {
+    if (!user) throw new Error('Usuário não autenticado');
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .insert([{
+          id: user.id,
+          full_name: fullName,
+          phone: phone,
+          is_admin: false,
+          status: 'pending'
+        }]);
+
+      if (error) throw error;
+
+      // Buscar o perfil criado
+      const profile = await fetchProfile(user.id, user);
+      if (profile) {
+        setProfile(profile);
+        setNeedsProfileCompletion(false);
+        setAccountSetup(true);
+      }
+    } catch (error) {
+      logger.error('Erro ao completar perfil:', error);
+      throw error;
+    }
+  }, [user, fetchProfile]);
+
   // Controle de retry inteligente com proteção contra recursão
   const setupAccountWithRetry = async (userId: string, userData: User | null) => {
     retryCountRef.current = 0;
@@ -138,6 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profile) {
           logger.log('✅ Account setup completed successfully');
+          setNeedsProfileCompletion(false);
           return profile;
         }
 
@@ -164,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    // Se chegou aqui, precisa completar o perfil
+    setNeedsProfileCompletion(true);
     logger.error('❌ Max retries reached');
     return null;
   };
@@ -201,9 +235,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (!profile) {
             logger.log('⚠️ Account setup failed, will show setup screen');
-            setAccountSetup(false);
+            setNeedsProfileCompletion(true);
+            setAccountSetup(true);
           } else {
             setProfile(profile);
+            setNeedsProfileCompletion(false);
             setAccountSetup(true);
             logger.log('✅ Account setup completed');
           }
@@ -211,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(null);
           setUser(null);
           setProfile(null);
+          setNeedsProfileCompletion(false);
           setAccountSetup(true);
         }
       } catch (error) {
@@ -220,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error instanceof Error && error.message?.includes('infinite recursion')) {
           logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
           setAccountSetup(false); // Mostra tela de erro
+          setNeedsProfileCompletion(false);
         }
       } finally {
         setLoading(false);
@@ -247,15 +285,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = await setupAccountWithRetry(userId, session.user);
 
         if (!profile) {
-          setAccountSetup(false);
+          setNeedsProfileCompletion(true);
+          setAccountSetup(true);
         } else {
           setProfile(profile);
+          setNeedsProfileCompletion(false);
           setAccountSetup(true);
         }
       } else {
         setSession(null);
         setUser(null);
         setProfile(null);
+        setNeedsProfileCompletion(false);
         setAccountSetup(true);
       }
     });
@@ -272,6 +313,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
+      setNeedsProfileCompletion(false);
       setAccountSetup(true);
       logger.log('✅ Sign out successful');
     } catch (error) {
@@ -305,8 +347,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(profile);
 
         if (!profile) {
-          setAccountSetup(false);
+          setNeedsProfileCompletion(true);
+          setAccountSetup(true);
         } else {
+          setNeedsProfileCompletion(false);
           setAccountSetup(true);
         }
       }
@@ -350,11 +394,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     loading,
     accountSetup,
+    needsProfileCompletion,
     signIn,
     signUp,
     signOut,
     isAdmin: profile?.is_admin ?? false,
     refreshProfile,
+    completeProfile,
   };
 
   return (

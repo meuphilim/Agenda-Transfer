@@ -8,6 +8,7 @@ interface UseSupabaseDataOptions {
   filters?: Record<string, any>;
   orderBy?: { column: string; ascending?: boolean };
   realtime?: boolean;
+  enabled?: boolean;
 }
 
 interface UseSupabaseDataReturn<T> {
@@ -25,13 +26,19 @@ export function useSupabaseData<T extends { id: string }>({
   select = '*',
   filters = {},
   orderBy,
-  realtime = false
+  realtime = false,
+  enabled = true
 }: UseSupabaseDataOptions): UseSupabaseDataReturn<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -58,11 +65,12 @@ export function useSupabaseData<T extends { id: string }>({
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao carregar dados';
       setError(errorMessage);
+      console.error(`Erro ao buscar dados de ${table}:`, err);
       toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [table, select, filters, orderBy]);
+  }, [table, select, JSON.stringify(filters), orderBy, enabled]);
 
   const create = useCallback(async (item: Partial<T>): Promise<T | null> => {
     try {
@@ -129,7 +137,7 @@ export function useSupabaseData<T extends { id: string }>({
 
   // Configurar realtime se habilitado
   useEffect(() => {
-    if (!realtime) return;
+    if (!realtime || !enabled) return;
 
     const channel = supabase
       .channel(`${table}_changes`)
@@ -138,7 +146,13 @@ export function useSupabaseData<T extends { id: string }>({
         (payload) => {
           switch (payload.eventType) {
             case 'INSERT':
-              setData(prev => [payload.new as T, ...prev]);
+              setData(prev => {
+                // Evitar duplicatas
+                if (prev.find(item => item.id === payload.new.id)) {
+                  return prev;
+                }
+                return [payload.new as T, ...prev];
+              });
               break;
             case 'UPDATE':
               setData(prev => prev.map(item => 
@@ -156,7 +170,7 @@ export function useSupabaseData<T extends { id: string }>({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [table, realtime]);
+  }, [table, realtime, enabled]);
 
   // Fetch inicial
   useEffect(() => {
