@@ -106,7 +106,7 @@ export const Sidebar: React.FC = () => {
             disabled={signingOut}
             className="w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <UserIcon className="mr-3 h-5 w-5 flex-shrink-0" />
+            <UserIcon className="mr-3 h-5 w-5 flex-shrink-0 self-start mt-0.5" />
             <div className="flex flex-col items-start min-w-0 flex-1">
               <span className="font-medium truncate w-full text-gray-900">
                 {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
