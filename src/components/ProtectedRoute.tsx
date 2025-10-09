@@ -17,7 +17,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ CONSTANTES DE TIMEOUT
-  const LOADING_TIMEOUT = 30000; // 30 segundos para carregamento inicial
+  const LOADING_TIMEOUT = 10000; // 10 segundos para carregamento inicial
   const SESSION_TIMEOUT = Number(import.meta.env.VITE_SESSION_TIMEOUT) || 1800000; // 30 minutos (padrão)
 
   // ✅ GESTÃO DE TIMEOUT DE LOADING (apenas para carregamento inicial)
@@ -48,9 +48,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // ✅ GESTÃO DE SESSÃO DE INATIVIDADE
   useEffect(() => {
-    if (!user) return; // Só gerencia sessão se usuário está logado
+    if (!user || loading) return; // Só gerencia sessão se usuário está logado E não está carregando
 
     let lastActivity = Date.now();
+    let inactivityCheckInterval: NodeJS.Timeout | null = null;
 
     const resetSessionTimer = () => {
       lastActivity = Date.now();
@@ -58,27 +59,56 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       // Limpa timer anterior
       if (sessionTimerRef.current) {
         clearTimeout(sessionTimerRef.current);
+        sessionTimerRef.current = null;
       }
 
-      // Cria novo timer de sessão
+      // Limpa interval anterior
+      if (inactivityCheckInterval) {
+        clearInterval(inactivityCheckInterval);
+      }
+
+      // Verifica inatividade a cada minuto
+      inactivityCheckInterval = setInterval(() => {
+        const inactiveTime = Date.now() - lastActivity;
+        
+        if (inactiveTime >= SESSION_TIMEOUT) {
+          console.log('⏱️ Sessão expirada por inatividade');
+          if (inactivityCheckInterval) {
+            clearInterval(inactivityCheckInterval);
+          }
+          handleSessionExpired();
+        }
+      }, 60000); // Checa a cada 1 minuto
+
+      // Timer de fallback (caso o interval falhe)
       sessionTimerRef.current = setTimeout(() => {
         const inactiveTime = Date.now() - lastActivity;
         
-        // Se realmente ficou inativo pelo tempo configurado
         if (inactiveTime >= SESSION_TIMEOUT) {
-          console.log('⏱️ Sessão expirada por inatividade');
+          console.log('⏱️ Sessão expirada por inatividade (fallback)');
           handleSessionExpired();
         }
-      }, SESSION_TIMEOUT);
+      }, SESSION_TIMEOUT + 5000); // +5s de margem
     };
 
     const handleSessionExpired = async () => {
       try {
+        // Limpa todos os timers
+        if (sessionTimerRef.current) {
+          clearTimeout(sessionTimerRef.current);
+        }
+        if (inactivityCheckInterval) {
+          clearInterval(inactivityCheckInterval);
+        }
+        
         await signOut();
-        // Mostra notificação de sessão expirada
-        alert('Sua sessão expirou por inatividade. Faça login novamente.');
+        alert('⏱️ Sua sessão expirou por inatividade. Faça login novamente.');
       } catch (error) {
         console.error('Erro ao encerrar sessão:', error);
+        // Força limpeza mesmo com erro
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload();
       }
     };
 
@@ -96,7 +126,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     let canReset = true;
     const handleActivity = () => {
       if (canReset) {
-        resetSessionTimer();
+        lastActivity = Date.now(); // Atualiza timestamp
         canReset = false;
         setTimeout(() => { canReset = true; }, 1000);
       }
@@ -115,11 +145,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       if (sessionTimerRef.current) {
         clearTimeout(sessionTimerRef.current);
       }
+      if (inactivityCheckInterval) {
+        clearInterval(inactivityCheckInterval);
+      }
       activityEvents.forEach(event => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [user, SESSION_TIMEOUT, signOut]);
+  }, [user, loading, SESSION_TIMEOUT, signOut]);
 
   // ✅ LOADING COM INDICADOR DE PROGRESSO
   if (loading && !loadingTimeout) {
@@ -178,7 +211,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             </div>
             <h2 className="text-2xl font-bold text-red-600 mb-4">Tempo Limite Excedido</h2>
             <p className="text-gray-600 mb-2">
-              A aplicação demorou mais de 30 segundos para carregar.
+              A aplicação demorou mais de 10 segundos para carregar.
             </p>
             <p className="text-gray-500 text-sm mb-6">
               Possíveis causas: conexão lenta, servidor indisponível ou cache corrompido.
