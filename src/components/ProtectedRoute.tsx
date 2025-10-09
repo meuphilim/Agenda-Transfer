@@ -1,4 +1,4 @@
-// src/components/ProtectedRoute.tsx - VERSÃO OTIMIZADA COM GESTÃO DE SESSÃO
+// src/components/ProtectedRoute.tsx - VERSÃO AJUSTADA PARA 10 MINUTOS DE INATIVIDADE
 import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Auth/Login';
 import { CompleteProfile } from './Auth/CompleteProfile';
@@ -18,18 +18,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // ✅ CONSTANTES DE TIMEOUT
   const LOADING_TIMEOUT = 10000; // 10 segundos para carregamento inicial
-  const SESSION_TIMEOUT = Number(import.meta.env.VITE_SESSION_TIMEOUT) || 1800000; // 30 minutos (padrão)
+  const SESSION_TIMEOUT = 600000; // 10 minutos em milissegundos
 
-  // ✅ GESTÃO DE TIMEOUT DE LOADING (apenas para carregamento inicial)
+  // ✅ GESTÃO DE TIMEOUT DE LOADING
   useEffect(() => {
-    // Limpa timer anterior
-    if (loadingTimerRef.current) {
-      clearTimeout(loadingTimerRef.current);
-      loadingTimerRef.current = null;
-    }
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
 
     if (loading) {
-      // Timer mais longo (30s) para dar tempo de carregar
       loadingTimerRef.current = setTimeout(() => {
         console.error('⚠️ Loading timeout - aplicação demorou muito para carregar');
         setLoadingTimeout(true);
@@ -39,122 +34,89 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     }
 
     return () => {
-      if (loadingTimerRef.current) {
-        clearTimeout(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
     };
-  }, [loading, LOADING_TIMEOUT]);
+  }, [loading]);
 
-  // ✅ GESTÃO DE SESSÃO DE INATIVIDADE
+  // ✅ GESTÃO DE SESSÃO DE INATIVIDADE (10 MIN)
   useEffect(() => {
-    if (!user || loading) return; // Só gerencia sessão se usuário está logado E não está carregando
+    if (!user || loading) return;
 
     let lastActivity = Date.now();
     let inactivityCheckInterval: NodeJS.Timeout | null = null;
 
-    const resetSessionTimer = () => {
-      lastActivity = Date.now();
-      
-      // Limpa timer anterior
-      if (sessionTimerRef.current) {
-        clearTimeout(sessionTimerRef.current);
-        sessionTimerRef.current = null;
-      }
-
-      // Limpa interval anterior
-      if (inactivityCheckInterval) {
-        clearInterval(inactivityCheckInterval);
-      }
-
-      // Verifica inatividade a cada minuto
-      inactivityCheckInterval = setInterval(() => {
-        const inactiveTime = Date.now() - lastActivity;
-        
-        if (inactiveTime >= SESSION_TIMEOUT) {
-          console.log('⏱️ Sessão expirada por inatividade');
-          if (inactivityCheckInterval) {
-            clearInterval(inactivityCheckInterval);
-          }
-          handleSessionExpired();
-        }
-      }, 60000); // Checa a cada 1 minuto
-
-      // Timer de fallback (caso o interval falhe)
-      sessionTimerRef.current = setTimeout(() => {
-        const inactiveTime = Date.now() - lastActivity;
-        
-        if (inactiveTime >= SESSION_TIMEOUT) {
-          console.log('⏱️ Sessão expirada por inatividade (fallback)');
-          handleSessionExpired();
-        }
-      }, SESSION_TIMEOUT + 5000); // +5s de margem
-    };
-
     const handleSessionExpired = async () => {
       try {
-        // Limpa todos os timers
-        if (sessionTimerRef.current) {
-          clearTimeout(sessionTimerRef.current);
-        }
-        if (inactivityCheckInterval) {
-          clearInterval(inactivityCheckInterval);
-        }
-        
+        if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+        if (inactivityCheckInterval) clearInterval(inactivityCheckInterval);
         await signOut();
         alert('⏱️ Sua sessão expirou por inatividade. Faça login novamente.');
       } catch (error) {
         console.error('Erro ao encerrar sessão:', error);
-        // Força limpeza mesmo com erro
         localStorage.clear();
         sessionStorage.clear();
         window.location.reload();
       }
     };
 
-    // Eventos que resetam o timer de inatividade
-    const activityEvents = [
-      'mousedown',
-      'keydown',
-      'scroll',
-      'touchstart',
-      'click',
-      'mousemove'
-    ];
+    const resetSessionTimer = () => {
+      lastActivity = Date.now();
 
-    // Throttle para evitar muitos resets (máximo 1 reset por segundo)
+      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+      if (inactivityCheckInterval) clearInterval(inactivityCheckInterval);
+
+      inactivityCheckInterval = setInterval(() => {
+        const inactiveTime = Date.now() - lastActivity;
+        if (inactiveTime >= SESSION_TIMEOUT) {
+          console.log('⏱️ Sessão expirada por inatividade');
+          clearInterval(inactivityCheckInterval!);
+          handleSessionExpired();
+        }
+      }, 60000);
+
+      sessionTimerRef.current = setTimeout(() => {
+        const inactiveTime = Date.now() - lastActivity;
+        if (inactiveTime >= SESSION_TIMEOUT) {
+          console.log('⏱️ Sessão expirada por inatividade (fallback)');
+          handleSessionExpired();
+        }
+      }, SESSION_TIMEOUT + 5000);
+    };
+
+    // Eventos que resetam o timer de inatividade
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'mousemove'];
     let canReset = true;
     const handleActivity = () => {
       if (canReset) {
-        lastActivity = Date.now(); // Atualiza timestamp
+        lastActivity = Date.now();
         canReset = false;
-        setTimeout(() => { canReset = true; }, 1000);
+        setTimeout(() => {
+          canReset = true;
+        }, 1000);
       }
     };
 
-    // Registra listeners de atividade
+    // Atualiza quando a aba volta ao foco
+    const handleFocus = () => {
+      lastActivity = Date.now();
+    };
+
+    window.addEventListener('focus', handleFocus);
     activityEvents.forEach(event => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
 
-    // Inicia timer de sessão
     resetSessionTimer();
 
-    // Cleanup
     return () => {
-      if (sessionTimerRef.current) {
-        clearTimeout(sessionTimerRef.current);
-      }
-      if (inactivityCheckInterval) {
-        clearInterval(inactivityCheckInterval);
-      }
-      activityEvents.forEach(event => {
-        window.removeEventListener(event, handleActivity);
-      });
+      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+      if (inactivityCheckInterval) clearInterval(inactivityCheckInterval);
+      activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [user, loading, SESSION_TIMEOUT, signOut]);
+  }, [user, loading, signOut]);
 
-  // ✅ LOADING COM INDICADOR DE PROGRESSO
+  // ✅ LOADING UI
   if (loading && !loadingTimeout) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -174,126 +136,52 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // ✅ TELA DE ERRO PARA LOADING INFINITO
   if (loadingTimeout) {
-    const handleReload = () => {
-      if (loadingTimerRef.current) {
-        clearTimeout(loadingTimerRef.current);
-      }
-      window.location.reload();
-    };
+    const handleReload = () => window.location.reload();
 
-    const handleLogoutAndReload = async () => {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="max-w-md w-full space-y-8 p-8 bg-white shadow-lg rounded-lg text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Tempo Limite Excedido</h2>
+          <p className="text-gray-600 mb-4">A aplicação demorou mais de 10 segundos para carregar.</p>
+          <button
+            onClick={handleReload}
+            className="w-full py-3 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+          >
+            Recarregar Página
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return <Login />;
+  if (needsProfileCompletion) return <CompleteProfile />;
+
+  if (profile?.status === 'pending' || profile?.status === 'inactive') {
+    const statusText =
+      profile?.status === 'pending'
+        ? 'Sua conta está aguardando aprovação do administrador.'
+        : 'Sua conta foi desativada. Entre em contato com o administrador.';
+
+    const handleSignOut = async () => {
       try {
-        if (loadingTimerRef.current) {
-          clearTimeout(loadingTimerRef.current);
-        }
         await signOut();
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
       } catch (error) {
         console.error('Erro ao fazer logout:', error);
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
       }
     };
 
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="max-w-md w-full space-y-8 p-8 bg-white shadow-lg rounded-lg text-center">
-          <div>
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-              <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Tempo Limite Excedido</h2>
-            <p className="text-gray-600 mb-2">
-              A aplicação demorou mais de 10 segundos para carregar.
-            </p>
-            <p className="text-gray-500 text-sm mb-6">
-              Possíveis causas: conexão lenta, servidor indisponível ou cache corrompido.
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={handleReload}
-                className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-              >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Recarregar Página
-              </button>
-              <button
-                  onClick={() => {
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  window.location.reload();
-                }}
-                className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-              >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Limpar Sessão e Tentar Novamente
-              </button>
-            </div>
-            <div className="mt-6 text-xs text-gray-500">
-              <p>Se o problema persistir:</p>
-              <ul className="mt-2 space-y-1 text-left list-disc list-inside">
-                <li>Verifique sua conexão com a internet</li>
-                <li>Tente usar outro navegador</li>
-                <li>Entre em contato com o suporte</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ Se não há usuário, mostra tela de login
-  if (!user) {
-    return <Login />;
-  }
-
-  // ✅ Verifica se precisa completar perfil
-  if (needsProfileCompletion) {
-    return <CompleteProfile />;
-  }
-
-  // ✅ Verifica status da conta - PENDING
-  if (profile?.status === 'pending') {
-    const handleSignOut = async () => {
-      try {
-        await signOut();
-      } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-      }
-    };
-
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white shadow-lg rounded-lg">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
-              <svg className="h-8 w-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900">Conta Pendente</h2>
-            <p className="mt-2 text-gray-600">
-              Sua conta está aguardando aprovação do administrador.
-            </p>
-            <p className="mt-4 text-sm text-gray-500">
-              Você receberá um email quando sua conta for aprovada.
-            </p>
-          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            {profile.status === 'pending' ? 'Conta Pendente' : 'Conta Desativada'}
+          </h2>
+          <p className="text-gray-600 mb-4">{statusText}</p>
           <button
             onClick={handleSignOut}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="w-full py-2 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
           >
             Sair
           </button>
@@ -302,45 +190,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  // ✅ Verifica status da conta - INACTIVE
-  if (profile?.status === 'inactive') {
-    const handleSignOut = async () => {
-      try {
-        await signOut();
-      } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-      }
-    };
-
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white shadow-lg rounded-lg">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-              <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900">Conta Desativada</h2>
-            <p className="mt-2 text-gray-600">
-              Sua conta foi desativada. Entre em contato com o administrador.
-            </p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            Sair
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ Previne acesso direto à rota /login quando já autenticado
-  if (location.pathname === '/login') {
-    return <Navigate to="/" replace />;
-  }
+  if (location.pathname === '/login') return <Navigate to="/" replace />;
 
   return <>{children}</>;
 };
