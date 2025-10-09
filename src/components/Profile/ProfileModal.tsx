@@ -1,9 +1,9 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-toastify';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -15,19 +15,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ full_name?: string; phone?: string }>({});
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || '',
-    phone: profile?.phone || '',
+    full_name: '',
+    phone: '',
   });
 
-  // Atualizar formData quando profile mudar
-  useState(() => {
+  // ✅ CORRIGIDO: useEffect para sincronizar com profile
+  useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name,
+        full_name: profile.full_name || '',
         phone: profile.phone || '',
       });
     }
-  }, [profile]);
+  }, [profile, isOpen]); // ✅ Atualiza quando modal abre
+
+  // ✅ NOVO: Reset ao fechar modal
+  const handleClose = () => {
+    setErrors({});
+    onClose();
+  };
 
   const validateForm = () => {
     const newErrors: { full_name?: string; phone?: string } = {};
@@ -53,26 +59,32 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       return;
     }
 
+    if (!user?.id) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: formData.full_name,
-          phone: formData.phone,
+          full_name: formData.full_name.trim(),
+          phone: formData.phone || null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', user?.id);
+        .eq('id', user.id);
 
       if (error) throw error;
 
+      // ✅ Aguarda refresh completar antes de fechar
       await refreshProfile();
       toast.success('Perfil atualizado com sucesso!');
-      onClose();
-      setErrors({});
+      handleClose();
     } catch (error: any) {
-      toast.error('Erro ao atualizar perfil: ' + error.message);
+      console.error('Erro ao atualizar perfil:', error);
+      toast.error('Erro ao atualizar perfil: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -93,14 +105,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         }
       );
     }
-    return value;
+    return value.slice(0, 15);
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     setFormData({ ...formData, phone: formatted });
     
-    // Limpar erro quando usuário começar a digitar
     if (errors.phone) {
       setErrors({ ...errors, phone: undefined });
     }
@@ -109,7 +120,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, full_name: e.target.value });
     
-    // Limpar erro quando usuário começar a digitar
     if (errors.full_name) {
       setErrors({ ...errors, full_name: undefined });
     }
@@ -117,7 +127,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -142,16 +152,27 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <div className="flex justify-between items-center mb-4">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900"
-                  >
-                    Editar Perfil
-                  </Dialog.Title>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <UserCircleIcon className="h-10 w-10 text-blue-600" />
+                    </div>
+                    <div>
+                      <Dialog.Title
+                        as="h3"
+                        className="text-lg font-medium leading-6 text-gray-900"
+                      >
+                        Editar Perfil
+                      </Dialog.Title>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Atualize suas informações pessoais
+                      </p>
+                    </div>
+                  </div>
                   <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    onClick={handleClose}
+                    disabled={loading}
+                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200 disabled:opacity-50"
                   >
                     <XMarkIcon className="h-6 w-6" />
                   </button>
@@ -159,7 +180,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
                       Nome Completo *
                     </label>
                     <input
@@ -168,16 +189,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                       name="full_name"
                       value={formData.full_name}
                       onChange={handleNameChange}
-                      className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                        errors.full_name ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                      disabled={loading}
+                      placeholder="Digite seu nome completo"
+                      className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                        errors.full_name 
+                          ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                          : 'border-gray-300 focus:border-blue-500'
                       }`}
                       required
                     />
-                    {errors.full_name && <p className="mt-1 text-sm text-red-600">{errors.full_name}</p>}
+                    {errors.full_name && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        {errors.full_name}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                       Telefone
                     </label>
                     <input
@@ -188,46 +218,86 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                       placeholder="(00) 00000-0000"
                       value={formData.phone}
                       onChange={handlePhoneChange}
-                      className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                        errors.phone ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                      disabled={loading}
+                      className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                        errors.phone 
+                          ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                          : 'border-gray-300 focus:border-blue-500'
                       }`}
                     />
-                    {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+                    {errors.phone && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        {errors.phone}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Email
                     </label>
                     <input
                       type="email"
                       value={user?.email || ''}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 shadow-sm sm:text-sm cursor-not-allowed"
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 shadow-sm sm:text-sm cursor-not-allowed text-gray-600"
                       disabled
                     />
-                    <p className="mt-1 text-xs text-gray-500">O email não pode ser alterado</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      🔒 O email não pode ser alterado
+                    </p>
                   </div>
 
-                  <div className="mt-6 flex justify-end space-x-3 pt-4 border-t">
+                  {/* ✅ NOVO: Informações de status */}
+                  {profile && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-blue-700">
+                            <span className="font-medium">Status da conta:</span>{' '}
+                            {profile.status === 'active' && '✅ Ativa'}
+                            {profile.status === 'pending' && '⏳ Pendente de aprovação'}
+                            {profile.status === 'inactive' && '❌ Inativa'}
+                          </p>
+                          {profile.is_admin && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              🔷 Você possui privilégios de administrador
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                     <button
                       type="button"
-                      onClick={onClose}
-                      className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                      onClick={handleClose}
+                      disabled={loading}
+                      className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                      className="inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                     >
                       {loading ? (
-                        <div className="flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
                           Salvando...
-                        </div>
+                        </>
                       ) : (
-                        'Salvar'
+                        'Salvar Alterações'
                       )}
                     </button>
                   </div>
