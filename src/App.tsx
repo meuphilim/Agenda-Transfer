@@ -14,7 +14,7 @@ import { Settings } from './pages/Settings';
 import { UserManagement } from './pages/UserManagement';
 import { useSessionHeartbeat } from './hooks/useSessionHeartbeat';
 import { useAuth } from './contexts/AuthContext';
-
+ 
 // Componente separado para gerenciar heartbeat global
 const HeartbeatManager: React.FC = () => {
   const { user } = useAuth();
