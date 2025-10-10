@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - VERSÃO INTEGRADA COM HEARTBEAT
+// src/contexts/AuthContext.tsx - VERSÃO CORRIGIDA COM FUNÇÕES EXPORTADAS CORRETAMENTE
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -32,8 +32,6 @@ interface AuthContextType {
   completeProfile: (fullName: string, phone: string) => Promise<void>;
   sessionMetrics?: {
     lastActivity: Date;
-    resetInactivityTimer: () => void;
-    isEnabled: boolean;
     heartbeatCount: number;
     lastHeartbeat: Date | null;
     isRunning: boolean;
@@ -99,16 +97,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     debugMode: import.meta.env.DEV
   });
-
-  // Expor métricas do heartbeat no contexto
-  const sessionMetrics = user && !loading ? {
-    lastActivity,
-    resetInactivityTimer,
-    isEnabled: heartbeatEnabled,
-    heartbeatCount,
-    lastHeartbeat,
-    isRunning: heartbeatRunning
-  } : undefined;
 
   // FUNÇÃO OTIMIZADA: Cache e debounce de requisições
   const fetchProfile = useCallback(async (userId: string, userData?: User | null): Promise<UserProfile | null> => {
@@ -471,6 +459,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Expor métricas do heartbeat no contexto
+  const sessionMetrics = user && !loading ? {
+    lastActivity,
+    heartbeatCount,
+    lastHeartbeat,
+    isRunning: heartbeatRunning
+  } : undefined;
+
   const value = {
     user,
     session,
@@ -485,7 +481,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile,
     completeProfile,
     sessionMetrics, // Adicionar métricas do heartbeat
-    resetSessionTimer // Adicionar função para resetar timer manualmente
+    resetSessionTimer // ✅ FUNÇÃO EXPORTADA CORRETAMENTE
   };
 
   return (
