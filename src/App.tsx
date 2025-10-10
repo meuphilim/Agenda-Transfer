@@ -1,4 +1,3 @@
-// src/App.tsx - VERSÃO INTEGRADA COM HEARTBEAT
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -12,75 +11,45 @@ import { Schedule } from './pages/Schedule';
 import { Packages } from './pages/Packages';
 import { Settings } from './pages/Settings';
 import { UserManagement } from './pages/UserManagement';
-import { useSessionHeartbeat } from './hooks/useSessionHeartbeat';
-import { useAuth } from './contexts/AuthContext';
- 
-// Componente separado para gerenciar heartbeat global
-const HeartbeatManager: React.FC = () => {
-  const { user } = useAuth();
-  
-  // Heartbeat global - monitora a sessão em toda a aplicação
-  useSessionHeartbeat({
-    heartbeatInterval: Number(import.meta.env.VITE_HEARTBEAT_INTERVAL) || 30000,
-    inactivityTimeout: Number(import.meta.env.VITE_SESSION_TIMEOUT) || 1800000,
-    warningBeforeExpire: Number(import.meta.env.VITE_WARNING_BEFORE_EXPIRE) || 300000,
-    enabled: !!user, // Só ativa quando há usuário logado
-    enableBackgroundMode: true,
-    debugMode: import.meta.env.DEV,
-    onSessionExpired: async () => {
-      console.log('[HeartbeatManager] Sessão expirada detectada');
-      // O AuthContext já lida com o logout, então não precisamos fazer nada aqui
-    },
-    onWarning: () => {
-      console.log('[HeartbeatManager] Aviso de expiração emitido');
-    }
-  });
-
-  return null; // Componente invisível
-};
 
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <DataProvider>
-          <Router>
-            <div className="App">
-              {/* Componente invisível que gerencia o heartbeat */}
-              <HeartbeatManager />
-              
-              <Routes>
-                <Route path="/*" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Routes>
-                        <Route index element={<Dashboard />} />
-                        <Route path="agenda" element={<Schedule />} />
-                        <Route path="reservas" element={<Packages />} />
-                        <Route path="cadastros" element={<Settings />} />
-                        <Route path="usuarios" element={<UserManagement />} />
-                      </Routes>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-              </Routes>
-              
-              <ToastContainer
-                position="top-right"
-                autoClose={3000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="light"
-              />
-            </div>
-          </Router>
-        </DataProvider>
-      </AuthProvider>
+    <AuthProvider>
+      <DataProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route index element={<Dashboard />} />
+                      <Route path="agenda" element={<Schedule />} />
+                      <Route path="reservas" element={<Packages />} />
+                      <Route path="cadastros" element={<Settings />} />
+                      <Route path="usuarios" element={<UserManagement />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+            </Routes>
+            <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="light"
+            />
+          </div>
+        </Router>
+      </DataProvider>
+    </AuthProvider>
     </ErrorBoundary>
   );
 }
