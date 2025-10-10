@@ -1,4 +1,4 @@
-// src/hooks/useSessionHeartbeat.ts - VERSÃO CORRIGIDA COM TRATAMENTO DE ERROS
+// src/hooks/useSessionHeartbeat.ts - VERSÃO COM EXPORTAÇÃO CORRETA
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
@@ -265,10 +265,25 @@ export function useSessionHeartbeat({
 
   return {
     lastActivity: new Date(lastActivityRef.current),
-    resetInactivityTimer,
+    resetInactivityTimer, // ✅ FUNÇÃO EXPORTADA CORRETAMENTE
     isEnabled: enabled,
     heartbeatCount,
     lastHeartbeat,
     isRunning
   };
+}
+
+// Helper function para formatar tempo
+export function formatTimeRemaining(milliseconds: number): string {
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  } else {
+    return `${seconds}s`;
+  }
 }
