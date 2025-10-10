@@ -10,10 +10,10 @@ import {
   HeartIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { AgenciesManager } from '../components/Settings/AgenciesManager';
-import { DriversManager } from '../components/Settings/DriversManager';
-import { VehiclesManager } from '../components/Settings/VehiclesManager';
-import { AttractionsManager } from '../components/Settings/AttractionsManager';
+import { AgenciesManager } from '../components/Settings/Agencies';
+import { DriversManager } from '../components/Settings/Drivers';
+import { VehiclesManager } from '../components/Settings/Vehicles';
+import { AttractionsManager } from '../components/Settings/Attractionsr';
 
 export const Settings = () => {
   const { user, profile, sessionMetrics, resetSessionTimer } = useAuth();
