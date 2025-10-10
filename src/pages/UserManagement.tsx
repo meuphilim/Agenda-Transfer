@@ -1,17 +1,18 @@
+// src/pages/UserManagement.tsx - VERSÃO CORRIGIDA COM TRATAMENTO DE ERROS ADMIN
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserStatus } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  UserGroupIcon, 
-  CheckCircleIcon, 
-  XCircleIcon, 
+import { listUsersWithFallback } from '../lib/supabase-admin';
+import {
+  UserGroupIcon,
+  CheckCircleIcon,
+  XCircleIcon,
   ClockIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
-  XMarkIcon
+  EyeIcon
 } from '@heroicons/react/24/outline';
 
 interface UserProfile {
@@ -25,209 +26,20 @@ interface UserProfile {
   email?: string;
 }
 
-interface UserEditModalProps {
-  user: UserProfile | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (userId: string, updates: Partial<UserProfile>) => void;
-}
-
-const UserEditModal: React.FC<UserEditModalProps> = ({ 
-  user, 
-  isOpen, 
-  onClose, 
-  onSave 
-}) => {
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
-    is_admin: false,
-    status: 'pending' as UserStatus,
-  });
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        full_name: user.full_name,
-        phone: user.phone || '',
-        is_admin: user.is_admin,
-        status: user.status,
-      });
-    }
-  }, [user]);
-
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 11) {
-      return numbers.replace(
-        /^(\d{0,2})(\d{0,5})(\d{0,4})/,
-        (_, ddd, first, second) => {
-          let formatted = '';
-          if (ddd) formatted += `(${ddd}`;
-          if (ddd.length === 2) formatted += ') ';
-          if (first) formatted += first;
-          if (second) formatted += `-${second}`;
-          return formatted;
-        }
-      );
-    }
-    return value;
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhone(e.target.value);
-    setFormData({ ...formData, phone: formatted });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      await onSave(user.id, formData);
-      onClose();
-    } catch (error) {
-      console.error('Erro ao salvar usuário:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isOpen || !user) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">
-              Editar Usuário
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome Completo *
-              </label>
-              <input
-                type="text"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={formData.full_name}
-                onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                value={user.email || ''}
-              />
-              <p className="mt-1 text-xs text-gray-500">O email não pode ser alterado</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefone
-              </label>
-              <input
-                type="tel"
-                maxLength={15}
-                placeholder="(00) 00000-0000"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={formData.phone}
-                onChange={handlePhoneChange}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value as UserStatus})}
-              >
-                <option value="pending">Pendente</option>
-                <option value="active">Ativo</option>
-                <option value="inactive">Inativo</option>
-              </select>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="is_admin"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                checked={formData.is_admin}
-                onChange={(e) => setFormData({...formData, is_admin: e.target.checked})}
-              />
-              <label htmlFor="is_admin" className="ml-2 block text-sm text-gray-700">
-                Administrador
-              </label>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Salvando...
-                  </div>
-                ) : (
-                  'Salvar'
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 interface UserDetailsModalProps {
   user: UserProfile | null;
   isOpen: boolean;
   onClose: () => void;
   onStatusUpdate: (userId: string, status: UserStatus) => void;
   onAdminToggle: (userId: string, isAdmin: boolean) => void;
-  onDeleteUser: (userId: string) => void;
 }
 
-const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ 
-  user, 
-  isOpen, 
-  onClose, 
+const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
+  user,
+  isOpen,
+  onClose,
   onStatusUpdate,
-  onAdminToggle,
-  onDeleteUser
+  onAdminToggle
 }) => {
   if (!isOpen || !user) return null;
 
@@ -265,7 +77,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XCircleIcon className="h-6 w-6" />
             </button>
           </div>
 
@@ -309,8 +121,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
           </div>
 
           <div className="mt-6 border-t pt-6">
-            <h4 className="text-sm font-medium text-gray-900 mb-4">Ações Rápidas</h4>
-            
+            <h4 className="text-sm font-medium text-gray-900 mb-4">Ações</h4>
+
             <div className="space-y-3">
               {/* Ações de Status */}
               <div>
@@ -352,29 +164,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                 <button
                   onClick={() => onAdminToggle(user.id, !user.is_admin)}
                   className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white ${
-                    user.is_admin 
-                      ? 'bg-orange-600 hover:bg-orange-700' 
+                    user.is_admin
+                      ? 'bg-orange-600 hover:bg-orange-700'
                       : 'bg-blue-600 hover:bg-blue-700'
                   }`}
                 >
                   <UserGroupIcon className="h-4 w-4 mr-1" />
                   {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
-                </button>
-              </div>
-
-              {/* Excluir Usuário */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Zona de Perigo</label>
-                <button
-                  onClick={() => {
-                    if (confirm(`Tem certeza que deseja excluir o usuário "${user.full_name}"? Esta ação não pode ser desfeita.`)) {
-                      onDeleteUser(user.id);
-                    }
-                  }}
-                  className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                >
-                  <TrashIcon className="h-4 w-4 mr-1" />
-                  Excluir Usuário
                 </button>
               </div>
             </div>
@@ -399,7 +195,6 @@ export const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const { isAdmin } = useAuth();
@@ -415,7 +210,7 @@ export const UserManagement = () => {
     try {
       setLoading(true);
       
-      // Buscar perfis
+      // Buscar perfis dos usuários
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -423,68 +218,31 @@ export const UserManagement = () => {
 
       if (profilesError) throw profilesError;
 
-      // Buscar emails dos usuários do auth
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      // Buscar emails dos usuários usando a função segura
+      const authUsers = await listUsersWithFallback();
       
-      if (authError) {
-        console.warn('Não foi possível carregar emails dos usuários:', authError);
-      }
-
-      // Combinar dados
+      // Mapear emails para perfis
       const usersWithEmail = profiles?.map(profile => ({
         ...profile,
-        email: authUsers?.find(user => user.id === profile.id)?.email || 'Email não disponível'
+        email: authUsers.find(user => user.id === profile.id)?.email || 'Email não disponível'
       })) || [];
 
       setUsers(usersWithEmail);
+      
     } catch (error: any) {
-      toast.error('Erro ao carregar usuários: ' + error.message);
       console.error('Erro ao carregar usuários:', error);
+      toast.error('Erro ao carregar usuários: ' + error.message);
+      setUsers([]); // Garantir que users seja sempre um array
     } finally {
       setLoading(false);
     }
   };
 
-  const updateUserStatus = async (userId: string, status: UserStatus) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status } : user
-      ));
-
-      toast.success('Status do usuário atualizado com sucesso!');
-    } catch (error: any) {
-      toast.error('Erro ao atualizar status: ' + error.message);
-    }
-  };
-
-  const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_admin: isAdmin, updated_at: new Date().toISOString() })
-        .eq('id', userId);
-
-      if (error) throw error;
-
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, is_admin: isAdmin } : user
-      ));
-
-      toast.success(`Usuário ${isAdmin ? 'promovido a' : 'removido de'} administrador!`);
-      setShowDetailsModal(false);
-    } catch (error: any) {
-      toast.error('Erro ao atualizar privilégios: ' + error.message);
-    }
-  };
-
   const deleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
     try {
       // Primeiro remove o perfil
       const { error: profileError } = await supabase
@@ -499,41 +257,62 @@ export const UserManagement = () => {
         const { error: authError } = await supabase.auth.admin.deleteUser(userId);
         if (authError) {
           console.warn('Não foi possível remover usuário do auth:', authError);
+          toast.warning('Perfil removido, mas usuário de autenticação não foi excluído');
         }
       } catch (error) {
         console.warn('Erro ao remover usuário do auth:', error);
+        toast.warning('Perfil removido, mas usuário de autenticação não foi excluído');
       }
 
       setUsers(users.filter(user => user.id !== userId));
       toast.success('Usuário excluído com sucesso!');
       setShowDetailsModal(false);
+      
     } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
       toast.error('Erro ao excluir usuário: ' + error.message);
     }
   };
 
-  const handleEditUser = (user: UserProfile) => {
-    setSelectedUser(user);
-    setShowEditModal(true);
-  };
-
-  const handleSaveUser = async (userId: string, updates: Partial<UserProfile>) => {
+  const updateUserStatus = async (userId: string, status: UserStatus) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ status })
         .eq('id', userId);
 
       if (error) throw error;
 
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, ...updates } : user
+      setUsers(users.map(user =>
+        user.id === userId ? { ...user, status } : user
       ));
 
-      toast.success('Usuário atualizado com sucesso!');
+      toast.success('Status do usuário atualizado com sucesso!');
     } catch (error: any) {
-      toast.error('Erro ao atualizar usuário: ' + error.message);
-      throw error;
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status: ' + error.message);
+    }
+  };
+
+  const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_admin: isAdmin })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.map(user =>
+        user.id === userId ? { ...user, is_admin: isAdmin } : user
+      ));
+
+      toast.success(`Usuário ${isAdmin ? 'promovido a' : 'removido de'} administrador!`);
+      setShowDetailsModal(false);
+      
+    } catch (error: any) {
+      console.error('Erro ao atualizar privilégios:', error);
+      toast.error('Erro ao atualizar privilégios: ' + error.message);
     }
   };
 
@@ -566,11 +345,11 @@ export const UserManagement = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesFilter = filter === 'all' || user.status === filter;
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone?.includes(searchTerm);
-    
+
     return matchesFilter && matchesSearch;
   });
 
@@ -614,16 +393,10 @@ export const UserManagement = () => {
             Gerencie usuários, status e permissões do sistema
           </p>
         </div>
-        <button
-          onClick={fetchUsers}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Atualizar
-        </button>
       </div>
 
-      {/* Filtros e Busca */}
-      <div className="mb-6 space-y-4">
+      {/* Filtros */}
+      <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             {[
@@ -646,18 +419,23 @@ export const UserManagement = () => {
             ))}
           </nav>
         </div>
+      </div>
 
-        <div className="max-w-md">
+      {/* Campo de busca */}
+      <div className="mb-6">
+        <div className="max-w-lg">
+          <label htmlFor="search" className="sr-only">Buscar usuários</label>
           <input
             type="text"
-            placeholder="Buscar por nome, email ou telefone..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            id="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nome, email ou telefone..."
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           />
         </div>
       </div>
-      
+
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle">
@@ -690,7 +468,7 @@ export const UserManagement = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredUsers.map((user) => (
-                    <tr key={user.id}>
+                    <tr key={user.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
                         {user.full_name}
                       </td>
@@ -716,7 +494,7 @@ export const UserManagement = () => {
                         {new Date(user.created_at).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 lg:pr-8">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleViewUser(user)}
                             className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
@@ -724,15 +502,7 @@ export const UserManagement = () => {
                           >
                             <EyeIcon className="h-4 w-4" />
                           </button>
-                          
-                          <button
-                            onClick={() => handleEditUser(user)}
-                            className="text-green-600 hover:text-green-900 transition-colors duration-200"
-                            title="Editar usuário"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          
+
                           {user.status === 'pending' && (
                             <button
                               onClick={() => updateUserStatus(user.id, 'active')}
@@ -742,7 +512,7 @@ export const UserManagement = () => {
                               <CheckCircleIcon className="h-4 w-4" />
                             </button>
                           )}
-                          
+
                           {user.status === 'active' && (
                             <button
                               onClick={() => updateUserStatus(user.id, 'inactive')}
@@ -752,7 +522,7 @@ export const UserManagement = () => {
                               <XCircleIcon className="h-4 w-4" />
                             </button>
                           )}
-                          
+
                           {user.status === 'inactive' && (
                             <button
                               onClick={() => updateUserStatus(user.id, 'active')}
@@ -768,17 +538,22 @@ export const UserManagement = () => {
                   ))}
                 </tbody>
               </table>
-              
+
               {filteredUsers.length === 0 && (
                 <div className="text-center py-12">
                   <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {filter === 'all' 
+                    {filter === 'all'
                       ? 'Não há usuários cadastrados no sistema.'
                       : `Não há usuários com status "${getStatusText(filter as UserStatus)}".`
                     }
                   </p>
+                  {searchTerm && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Tente ajustar sua busca.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -796,18 +571,6 @@ export const UserManagement = () => {
         }}
         onStatusUpdate={updateUserStatus}
         onAdminToggle={updateUserAdmin}
-        onDeleteUser={deleteUser}
-      />
-
-      {/* Modal de Edição */}
-      <UserEditModal
-        user={selectedUser}
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedUser(null);
-        }}
-        onSave={handleSaveUser}
       />
     </div>
   );
