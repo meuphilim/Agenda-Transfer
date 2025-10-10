@@ -1,6 +1,6 @@
 // src/components/Layout/Layout.tsx - VERSÃO COM MONITORAMENTO DE ATIVIDADE
 import { Sidebar } from './Sidebar';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useEffect } from 'react';
 import { formatTimeRemaining } from '../../hooks/useSessionHeartbeat';
 
