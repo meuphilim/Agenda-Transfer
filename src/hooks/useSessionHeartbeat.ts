@@ -1,153 +1,226 @@
-// src/hooks/useSessionHeartbeat.ts
-import { useEffect, useRef, useCallback } from 'react';
+// src/hooks/useSessionHeartbeat.ts - VERSÃO CORRIGIDA COM TRATAMENTO DE ERROS
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-toastify';
 
-interface HeartbeatConfig {
-  enabled: boolean;
-  interval: number; // em milissegundos
+interface UseSessionHeartbeatOptions {
+  heartbeatInterval?: number; // ms (padrão: 30s)
+  inactivityTimeout?: number; // ms (padrão: 30min)
   onSessionExpired?: () => void;
-  onHeartbeatError?: (error: Error) => void;
+  enabled?: boolean; // Controle para habilitar/desabilitar
+  debugMode?: boolean; // Modo debug para desenvolvimento
 }
 
-interface HeartbeatStats {
+interface SessionHeartbeatState {
+  lastActivity: Date;
+  resetInactivityTimer: () => void;
+  isEnabled: boolean;
+  heartbeatCount: number;
   lastHeartbeat: Date | null;
-  failedAttempts: number;
-  isActive: boolean;
+  isRunning: boolean;
 }
 
-/**
- * Hook para manter sessão ativa com heartbeat em segundo plano
- * 
- * @param config - Configurações do heartbeat
- * @returns Stats do heartbeat
- * 
- * @example
- * ```tsx
- * const { lastHeartbeat, failedAttempts } = useSessionHeartbeat({
- *   enabled: true,
- *   interval: 60000, // 1 minuto
- *   onSessionExpired: () => signOut(),
- * });
- * ```
- */
-export function useSessionHeartbeat(config: HeartbeatConfig): HeartbeatStats {
-  const { enabled, interval, onSessionExpired, onHeartbeatError } = config;
-  
+export function useSessionHeartbeat({
+  heartbeatInterval = Number(import.meta.env.VITE_HEARTBEAT_INTERVAL) || 30000, // 30 segundos
+  inactivityTimeout = Number(import.meta.env.VITE_SESSION_TIMEOUT) || 1800000, // 30 minutos
+  onSessionExpired,
+  enabled = true,
+  debugMode = import.meta.env.DEV || false
+}: UseSessionHeartbeatOptions = {}): SessionHeartbeatState {
   const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const failedAttemptsRef = useRef(0);
-  const lastHeartbeatRef = useRef<Date | null>(null);
-  const isActiveRef = useRef(false);
-  const maxFailedAttempts = 3;
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+  const sessionCheckInProgress = useRef<boolean>(false);
+  
+  // Estado para tracking
+  const [heartbeatCount, setHeartbeatCount] = useState<number>(0);
+  const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
+  const [isRunning, setIsRunning] = useState<boolean>(false);
 
-  /**
-   * Envia heartbeat para o Supabase
-   * Atualiza updated_at no profile para manter sessão ativa
-   */
+  // Logger para debug
+  const logger = {
+    log: (...args: any[]) => {
+      if (debugMode) {
+        console.log('[SessionHeartbeat]', ...args);
+      }
+    },
+    error: (...args: any[]) => {
+      if (debugMode) {
+        console.error('[SessionHeartbeat]', ...args);
+      }
+    }
+  };
+
+  // Reset do timer de inatividade
+  const resetInactivityTimer = useCallback(() => {
+    if (!enabled) return;
+
+    lastActivityRef.current = Date.now();
+    logger.log('Resetando timer de inatividade');
+
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+
+    inactivityTimerRef.current = setTimeout(() => {
+      const inactiveTime = Date.now() - lastActivityRef.current;
+      if (inactiveTime >= inactivityTimeout) {
+        logger.log('Sessão expirou por inatividade');
+        toast.warning('Sessão expirada por inatividade');
+        onSessionExpired?.();
+      }
+    }, inactivityTimeout);
+  }, [enabled, inactivityTimeout, onSessionExpired, logger]);
+
+  // Heartbeat principal com tratamento robusto de erros
   const sendHeartbeat = useCallback(async () => {
+    if (!enabled || sessionCheckInProgress.current) {
+      logger.log('Heartbeat pulado - desabilitado ou em progresso');
+      return;
+    }
+
+    sessionCheckInProgress.current = true;
+    logger.log('Enviando heartbeat...');
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (!user) {
-        console.warn('[Heartbeat] Usuário não autenticado');
-        if (onSessionExpired) {
-          onSessionExpired();
+      if (error) {
+        logger.error('Erro ao verificar sessão:', error);
+        
+        // Erros críticos que devem parar o heartbeat
+        if (error.message?.includes('JWT expired') || 
+            error.message?.includes('invalid refresh token')) {
+          onSessionExpired?.();
+          return;
         }
+        
+        // Erros de rede não devem parar o heartbeat
+        if (error.message?.includes('network') || 
+            error.message?.includes('timeout') ||
+            error.message?.includes('Failed to fetch')) {
+          logger.log('Erro de rede - heartbeat continua');
+          return;
+        }
+        
         return;
       }
 
-      // Atualiza timestamp no profile (mantém sessão ativa)
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          updated_at: new Date().toISOString(),
-          last_activity: new Date().toISOString() 
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      // Sucesso
-      lastHeartbeatRef.current = new Date();
-      failedAttemptsRef.current = 0;
-      
-      if (import.meta.env.DEV) {
-        console.log('[Heartbeat] ✅ Enviado com sucesso:', lastHeartbeatRef.current.toISOString());
+      if (!session) {
+        logger.log('Sessão não encontrada');
+        onSessionExpired?.();
+        return;
       }
 
-    } catch (error) {
-      failedAttemptsRef.current++;
-      console.error(`[Heartbeat] ❌ Erro (tentativa ${failedAttemptsRef.current}/${maxFailedAttempts}):`, error);
+      // Calcular tempo até expiração
+      const expiresAt = session.expires_at * 1000;
+      const now = Date.now();
+      const timeUntilExpiry = expiresAt - now;
 
-      if (onHeartbeatError && error instanceof Error) {
-        onHeartbeatError(error);
-      }
+      logger.log('Status da sessão:', {
+        timeUntilExpiry: Math.round(timeUntilExpiry / 1000) + 's',
+        hasSession: !!session
+      });
 
-      // Se atingiu o máximo de falhas, considera sessão expirada
-      if (failedAttemptsRef.current >= maxFailedAttempts) {
-        console.error('[Heartbeat] 🚨 Máximo de falhas atingido - sessão expirada');
-        if (onSessionExpired) {
-          onSessionExpired();
+      // Renovar token se necessário
+      if (timeUntilExpiry < 300000) { // 5 minutos
+        logger.log('Renovando sessão - tempo até expiração:', timeUntilExpiry + 'ms');
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          logger.error('Erro ao renovar sessão:', refreshError);
+          
+          // Erros críticos de refresh
+          if (refreshError.message?.includes('invalid refresh token') ||
+              refreshError.message?.includes('JWT expired')) {
+            onSessionExpired?.();
+            return;
+          }
+        } else {
+          logger.log('Sessão renovada com sucesso');
         }
       }
+
+      // Atualizar métricas
+      setHeartbeatCount(prev => prev + 1);
+      setLastHeartbeat(new Date());
+      setIsRunning(true);
+
+    } catch (error: any) {
+      logger.error('Erro crítico no heartbeat:', error);
+      
+      // Apenas erros críticos devem parar o heartbeat
+      if (error.message?.includes('invalid refresh token') ||
+          error.message?.includes('JWT expired')) {
+        onSessionExpired?.();
+      }
+    } finally {
+      sessionCheckInProgress.current = false;
     }
-  }, [onSessionExpired, onHeartbeatError]);
+  }, [enabled, onSessionExpired, logger]);
 
-  /**
-   * Inicia o heartbeat em segundo plano
-   */
-  const startHeartbeat = useCallback(() => {
-    if (!enabled || isActiveRef.current) return;
+  // Monitorar atividade do usuário
+  const trackActivity = useCallback((event?: Event) => {
+    if (!enabled) return;
+    
+    logger.log('Atividade detectada:', event?.type);
+    resetInactivityTimer();
+  }, [enabled, resetInactivityTimer, logger]);
 
-    isActiveRef.current = true;
-    console.log(`[Heartbeat] 🟢 Iniciado (intervalo: ${interval / 1000}s)`);
-
-    // Primeiro heartbeat imediato
-    sendHeartbeat();
-
-    // Configura heartbeat periódico
-    heartbeatTimerRef.current = setInterval(() => {
-      sendHeartbeat();
-    }, interval);
-  }, [enabled, interval, sendHeartbeat]);
-
-  /**
-   * Para o heartbeat
-   */
-  const stopHeartbeat = useCallback(() => {
-    if (heartbeatTimerRef.current) {
-      clearInterval(heartbeatTimerRef.current);
-      heartbeatTimerRef.current = null;
-    }
-    isActiveRef.current = false;
-    console.log('[Heartbeat] 🔴 Parado');
-  }, []);
-
-  // Efeito principal - gerencia lifecycle do heartbeat
-  useEffect(() => {
-    if (enabled) {
-      startHeartbeat();
-    } else {
-      stopHeartbeat();
-    }
-
-    // Cleanup ao desmontar
-    return () => {
-      stopHeartbeat();
-    };
-  }, [enabled, startHeartbeat, stopHeartbeat]);
-
-  // Listener para visibilidade da página (Page Visibility API)
+  // Configurar listeners de atividade
   useEffect(() => {
     if (!enabled) return;
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Página em segundo plano - mantém heartbeat
-        console.log('[Heartbeat] 📱 Página em background - mantendo heartbeat');
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    const options = { capture: true, passive: true };
+
+    events.forEach(event => {
+      window.addEventListener(event, trackActivity, options);
+    });
+
+    // Atividade inicial
+    trackActivity();
+
+    return () => {
+      events.forEach(event => {
+        window.removeEventListener(event, trackActivity, options);
+      });
+    };
+  }, [enabled, trackActivity]);
+
+  // Monitorar visibilidade da página
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleVisibilityChange = async () => {
+      const isHidden = document.hidden;
+      logger.log('Visibilidade mudou:', isHidden ? 'background' : 'foreground');
+
+      if (isHidden) {
+        // Em background - reduzir frequência
+        if (heartbeatTimerRef.current) {
+          clearInterval(heartbeatTimerRef.current);
+        }
+        heartbeatTimerRef.current = setInterval(sendHeartbeat, 120000); // 2 minutos
+        logger.log('Heartbeat em background: 120s');
       } else {
-        // Página voltou ao foco - envia heartbeat imediato
-        console.log('[Heartbeat] 👀 Página em foco - enviando heartbeat');
-        sendHeartbeat();
+        // Voltou ao foco - restaurar frequência normal
+        if (heartbeatTimerRef.current) {
+          clearInterval(heartbeatTimerRef.current);
+        }
+        heartbeatTimerRef.current = setInterval(sendHeartbeat, heartbeatInterval);
+        
+        // Verificar se sessão ainda é válida ao voltar
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            logger.log('Sessão expirou em background');
+            toast.error('Sessão expirou enquanto o aplicativo estava em segundo plano');
+            onSessionExpired?.();
+          }
+        } catch (error) {
+          logger.error('Erro ao verificar sessão ao voltar:', error);
+        }
       }
     };
 
@@ -156,33 +229,46 @@ export function useSessionHeartbeat(config: HeartbeatConfig): HeartbeatStats {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enabled, sendHeartbeat]);
+  }, [enabled, heartbeatInterval, sendHeartbeat, onSessionExpired, logger]);
 
-  // Listener para conexão de rede (Online/Offline)
+  // Configurar heartbeat
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      logger.log('Heartbeat desabilitado');
+      setIsRunning(false);
+      return;
+    }
 
-    const handleOnline = () => {
-      console.log('[Heartbeat] 🌐 Conexão restaurada - enviando heartbeat');
-      sendHeartbeat();
-    };
+    logger.log('Iniciando heartbeat com intervalo:', heartbeatInterval + 'ms');
 
-    const handleOffline = () => {
-      console.log('[Heartbeat] 📡 Conexão perdida - heartbeat em espera');
-    };
+    // Heartbeat inicial
+    sendHeartbeat();
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    // Configurar intervalo
+    heartbeatTimerRef.current = setInterval(sendHeartbeat, heartbeatInterval);
+    setIsRunning(true);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      logger.log('Parando heartbeat');
+      setIsRunning(false);
+      
+      if (heartbeatTimerRef.current) {
+        clearInterval(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
+      }
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
     };
-  }, [enabled, sendHeartbeat]);
+  }, [enabled, heartbeatInterval, sendHeartbeat, resetInactivityTimer, logger]);
 
   return {
-    lastHeartbeat: lastHeartbeatRef.current,
-    failedAttempts: failedAttemptsRef.current,
-    isActive: isActiveRef.current,
+    lastActivity: new Date(lastActivityRef.current),
+    resetInactivityTimer,
+    isEnabled: enabled,
+    heartbeatCount,
+    lastHeartbeat,
+    isRunning
   };
 }
