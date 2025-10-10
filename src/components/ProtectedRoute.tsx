@@ -226,8 +226,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
                 </svg>
                 Recarregar Página
               </button>
-              <button
-                onClick={handleLogoutAndReload}
+              <button                
+                onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              }}
                 className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
                 <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
