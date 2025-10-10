@@ -1,8 +1,9 @@
-// src/contexts/AuthContext.tsx - VERSÃO OTIMIZADA
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+// src/contexts/AuthContext.tsx - VERSÃO COM HEARTBEAT
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
+import { useSessionHeartbeat } from '../hooks/useSessionHeartbeat';
 
 export type UserStatus = 'pending' | 'active' | 'inactive';
 
@@ -41,17 +42,13 @@ export const useAuth = () => {
   return context;
 };
 
-// Logger condicional para desenvolvimento
+// Logger condicional
 const logger = {
   log: (...args: any[]) => {
-    if (import.meta.env.DEV) {
-      console.log('[AuthContext]', ...args);
-    }
+    if (import.meta.env.DEV) console.log('[AuthContext]', ...args);
   },
   error: (...args: any[]) => {
-    if (import.meta.env.DEV) {
-      console.error('[AuthContext]', ...args);
-    }
+    if (import.meta.env.DEV) console.error('[AuthContext]', ...args);
   }
 };
 
@@ -62,28 +59,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [accountSetup, setAccountSetup] = useState(true);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
-  
-  // Controle de requisições em andamento
-  const fetchInProgressRef = useRef<Set<string>>(new Set());
-  const retryCountRef = useRef<Map<string, number>>(new Map());
-  const maxRetries = 3;
 
-  // FUNÇÃO OTIMIZADA: Cache e debounce de requisições
-  const fetchProfile = useCallback(async (userId: string, userData?: User | null): Promise<UserProfile | null> => {
+  // ✅ INTEGRAÇÃO DO HEARTBEAT
+  const heartbeatEnabled = import.meta.env.VITE_HEARTBEAT_ENABLED === 'true';
+  const heartbeatInterval = Number(import.meta.env.VITE_HEARTBEAT_INTERVAL) || 60000;
+
+  const { lastHeartbeat, failedAttempts } = useSessionHeartbeat({
+    enabled: heartbeatEnabled && !!user && !loading,
+    interval: heartbeatInterval,
+    onSessionExpired: async () => {
+      logger.log('🚨 Sessão expirada detectada pelo heartbeat');
+      await signOut();
+      toast.error('Sua sessão expirou. Faça login novamente.');
+    },
+    onHeartbeatError: (error) => {
+      logger.error('❌ Erro no heartbeat:', error.message);
+      if (failedAttempts >= 2) {
+        toast.warning('Problemas de conexão detectados');
+      }
+    },
+  });
+
+  // Log de heartbeat em desenvolvimento
+  useEffect(() => {
+    if (import.meta.env.DEV && lastHeartbeat) {
+      logger.log('💓 Último heartbeat:', lastHeartbeat.toLocaleTimeString());
+    }
+  }, [lastHeartbeat]);
+
+  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
-      // Validação de entrada
       if (!userId || typeof userId !== 'string') {
         logger.error('ERRO: userId é inválido:', userId);
         return null;
       }
 
-      // Prevenir requisições duplicadas
-      if (fetchInProgressRef.current.has(userId)) {
-        logger.log('⏸️ Fetch já em andamento para:', userId);
-        return null;
-      }
-
-      fetchInProgressRef.current.add(userId);
       logger.log(`Buscando profile para usuário: ${userId}`);
 
       const { data, error } = await supabase
@@ -103,7 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data) {
         logger.log('✅ Profile encontrado:', data);
-        retryCountRef.current.delete(userId); // Reset contador de retries
         return data;
       }
 
@@ -112,14 +121,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (error) {
       logger.error('🚨 Exceção em fetchProfile:', error);
-      if (error instanceof Error && error.message?.includes('infinite recursion')) {
-        logger.error('🚨 RECURSÃO INFINITA NO CATCH!');
-      }
       return null;
-    } finally {
-      fetchInProgressRef.current.delete(userId);
     }
-  }, []); // ✅ Sem dependências externas
+  }, []);
 
   const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
     if (!user) {
@@ -129,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       setLoading(true);
-      const profile = await fetchProfile(user.id, user);
+      const profile = await fetchProfile(user.id);
       setProfile(profile);
       return profile;
     } catch (error) {
@@ -138,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, [user, fetchProfile]); // ✅ Dependências corretas
+  }, [user, fetchProfile]);
 
   const completeProfile = useCallback(async (fullName: string, phone: string) => {
     if (!user) throw new Error('Usuário não autenticado');
@@ -156,7 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      const profile = await fetchProfile(user.id, user);
+      const profile = await fetchProfile(user.id);
       if (profile) {
         setProfile(profile);
         setNeedsProfileCompletion(false);
@@ -168,63 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, fetchProfile]);
 
-  // OTIMIZADO: Retry com backoff exponencial e limite por usuário
-  const setupAccountWithRetry = useCallback(async (userId: string, userData: User | null): Promise<UserProfile | null> => {
-    if (!userId || !userData) {
-      logger.error('Parâmetros inválidos');
-      return null;
-    }
-
-    const currentRetries = retryCountRef.current.get(userId) || 0;
-    
-    if (currentRetries >= maxRetries) {
-      logger.error(`❌ Max retries alcançado para ${userId}`);
-      setNeedsProfileCompletion(true);
-      return null;
-    }
-
-    try {
-      const profile = await fetchProfile(userId, userData);
-
-      if (profile) {
-        logger.log('✅ Account setup completed successfully');
-        setNeedsProfileCompletion(false);
-        retryCountRef.current.delete(userId);
-        return profile;
-      }
-
-      // Incrementa contador de retry
-      retryCountRef.current.set(userId, currentRetries + 1);
-      logger.log(`🔄 Retry ${currentRetries + 1}/${maxRetries}`);
-
-      // Backoff exponencial: 1s, 2s, 4s
-      if (currentRetries < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, currentRetries)));
-        return await setupAccountWithRetry(userId, userData);
-      }
-
-    } catch (error) {
-      if (error instanceof Error && error.message?.includes('infinite recursion')) {
-        logger.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
-        retryCountRef.current.delete(userId);
-        return null;
-      }
-      
-      logger.error('❌ Error in setupAccountWithRetry:', error);
-      retryCountRef.current.set(userId, currentRetries + 1);
-    }
-
-    setNeedsProfileCompletion(true);
-    return null;
-  }, [fetchProfile]);
-
-  // OTIMIZADO: Prevenir múltiplas inicializações
-  const isInitialized = useRef(false);
-
+  // Inicialização da sessão
   useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
     const getSession = async () => {
       try {
         setLoading(true);
@@ -240,20 +189,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logger.log('✅ Session loaded:', !!session);
 
         if (session?.user) {
-          const userId = session.user.id;
-
-          if (!userId) {
-            logger.error('❌ Session user ID is null/undefined');
-            return;
-          }
-
           setSession(session);
           setUser(session.user);
 
-          const profile = await setupAccountWithRetry(userId, session.user);
+          const profile = await fetchProfile(session.user.id);
 
           if (!profile) {
-            logger.log('⚠️ Account setup failed');
+            logger.log('⚠️ Profile não encontrado');
             setNeedsProfileCompletion(true);
           } else {
             setProfile(profile);
@@ -270,12 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         logger.error('🚨 Error in getSession:', error);
-        
-        if (error instanceof Error && error.message?.includes('infinite recursion')) {
-          logger.error('🚨 RECURSÃO INFINITA!');
-          setAccountSetup(false);
-          setNeedsProfileCompletion(false);
-        }
+        setAccountSetup(false);
       } finally {
         setLoading(false);
       }
@@ -283,30 +220,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     getSession();
 
-    // ✅ Listener de auth state separado do fetch inicial
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       logger.log('🔄 Auth state changed:', event);
 
-      // Ignora INITIAL_SESSION para evitar fetch duplicado
+      // Ignora INITIAL_SESSION para evitar dupla inicialização
       if (event === 'INITIAL_SESSION') {
         logger.log('⏭️ Ignorando INITIAL_SESSION');
         return;
       }
 
       if (session?.user) {
-        const userId = session.user.id;
-
-        if (!userId) {
-          logger.error('❌ Auth state change - user ID is null');
-          return;
-        }
-
         setSession(session);
         setUser(session.user);
 
-        const profile = await setupAccountWithRetry(userId, session.user);
+        const profile = await fetchProfile(session.user.id);
 
         if (!profile) {
           setNeedsProfileCompletion(true);
@@ -325,11 +252,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-      isInitialized.current = false;
-    };
-  }, [setupAccountWithRetry]); // ✅ Dependência correta
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
     try {
@@ -342,7 +266,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
       setNeedsProfileCompletion(false);
       setAccountSetup(true);
-      retryCountRef.current.clear();
       logger.log('✅ Sign out successful');
     } catch (error) {
       logger.error('❌ Error signing out:', error);
@@ -364,14 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('✅ Sign in successful:', data.user?.id);
 
       if (data.user) {
-        const userId = data.user.id;
-
-        if (!userId) {
-          logger.error('❌ Sign in - user ID is null');
-          throw new Error('AUTHENTICATION_FAILED');
-        }
-
-        const profile = await setupAccountWithRetry(userId, data.user);
+        const profile = await fetchProfile(data.user.id);
         setProfile(profile);
 
         if (!profile) {
