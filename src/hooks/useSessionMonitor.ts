@@ -14,7 +14,7 @@ export function useSessionMonitor() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (session) {
+      if (session && session.expires_at) {
         const expiresAt = session.expires_at * 1000;
         const now = Date.now();
         const timeUntilExpiry = expiresAt - now;

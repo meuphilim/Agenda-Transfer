@@ -1,7 +1,9 @@
 // src/utils/testAccountSetup.ts
+import { supabase } from '../lib/supabase';
+
 export const testAccountSetup = async () => {
   console.log('🧪 Iniciando teste completo de configuração de conta...');
-  
+
   try {
     // Teste 1: Criar novo usuário
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -26,6 +28,11 @@ export const testAccountSetup = async () => {
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     // Teste 2: Verifica se profile foi criado
+    if (!signUpData.user) {
+      console.error('❌ User não criado');
+      return false;
+    }
+
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')

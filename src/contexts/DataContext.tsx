@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 
 interface DataContextType {
   invalidateCache: (table: string) => void;
-  syncData: (table: string) => Promise<void>;
+  syncData: (table: string) => Promise<any[]>;
   getFromCache: (table: string, id: string) => any;
   setInCache: (table: string, id: string, data: any) => void;
 }

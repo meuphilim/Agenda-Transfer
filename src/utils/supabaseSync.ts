@@ -165,7 +165,7 @@ export const syncOperations = {
     );
   },
 
-  fetch: async <T>(table: string, filters: Record<string, any> = {}, options?: SyncOptions) => {
+  fetch: async (table: string, filters: Record<string, any> = {}, options?: SyncOptions) => {
     const filterKey = Object.keys(filters).sort().map(k => `${k}:${filters[k]}`).join('|');
     
     return supabaseSync.executeOperation(

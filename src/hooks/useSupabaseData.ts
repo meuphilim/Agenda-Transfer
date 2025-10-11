@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
 
@@ -9,7 +9,6 @@ interface UseSupabaseDataOptions {
   orderBy?: { column: string; ascending?: boolean };
   realtime?: boolean;
   enabled?: boolean;
-  cacheTime?: number; // Tempo de cache em ms (0 = sem cache)
 }
 
 interface UseSupabaseDataReturn<T> {
@@ -22,71 +21,31 @@ interface UseSupabaseDataReturn<T> {
   delete: (id: string) => Promise<boolean>;
 }
 
-// Cache global para prevenir fetches duplicados
-const globalCache = new Map<string, { data: any[]; timestamp: number }>();
-
 export function useSupabaseData<T extends { id: string }>({
   table,
   select = '*',
   filters = {},
   orderBy,
   realtime = false,
-  enabled = true,
-  cacheTime = 30000, // 30 segundos de cache por padrão
+  enabled = true
 }: UseSupabaseDataOptions): UseSupabaseDataReturn<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Previne múltiplos fetches simultâneos
-  const fetchInProgressRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Serializar dependências de forma estável
   const filtersKey = useMemo(() => JSON.stringify(filters), [JSON.stringify(filters)]);
   const orderByKey = useMemo(() => JSON.stringify(orderBy), [JSON.stringify(orderBy)]);
-  
-  // Chave única para cache
-  const cacheKey = useMemo(() => 
-    `${table}-${select}-${filtersKey}-${orderByKey}`, 
-    [table, select, filtersKey, orderByKey]
-  );
 
-  const fetchData = useCallback(async (forceRefresh = false) => {
+  const fetchData = useCallback(async () => {
     if (!enabled) {
       setLoading(false);
       return;
     }
 
-    // Previne fetches duplicados
-    if (fetchInProgressRef.current && !forceRefresh) {
-      console.log(`[useSupabaseData] ⏸️ Fetch já em andamento para ${table}`);
-      return;
-    }
-
-    // Verifica cache
-    if (!forceRefresh && cacheTime > 0) {
-      const cached = globalCache.get(cacheKey);
-      if (cached && (Date.now() - cached.timestamp) < cacheTime) {
-        console.log(`[useSupabaseData] 💾 Usando cache para ${table}`);
-        setData(cached.data as T[]);
-        setLoading(false);
-        return;
-      }
-    }
-
     try {
-      fetchInProgressRef.current = true;
       setLoading(true);
       setError(null);
-
-      // Cancela requisição anterior se existir
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // Cria novo AbortController
-      abortControllerRef.current = new AbortController();
 
       let query = supabase.from(table).select(select);
 
@@ -102,38 +61,20 @@ export function useSupabaseData<T extends { id: string }>({
         query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
       }
 
-      // Nota: Supabase JS client não suporta abortSignal nativamente ainda
-      // Mas mantemos o controller para futuras versões
       const { data: result, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
-      setData(result || []);
-      
-      // Atualiza cache
-      if (cacheTime > 0) {
-        globalCache.set(cacheKey, {
-          data: result || [],
-          timestamp: Date.now(),
-        });
-      }
-
+      setData((result as unknown as T[]) || []);
     } catch (err: any) {
-      // Ignora erro de abort
-      if (err.name === 'AbortError') {
-        console.log(`[useSupabaseData] ⏹️ Fetch cancelado para ${table}`);
-        return;
-      }
-
       const errorMessage = err.message || 'Erro ao carregar dados';
       setError(errorMessage);
-      console.error(`[useSupabaseData] ❌ Erro ao buscar dados de ${table}:`, err);
+      console.error(`Erro ao buscar dados de ${table}:`, err);
       toast.error(errorMessage);
     } finally {
       setLoading(false);
-      fetchInProgressRef.current = false;
     }
-  }, [table, select, filtersKey, orderByKey, enabled, cacheTime, cacheKey]);
+  }, [table, select, filtersKey, orderByKey, enabled]);
 
   const create = useCallback(async (item: Partial<T>): Promise<T | null> => {
     try {

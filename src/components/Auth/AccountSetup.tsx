@@ -27,7 +27,6 @@ export const AccountSetup: React.FC = () => {
             setTimeout(() => {
               window.location.reload();
             }, 1000);
-            return;
           }
 
           setRetryCount(prev => {
