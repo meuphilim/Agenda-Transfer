@@ -23,5 +23,12 @@ export default defineConfig({
       },
     },
   },
+  import { visualizer } from 'rollup-plugin-visualizer';
+
+plugins: [
+  react(),
+  visualizer({ open: true }), // abre automaticamente no navegador após build
+],
+
 });
 
