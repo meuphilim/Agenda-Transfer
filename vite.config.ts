@@ -3,7 +3,10 @@ import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    visualizer({ open: true }), // abre automaticamente no navegador após build
+  ],
   base: '/',
   optimizeDeps: {
     exclude: ['lucide-react'],
@@ -24,9 +27,5 @@ export default defineConfig({
       },
     },
   },
-plugins: [
-  react(),
-  visualizer({ open: true }), // abre automaticamente no navegador após build
-],
 });
 
