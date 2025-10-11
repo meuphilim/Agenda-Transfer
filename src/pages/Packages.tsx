@@ -12,7 +12,8 @@ import {
   TruckIcon,
   UserIcon,
   HeartIcon,
-  ClockIcon
+  ClockIcon, 
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 
 export const Packages = () => {
