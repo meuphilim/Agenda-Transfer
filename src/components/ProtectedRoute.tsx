@@ -18,7 +18,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // ✅ CONSTANTES DE TIMEOUT
   const LOADING_TIMEOUT = 10000; // 10 segundos para carregamento inicial
-  const SESSION_TIMEOUT = 600000; // 10 minutos em milissegundos
+  const SESSION_TIMEOUT = parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '1800000'); // 30 minutos padrão
 
   // ✅ GESTÃO DE TIMEOUT DE LOADING
   useEffect(() => {

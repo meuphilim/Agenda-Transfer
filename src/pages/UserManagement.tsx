@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { UserStatus } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import { adminApi } from '../services/adminApi';
 import { 
   UserGroupIcon, 
   CheckCircleIcon, 
@@ -22,7 +22,7 @@ interface UserProfile {
   status: UserStatus;
   created_at: string;
   updated_at: string;
-  email?: string;
+  email?: string | null;
 }
 
 interface UserEditModalProps {
@@ -414,29 +414,14 @@ export const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      
-      // Buscar perfis
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
+      const { data, error } = await adminApi.listUsers();
 
-      // Buscar emails dos usuários do auth
-      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.warn('Não foi possível carregar emails dos usuários:', authError);
+      if (error) {
+        throw new Error(error);
       }
 
-      // Combinar dados
-      const usersWithEmail = profiles?.map(profile => ({
-        ...profile,
-        email: authUsers?.find(user => user.id === profile.id)?.email || 'Email não disponível'
-      })) || [];
-
-      setUsers(usersWithEmail);
+      setUsers(data || []);
     } catch (error: any) {
       toast.error('Erro ao carregar usuários: ' + error.message);
       console.error('Erro ao carregar usuários:', error);
@@ -447,14 +432,13 @@ export const UserManagement = () => {
 
   const updateUserStatus = async (userId: string, status: UserStatus) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      const { error } = await adminApi.updateUser(userId, { status });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error);
+      }
 
-      setUsers(users.map(user => 
+      setUsers(users.map(user =>
         user.id === userId ? { ...user, status } : user
       ));
 
@@ -466,14 +450,13 @@ export const UserManagement = () => {
 
   const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_admin: isAdmin, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      const { error } = await adminApi.updateUser(userId, { is_admin: isAdmin });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error);
+      }
 
-      setUsers(users.map(user => 
+      setUsers(users.map(user =>
         user.id === userId ? { ...user, is_admin: isAdmin } : user
       ));
 
@@ -486,22 +469,10 @@ export const UserManagement = () => {
 
   const deleteUser = async (userId: string) => {
     try {
-      // Primeiro remove o perfil
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
+      const { error } = await adminApi.deleteUser(userId);
 
-      if (profileError) throw profileError;
-
-      // Tenta remover do auth (pode falhar se não tiver permissão admin)
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-        if (authError) {
-          console.warn('Não foi possível remover usuário do auth:', authError);
-        }
-      } catch (error) {
-        console.warn('Erro ao remover usuário do auth:', error);
+      if (error) {
+        throw new Error(error);
       }
 
       setUsers(users.filter(user => user.id !== userId));
@@ -519,14 +490,13 @@ export const UserManagement = () => {
 
   const handleSaveUser = async (userId: string, updates: Partial<UserProfile>) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      const { error } = await adminApi.updateUser(userId, updates);
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error);
+      }
 
-      setUsers(users.map(user => 
+      setUsers(users.map(user =>
         user.id === userId ? { ...user, ...updates } : user
       ));
 
