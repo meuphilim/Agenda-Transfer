@@ -3,28 +3,9 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/ 
 export default defineConfig({
-  plugins: [
-    react(),
-  ],
+  plugins: [react()],
   base: '/',
   optimizeDeps: {
     exclude: ['lucide-react'],
-  },
-  
-  build: {
-    chunkSizeWarningLimit: 1500, // aumenta o limite para evitar avisos falsos
-
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // separa dependências grandes em chunks específicos
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'vendor-react';
-            if (id.includes('lucide-react')) return 'vendor-icons';
-            return 'vendor'; // fallback geral para outros pacotes
-          }
-        },
-      },
-    },
   },
 });
