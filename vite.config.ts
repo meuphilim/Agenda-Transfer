@@ -10,17 +10,5 @@ export default defineConfig({
   },
     build: {
     chunkSizeWarningLimit: 1500, // aumenta o limite para evitar avisos falsos
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // separa dependências grandes em chunks específicos
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'vendor-react';
-            if (id.includes('lucide-react')) return 'vendor-icons';
-            return 'vendor'; // fallback geral para outros pacotes
-          }
-        },
-      },
-    },
   },
 });
