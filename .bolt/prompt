@@ -1,5 +1,45 @@
-For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+For all new designs in the Agenda‑Transfer project, I want them to be visually attractive and original — no generic templates. Pages should be production‑ready, following the existing style (React + Vite + Tailwind + Lucide React for icons).
 
-By default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+General rules:
 
-Use icons from lucide-react for logos.
+Use JSX + Tailwind CSS for styling.
+
+Use icons from lucide‑react for all logos / icons. Avoid installing extra UI libraries, themes, or icon sets unless absolutely necessary or requested by me.
+
+Administrative operations (list / edit / delete users):
+
+Do not call supabase.auth.admin.* from the frontend.
+
+Create secure backend endpoints that use the Supabase service_role key.
+
+Validate authentication + authorization on the backend — only administrator users may access those routes.
+
+The frontend should send fetch requests to those endpoints, including the JWT token or another authentication mechanism.
+
+The backend receives the request, verifies who is calling, executes the admin operations (e.g. listUsers, deleteUser, etc) using the admin client, and returns the results to the frontend.
+
+Exclusive mobile layout:
+
+Develop a clean, minimalist, intuitive mobile version focusing on usability on small screens (smartphones).
+
+Simplified navigation: hamburger / collapsible menu, large buttons, easy one‑thumb access.
+
+Prioritize essential content at the top.
+
+Avoid complex tables in mobile — use lists or cards where appropriate.
+
+Ensure interactive elements (buttons, links) have sufficient touch area (≥ 48 × 48 px) and spacing.
+
+Follow a mobile‑first approach: design for small screens first, then scale up.
+
+On larger screens (desktops, laptops), maintain the wide interface with menus, side panels, etc, consistent with existing patterns — the mobile layout must not break or interfere with the desktop interface.
+
+Session, timeout and caching:
+
+User session should expire after 30 minutes of inactivity.
+
+If there is user interaction during that period, the session remains active.
+
+Prevent the application from auto‑loading data after the timeout has expired.
+
+Implement efficient caching on frontend or backend to reduce unnecessary database queries, especially on mobile devices.
