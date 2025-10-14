@@ -225,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log('✅ Session loaded:', !!session);
 
-        if (session.user) {
+        if (session?.user) {
           const userId = session.user.id;
 
           if (!userId) {
@@ -281,6 +281,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('✅ Token refreshed successfully');
+      }
+
       if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
@@ -311,11 +315,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && session.user.id !== user?.id) {
+          setUser(session.user);
+          setSession(session);
+          const profile = await fetchProfile(session.user.id);
+          setProfile(profile);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       isInitialized.current = false;
     };
-  }, [setupAccountWithRetry]); // ✅ Dependência correta
+  }, [setupAccountWithRetry, user, fetchProfile]); // ✅ Dependência correta
 
   const signOut = useCallback(async () => {
     try {
@@ -335,6 +354,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   }, []);
+
+  // ✅ GESTÃO DE SESSÃO DE INATIVIDADE (30 MIN)
+  useEffect(() => {
+    if (!user || loading) return;
+
+    const SESSION_TIMEOUT = parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '1800000'); // 30 minutos padrão
+    let sessionTimer: NodeJS.Timeout | null = null;
+
+    const handleSessionExpired = async () => {
+      try {
+        await signOut();
+        alert('⏱️ Sua sessão expirou por inatividade. Faça login novamente.');
+      } catch (error) {
+        console.error('Erro ao encerrar sessão:', error);
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload();
+      }
+    };
+
+    const resetSessionTimer = () => {
+      if (sessionTimer) {
+        clearTimeout(sessionTimer);
+      }
+      sessionTimer = setTimeout(handleSessionExpired, SESSION_TIMEOUT);
+    };
+
+    const handleActivity = () => {
+      resetSessionTimer();
+    };
+
+    // Eventos que resetam o timer de inatividade
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'mousemove'];
+
+    // Atualiza quando a aba volta ao foco
+    window.addEventListener('focus', handleActivity);
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    resetSessionTimer();
+
+    return () => {
+      if (sessionTimer) {
+        clearTimeout(sessionTimer);
+      }
+      activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
+      window.removeEventListener('focus', handleActivity);
+    };
+  }, [user, loading, signOut]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -392,6 +461,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
+      if (!data.user) throw new Error("Cadastro falhou, usuário não foi criado.");
 
       console.log('✅ Sign up successful:', data.user.id);
 

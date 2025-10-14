@@ -59,7 +59,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       return;
     }
 
-    if (!user.id) {
+    if (!user?.id) {
       toast.error('Usuário não autenticado');
       return;
     }
@@ -239,7 +239,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     </label>
                     <input
                       type="email"
-                      value={user.email ?? ''}
+                      value={user?.email ?? ''}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 shadow-sm sm:text-sm cursor-not-allowed text-gray-600"
                       disabled
                     />

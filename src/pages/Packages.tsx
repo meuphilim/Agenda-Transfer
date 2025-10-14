@@ -191,7 +191,7 @@ export const Packages: React.FC = () => {
         .select('*')
         .eq('package_id', pkg.id);
       
-      setPackageAttractions(data || []);
+      setPackageAttractions(data ?? []);
     } catch (error) {
       console.error('Erro ao carregar atrativos do pacote:', error);
     }
@@ -361,7 +361,7 @@ export const Packages: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {pkg.agencies.name}
+                    {pkg.agencies?.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
@@ -373,10 +373,10 @@ export const Packages: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {pkg.vehicles.license_plate} - {pkg.vehicles.model}
+                      {pkg.vehicles?.license_plate} - {pkg.vehicles?.model}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {pkg.drivers.name}
+                      {pkg.drivers?.name}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

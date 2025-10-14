@@ -80,13 +80,13 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     setFormData({ ...formData, phone: formatted });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
     try {
-      await onSave(user.id, formData);
+      onSave(user.id, formData);
       onClose();
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
@@ -538,8 +538,8 @@ export const UserManagement = () => {
     const matchesFilter = filter === 'all' || user.status === filter;
     const matchesSearch = searchTerm === '' || 
       user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone.includes(searchTerm);
+      (user.email ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.phone ?? '').includes(searchTerm);
     
     return matchesFilter && matchesSearch;
   });

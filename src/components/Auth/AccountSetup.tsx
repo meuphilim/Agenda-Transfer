@@ -9,54 +9,41 @@ export const AccountSetup: React.FC = () => {
   const maxRetries = 5;
 
   useEffect(() => {
-    const setupAccount = async () => {
-      const interval = setInterval(async () => {
-        setProgress(prev => {
-          if (prev >= 90) return 90;
-          return prev + 10;
-        });
+    let timeoutId: NodeJS.Timeout;
 
-        try {
-          const profile = await refreshProfile();
+    const attemptToRefreshProfile = async () => {
+      if (retryCount >= maxRetries) {
+        setError('Não foi possível configurar sua conta automaticamente. Por favor, entre em contato com o suporte.');
+        setProgress(0);
+        return;
+      }
 
-          if (profile) {
-            setProgress(100);
-            setError(null);
-            clearInterval(interval);
+      try {
+        setProgress(prev => Math.min(prev + 20, 90));
+        const profile = await refreshProfile();
 
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
-          }
-
-          setRetryCount(prev => {
-            const newCount = prev + 1;
-            if (newCount >= maxRetries) {
-              clearInterval(interval);
-              setError('Não foi possível configurar sua conta automaticamente. Por favor, entre em contato com o suporte.');
-              return newCount;
-            }
-            return newCount;
-          });
-        } catch (err) {
-          console.error('Erro ao configurar conta:', err);
-          setRetryCount(prev => {
-            const newCount = prev + 1;
-            if (newCount >= maxRetries) {
-              clearInterval(interval);
-              setError('Erro ao configurar conta. Tente novamente ou entre em contato com o suporte.');
-              return newCount;
-            }
-            return newCount;
-          });
+        if (profile) {
+          setProgress(100);
+          setError(null);
+          setTimeout(() => window.location.reload(), 1200);
+        } else {
+          setRetryCount(prev => prev + 1);
+          timeoutId = setTimeout(attemptToRefreshProfile, 2000); // Tenta novamente após 2 segundos
         }
-      }, 1500);
-
-      return () => clearInterval(interval);
+      } catch (err) {
+        console.error('Erro ao configurar conta:', err);
+        setRetryCount(prev => prev + 1);
+        setError('Erro ao verificar o status da conta. Tentando novamente...');
+        timeoutId = setTimeout(attemptToRefreshProfile, 2500); // Espera um pouco mais em caso de erro
+      }
     };
 
-    setupAccount();
-  }, [refreshProfile]);
+    void attemptToRefreshProfile();
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [retryCount, refreshProfile]);
 
   const handleRetry = () => {
     setError(null);

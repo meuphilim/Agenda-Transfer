@@ -14,11 +14,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ CONSTANTES DE TIMEOUT
   const LOADING_TIMEOUT = 10000; // 10 segundos para carregamento inicial
-  const SESSION_TIMEOUT = parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '1800000'); // 30 minutos padrão
 
   // ✅ GESTÃO DE TIMEOUT DE LOADING
   useEffect(() => {
@@ -37,53 +35,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
     };
   }, [loading]);
-
-  // ✅ GESTÃO DE SESSÃO DE INATIVIDADE (30 MIN)
-  useEffect(() => {
-    if (!user || loading) return;
-
-    const handleSessionExpired = async () => {
-      try {
-        await signOut();
-        alert('⏱️ Sua sessão expirou por inatividade. Faça login novamente.');
-      } catch (error) {
-        console.error('Erro ao encerrar sessão:', error);
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
-      }
-    };
-
-    const resetSessionTimer = () => {
-      if (sessionTimerRef.current) {
-        clearTimeout(sessionTimerRef.current);
-      }
-      sessionTimerRef.current = setTimeout(handleSessionExpired, SESSION_TIMEOUT);
-    };
-
-    const handleActivity = () => {
-      resetSessionTimer();
-    };
-
-    // Eventos que resetam o timer de inatividade
-    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'mousemove'];
-
-    // Atualiza quando a aba volta ao foco
-    window.addEventListener('focus', handleActivity);
-    activityEvents.forEach(event => {
-      window.addEventListener(event, handleActivity, { passive: true });
-    });
-
-    resetSessionTimer();
-
-    return () => {
-      if (sessionTimerRef.current) {
-        clearTimeout(sessionTimerRef.current);
-      }
-      activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
-      window.removeEventListener('focus', handleActivity);
-    };
-  }, [user, loading, signOut]);
 
   // ✅ LOADING UI
   if (loading && !loadingTimeout) {

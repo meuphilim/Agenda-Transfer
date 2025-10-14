@@ -22,6 +22,16 @@ export const CompleteProfile: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { completeProfile, signOut, user } = useAuth();
 
+  if (!user) {
+    // This case should ideally not be reached if routing is correct,
+    // but it's a good safeguard.
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-red-500">Erro: Usuário não encontrado. Redirecionando...</p>
+      </div>
+    );
+  }
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
