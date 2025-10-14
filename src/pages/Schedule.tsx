@@ -200,7 +200,7 @@ export const Schedule: React.FC = () => {
       const { data, error } = await query.order('scheduled_date').order('start_time');
 
       if (error) throw error;
-      const items = data || [];
+      const items = data ?? [];
       setScheduleItems(items);
       await updateResourceStatus(items);
     } catch (error: any) {
@@ -220,10 +220,10 @@ export const Schedule: React.FC = () => {
       ]);
 
       setFilterOptions({
-        vehicles: vehiclesResult.data || [],
-        agencies: agenciesResult.data || [],
-        drivers: driversResult.data || [],
-        attractions: attractionsResult.data || [],
+        vehicles: vehiclesResult.data ?? [],
+        agencies: agenciesResult.data ?? [],
+        drivers: driversResult.data ?? [],
+        attractions: attractionsResult.data ?? [],
       });
     } catch (error) {
       console.error('Erro ao carregar opções de filtro:', error);
@@ -310,8 +310,8 @@ export const Schedule: React.FC = () => {
 
     // Formatar atividades para a mensagem
     const activities = dayActivities.map(item => ({
-      clientName: item.packages.client_name || 'Não informado',
-      startTime: formatTime(item.start_time) || '',
+      clientName: item.packages.client_name ?? 'Não informado',
+      startTime: formatTime(item.start_time) ?? '',
       endTime: item.end_time ? formatTime(item.end_time) : undefined,
       attractionName: item.attractions.name,
     }));
@@ -322,7 +322,7 @@ export const Schedule: React.FC = () => {
       activities,
     });
 
-    if (!selectedItem.packages.drivers?.phone) {
+    if (!selectedItem.packages.drivers.phone) {
       toast.error('Número de telefone do motorista não cadastrado!');
       return;
     }
@@ -371,7 +371,7 @@ export const Schedule: React.FC = () => {
             attraction_id: quickAddFormData.attraction_id,
             scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
             start_time: quickAddFormData.start_time,
-            end_time: quickAddFormData.end_time || null
+            end_time: quickAddFormData.end_time ?? null
           }
         ]);
 
@@ -790,11 +790,11 @@ export const Schedule: React.FC = () => {
                         isSameDay(parseISO(item.scheduled_date), parseISO(selectedItem.scheduled_date)) &&
                         item.packages.drivers.id === selectedItem.packages.drivers.id
                       )
-                      .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+                      .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''))
                       .map(item => (
                         <div key={item.id} className="bg-gray-50 p-2 rounded">
                           <div className="text-sm text-gray-700">
-                            Cliente: {item.packages.client_name || 'Não informado'}
+                            Cliente: {item.packages.client_name ?? 'Não informado'}
                           </div>
                           <div className="text-sm text-gray-600">
                             Passeio: {item.attractions.name}
@@ -810,7 +810,7 @@ export const Schedule: React.FC = () => {
                   </div>
                 </div>
 
-                {selectedItem.packages.drivers?.phone ? (
+                {selectedItem.packages.drivers.phone ? (
                   <p className="text-sm text-gray-600">
                     A mensagem será enviada para o WhatsApp {selectedItem.packages.drivers.phone}
                   </p>
@@ -830,7 +830,7 @@ export const Schedule: React.FC = () => {
                 </button>
                 <button
                   onClick={handleConfirmSend}
-                  disabled={!selectedItem.packages.drivers?.phone}
+                  disabled={!selectedItem.packages.drivers.phone}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Enviar

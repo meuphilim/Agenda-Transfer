@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (error) {
-        if (error.message?.includes('infinite recursion')) {
+        if (error.message.includes('infinite recursion')) {
           logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
           return null;
         }
@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (error) {
       logger.error('🚨 Exceção em fetchProfile:', error);
-      if (error instanceof Error && error.message?.includes('infinite recursion')) {
+      if (error instanceof Error && error.message.includes('infinite recursion')) {
         logger.error('🚨 RECURSÃO INFINITA NO CATCH!');
       }
       return null;
@@ -174,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
 
-    const currentRetries = retryCountRef.current.get(userId) || 0;
+    const currentRetries = retryCountRef.current.get(userId) ?? 0;
 
     if (currentRetries >= maxRetries) {
       logger.error(`❌ Max retries alcançado para ${userId}`);
@@ -203,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
     } catch (error) {
-      if (error instanceof Error && error.message?.includes('infinite recursion')) {
+      if (error instanceof Error && error.message.includes('infinite recursion')) {
         logger.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
         retryCountRef.current.delete(userId);
         return null;
@@ -238,7 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         logger.log('✅ Session loaded:', !!session);
 
-        if (session?.user) {
+        if (session.user) {
           const userId = session.user.id;
 
           if (!userId) {
@@ -270,7 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         logger.error('🚨 Error in getSession:', error);
         
-        if (error instanceof Error && error.message?.includes('infinite recursion')) {
+        if (error instanceof Error && error.message.includes('infinite recursion')) {
           logger.error('🚨 RECURSÃO INFINITA!');
           setAccountSetup(false);
           setNeedsProfileCompletion(false);
@@ -294,7 +294,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (session?.user) {
+      if (session.user) {
         const userId = session.user.id;
 
         if (!userId) {
@@ -360,7 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      logger.log('✅ Sign in successful:', data.user?.id);
+      logger.log('✅ Sign in successful:', data.user.id);
 
       if (data.user) {
         const userId = data.user.id;
@@ -406,7 +406,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      logger.log('✅ Sign up successful:', data.user?.id);
+      logger.log('✅ Sign up successful:', data.user.id);
 
       return data;
     } catch (error) {
@@ -425,7 +425,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
-    isAdmin: profile?.is_admin ?? false,
+    isAdmin: profile.is_admin ?? false,
     refreshProfile,
     completeProfile,
   };

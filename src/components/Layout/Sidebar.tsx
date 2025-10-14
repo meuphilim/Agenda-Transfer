@@ -109,15 +109,15 @@ export const Sidebar: React.FC = () => {
             <UserIcon className="mr-3 h-5 w-5 flex-shrink-0 mt-0.5" />
             <div className="flex flex-col items-start min-w-0 flex-1 text-left">
               <span className="truncate w-full">
-                {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                {profile.full_name || user.email.split('@')[0] || 'Usuário'}
               </span>
               {isAdmin ? (
                 <span className="text-xs text-blue-600 font-semibold">
                   Administrador
                 </span>
-              ) : profile?.full_name ? (
+              ) : profile.full_name ? (
                 <span className="text-xs text-gray-500 truncate w-full">
-                  {user?.email}
+                  {user.email}
                 </span>
               ) : (
                 <span className="text-xs text-orange-600 font-medium">

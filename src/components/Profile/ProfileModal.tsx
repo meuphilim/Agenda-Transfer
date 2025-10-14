@@ -23,8 +23,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
-        phone: profile.phone || '',
+        full_name: profile.full_name ?? '',
+        phone: profile.phone ?? '',
       });
     }
   }, [profile, isOpen]); // ✅ Atualiza quando modal abre
@@ -59,7 +59,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       return;
     }
 
-    if (!user?.id) {
+    if (!user.id) {
       toast.error('Usuário não autenticado');
       return;
     }
@@ -71,7 +71,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         .from('profiles')
         .update({
           full_name: formData.full_name.trim(),
-          phone: formData.phone || null,
+          phone: formData.phone ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -239,7 +239,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     </label>
                     <input
                       type="email"
-                      value={user?.email || ''}
+                      value={user.email ?? ''}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 shadow-sm sm:text-sm cursor-not-allowed text-gray-600"
                       disabled
                     />

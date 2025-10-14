@@ -30,7 +30,7 @@ export function useSessionHeartbeat({
       const inactiveTime = Date.now() - lastActivityRef.current;
       if (inactiveTime >= inactivityTimeout) {
         toast.warning('Sessão expirou por inatividade');
-        onSessionExpired?.();
+        onSessionExpired();
       }
     }, inactivityTimeout);
   }, [inactivityTimeout, onSessionExpired]);
@@ -45,7 +45,7 @@ export function useSessionHeartbeat({
         return;
       }
 
-      if (session && session.expires_at) {
+      if (session?.expires_at) {
         // Refresh do token se estiver próximo de expirar
         const expiresAt = session.expires_at * 1000; // Convert to milliseconds
         const now = Date.now();
@@ -125,7 +125,7 @@ export function useSessionHeartbeat({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           toast.error('Sessão expirou enquanto o aplicativo estava em segundo plano');
-          onSessionExpired?.();
+          onSessionExpired();
         }
       }
     };

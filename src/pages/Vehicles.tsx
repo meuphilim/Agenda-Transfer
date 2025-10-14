@@ -96,7 +96,7 @@ export const Vehicles: React.FC = () => {
     setFormData({
       license_plate: vehicle.license_plate,
       model: vehicle.model,
-      brand: vehicle.brand || '',
+      brand: vehicle.brand ?? '',
       capacity: vehicle.capacity,
       status: vehicle.status,
     });

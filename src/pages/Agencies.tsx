@@ -78,11 +78,11 @@ export const Agencies: React.FC = () => {
     setEditingAgency(agency);
     setFormData({
       name: agency.name,
-      contact_person: agency.contact_person || '',
-      phone: agency.phone || '',
-      email: agency.email || '',
-      cnpj: agency.cnpj || '',
-      address: agency.address || '',
+      contact_person: agency.contact_person ?? '',
+      phone: agency.phone ?? '',
+      email: agency.email ?? '',
+      cnpj: agency.cnpj ?? '',
+      address: agency.address ?? '',
     });
     setShowModal(true);
   };

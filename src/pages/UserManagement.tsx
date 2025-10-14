@@ -50,7 +50,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     if (user) {
       setFormData({
         full_name: user.full_name,
-        phone: user.phone || '',
+        phone: user.phone ?? '',
         is_admin: user.is_admin,
         status: user.status,
       });
@@ -135,7 +135,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 type="email"
                 disabled
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                value={user.email || ''}
+                value={user.email ?? ''}
               />
               <p className="mt-1 text-xs text-gray-500">O email não pode ser alterado</p>
             </div>
@@ -282,7 +282,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Telefone</label>
-              <p className="mt-1 text-sm text-gray-900">{user.phone || 'Não informado'}</p>
+              <p className="mt-1 text-sm text-gray-900">{user.phone ?? 'Não informado'}</p>
             </div>
 
             <div>
@@ -421,7 +421,7 @@ export const UserManagement = () => {
         throw new Error(error);
       }
 
-      setUsers(data || []);
+      setUsers(data ?? []);
     } catch (error: any) {
       toast.error('Erro ao carregar usuários: ' + error.message);
       console.error('Erro ao carregar usuários:', error);
@@ -538,8 +538,8 @@ export const UserManagement = () => {
     const matchesFilter = filter === 'all' || user.status === filter;
     const matchesSearch = searchTerm === '' || 
       user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone?.includes(searchTerm);
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone.includes(searchTerm);
     
     return matchesFilter && matchesSearch;
   });
@@ -668,7 +668,7 @@ export const UserManagement = () => {
                         {user.email}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {user.phone || '-'}
+                        {user.phone ?? '-'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>

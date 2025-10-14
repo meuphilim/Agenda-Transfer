@@ -121,7 +121,7 @@ export const CompleteProfile: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600">
             Para continuar, precisamos de algumas informações adicionais
           </p>
-          {user?.email && (
+          {user.email && (
             <p className="mt-1 text-center text-xs text-gray-500">
               Logado como: {user.email}
             </p>

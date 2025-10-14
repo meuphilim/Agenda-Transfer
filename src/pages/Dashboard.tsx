@@ -57,11 +57,11 @@ export const Dashboard: React.FC = () => {
           .limit(5)
       ]);
 
-      const packages = packagesResult.data || [];
-      const vehicles = vehiclesResult.data || [];
-      const drivers = driversResult.data || [];
-      const upcoming = upcomingResult.data || [];
-      const recent = recentResult.data || [];
+      const packages = packagesResult.data ?? [];
+      const vehicles = vehiclesResult.data ?? [];
+      const drivers = driversResult.data ?? [];
+      const upcoming = upcomingResult.data ?? [];
+      const recent = recentResult.data ?? [];
 
       setStats({
         totalPackages: packages.length,

@@ -66,9 +66,9 @@ export const Drivers: React.FC = () => {
       
       const data = {
         ...formData,
-        license_expiry: formData.license_expiry || null,
-        phone: formData.phone || null,
-        email: formData.email || null,
+        license_expiry: formData.license_expiry ?? null,
+        phone: formData.phone ?? null,
+        email: formData.email ?? null,
       };
 
       let success = false;
@@ -108,10 +108,10 @@ export const Drivers: React.FC = () => {
     setEditingDriver(driver);
     setFormData({
       name: driver.name,
-      phone: driver.phone || '',
-      email: driver.email || '',
+      phone: driver.phone ?? '',
+      email: driver.email ?? '',
       license_number: driver.license_number,
-      license_expiry: driver.license_expiry || '',
+      license_expiry: driver.license_expiry ?? '',
       status: driver.status,
       category: driver.category,
       ear: driver.ear,
@@ -290,7 +290,7 @@ export const Drivers: React.FC = () => {
                       <div className="text-sm text-gray-900">
                         {driver.phone ? formatPhoneNumber(driver.phone) : '-'}
                       </div>
-                      <div className="text-sm text-gray-500">{driver.email || '-'}</div>
+                      <div className="text-sm text-gray-500">{driver.email ?? '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{driver.license_number}</div>

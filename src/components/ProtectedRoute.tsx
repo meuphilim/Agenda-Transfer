@@ -69,7 +69,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         const inactiveTime = Date.now() - lastActivity;
         if (inactiveTime >= SESSION_TIMEOUT) {
           console.log('⏱️ Sessão expirada por inatividade');
-          clearInterval(inactivityCheckInterval!);
+          clearInterval(inactivityCheckInterval);
           handleSessionExpired();
         }
       }, 60000);
@@ -171,9 +171,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!user) return <Login />;
   if (needsProfileCompletion) return <CompleteProfile />;
 
-  if (profile?.status === 'pending' || profile?.status === 'inactive') {
+  if (profile.status === 'pending' || profile.status === 'inactive') {
     const statusText =
-      profile?.status === 'pending'
+      profile.status === 'pending'
         ? 'Sua conta está aguardando aprovação do administrador.'
         : 'Sua conta foi desativada. Entre em contato com o administrador.';
 

@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <ErrorState 
           title="Ops! Algo deu errado"
-          message={this.state.error?.message || "Um erro inesperado ocorreu."}
+          message={this.state.error.message || "Um erro inesperado ocorreu."}
           onRetry={() => this.setState({ hasError: false, error: null })}
         />
       );

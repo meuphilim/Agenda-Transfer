@@ -72,9 +72,9 @@ export const Attractions: React.FC = () => {
     setEditingAttraction(attraction);
     setFormData({
       name: attraction.name,
-      description: attraction.description || '',
+      description: attraction.description ?? '',
       estimated_duration: attraction.estimated_duration,
-      location: attraction.location || '',
+      location: attraction.location ?? '',
     });
     setShowModal(true);
   };

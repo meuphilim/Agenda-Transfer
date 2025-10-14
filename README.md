@@ -138,7 +138,7 @@ Sistema profissional de gestão para turismo receptivo, desenvolvido com React, 
 ### Bibliotecas Adicionais
 - **React Toastify** - Notificações elegantes
 - **Headless UI** - Componentes acessíveis
-- **Heroicons** - Ícones SVG
+- **Lucide React** - Ícones SVG
 - **React Hook Form** - Gerenciamento de formulários
 
 ### DevOps & CI/CD

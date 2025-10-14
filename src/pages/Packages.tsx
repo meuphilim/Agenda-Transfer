@@ -92,11 +92,11 @@ export const Packages: React.FC = () => {
         supabase.from('attractions').select('*').eq('active', true).order('name')
       ]);
 
-      setPackages(packagesResult.data || []);
-      setAgencies(agenciesResult.data || []);
-      setVehicles(vehiclesResult.data || []);
-      setDrivers(driversResult.data || []);
-      setAttractions(attractionsResult.data || []);
+      setPackages(packagesResult.data ?? []);
+      setAgencies(agenciesResult.data ?? []);
+      setVehicles(vehiclesResult.data ?? []);
+      setDrivers(driversResult.data ?? []);
+      setAttractions(attractionsResult.data ?? []);
     } catch (error: any) {
       toast.error('Erro ao carregar dados: ' + error.message);
     } finally {
@@ -149,9 +149,9 @@ export const Packages: React.FC = () => {
           package_id: packageId,
           attraction_id: attr.attraction_id,
           scheduled_date: attr.scheduled_date,
-          start_time: attr.start_time || null,
-          end_time: attr.end_time || null,
-          notes: attr.notes || null,
+          start_time: attr.start_time ?? null,
+          end_time: attr.end_time ?? null,
+          notes: attr.notes ?? null,
         }));
 
         const { error: attractionsError } = await supabase
@@ -180,8 +180,8 @@ export const Packages: React.FC = () => {
       start_date: pkg.start_date,
       end_date: pkg.end_date,
       total_participants: pkg.total_participants,
-      notes: pkg.notes || '',
-      client_name: pkg.client_name || '',
+      notes: pkg.notes ?? '',
+      client_name: pkg.client_name ?? '',
     });
 
     // Carregar atrativos do pacote
@@ -361,7 +361,7 @@ export const Packages: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {pkg.agencies?.name}
+                    {pkg.agencies.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
@@ -373,10 +373,10 @@ export const Packages: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {pkg.vehicles?.license_plate} - {pkg.vehicles?.model}
+                      {pkg.vehicles.license_plate} - {pkg.vehicles.model}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {pkg.drivers?.name}
+                      {pkg.drivers.name}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
