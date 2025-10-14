@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const ADMIN_USERS_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`;
+const ADMIN_USERS_ENDPOINT = '/api/admin';
 
 interface UserProfile {
   id: string;
@@ -21,7 +21,7 @@ interface ApiResponse<T> {
 const getAuthHeaders = async (): Promise<HeadersInit> => {
   const { data: { session } } = await supabase.auth.getSession();
 
-  if (!session?.access_token) {
+  if (!session.access_token) {
     throw new Error('No active session');
   }
 

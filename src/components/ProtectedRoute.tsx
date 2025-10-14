@@ -38,17 +38,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
   }, [loading]);
 
-  // ✅ GESTÃO DE SESSÃO DE INATIVIDADE (10 MIN)
+  // ✅ GESTÃO DE SESSÃO DE INATIVIDADE (30 MIN)
   useEffect(() => {
     if (!user || loading) return;
 
-    let lastActivity = Date.now();
-    let inactivityCheckInterval: NodeJS.Timeout | null = null;
-
     const handleSessionExpired = async () => {
       try {
-        if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
-        if (inactivityCheckInterval) clearInterval(inactivityCheckInterval);
         await signOut();
         alert('⏱️ Sua sessão expirou por inatividade. Faça login novamente.');
       } catch (error) {
@@ -60,48 +55,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
 
     const resetSessionTimer = () => {
-      lastActivity = Date.now();
+      if (sessionTimerRef.current) {
+        clearTimeout(sessionTimerRef.current);
+      }
+      sessionTimerRef.current = setTimeout(handleSessionExpired, SESSION_TIMEOUT);
+    };
 
-      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
-      if (inactivityCheckInterval) clearInterval(inactivityCheckInterval);
-
-      inactivityCheckInterval = setInterval(() => {
-        const inactiveTime = Date.now() - lastActivity;
-        if (inactiveTime >= SESSION_TIMEOUT) {
-          console.log('⏱️ Sessão expirada por inatividade');
-          clearInterval(inactivityCheckInterval!);
-          handleSessionExpired();
-        }
-      }, 60000);
-
-      sessionTimerRef.current = setTimeout(() => {
-        const inactiveTime = Date.now() - lastActivity;
-        if (inactiveTime >= SESSION_TIMEOUT) {
-          console.log('⏱️ Sessão expirada por inatividade (fallback)');
-          handleSessionExpired();
-        }
-      }, SESSION_TIMEOUT + 5000);
+    const handleActivity = () => {
+      resetSessionTimer();
     };
 
     // Eventos que resetam o timer de inatividade
     const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'mousemove'];
-    let canReset = true;
-    const handleActivity = () => {
-      if (canReset) {
-        lastActivity = Date.now();
-        canReset = false;
-        setTimeout(() => {
-          canReset = true;
-        }, 1000);
-      }
-    };
 
     // Atualiza quando a aba volta ao foco
-    const handleFocus = () => {
-      lastActivity = Date.now();
-    };
-
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleActivity);
     activityEvents.forEach(event => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
@@ -109,10 +77,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     resetSessionTimer();
 
     return () => {
-      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
-      if (inactivityCheckInterval) clearInterval(inactivityCheckInterval);
+      if (sessionTimerRef.current) {
+        clearTimeout(sessionTimerRef.current);
+      }
       activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', handleActivity);
     };
   }, [user, loading, signOut]);
 
@@ -171,9 +140,27 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!user) return <Login />;
   if (needsProfileCompletion) return <CompleteProfile />;
 
-  if (profile?.status === 'pending' || profile?.status === 'inactive') {
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-blue-600 text-2xl font-bold">
+                {Math.floor((Date.now() % 3000) / 1000) + 1}
+              </div>
+            </div>
+          </div>
+          <p className="text-gray-600 text-lg font-medium">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profile.status === 'pending' || profile.status === 'inactive') {
     const statusText =
-      profile?.status === 'pending'
+      profile.status === 'pending'
         ? 'Sua conta está aguardando aprovação do administrador.'
         : 'Sua conta foi desativada. Entre em contato com o administrador.';
 

@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { 
-  UserGroupIcon, 
-  TruckIcon,
-  UserIcon,
-  MapPinIcon,
-} from '@heroicons/react/24/outline';
+  Users,
+  Truck,
+  User,
+  MapPin,
+} from 'lucide-react';
 import { Agencies } from './Agencies';
 import { Vehicles } from './Vehicles';
 import { Drivers } from './Drivers';
 import { Attractions } from './Attractions';
 
 const tabs = [
-  { name: 'Agências', icon: UserGroupIcon, component: Agencies },
-  { name: 'Veículos', icon: TruckIcon, component: Vehicles },
-  { name: 'Motoristas', icon: UserIcon, component: Drivers },
-  { name: 'Atrativos', icon: MapPinIcon, component: Attractions },
+  { name: 'Agências', icon: Users, component: Agencies },
+  { name: 'Veículos', icon: Truck, component: Vehicles },
+  { name: 'Motoristas', icon: User, component: Drivers },
+  { name: 'Atrativos', icon: MapPin, component: Attractions },
 ];
 
 export const Settings: React.FC = () => {
