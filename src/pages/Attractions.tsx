@@ -46,18 +46,6 @@ export const Attractions: React.FC = () => {
     e.preventDefault();
 
     try {
-      if (editingAttraction) {
-        const result = await update(editingAttraction.id, formData);
-        if (result) {
-          toast.success('Atrativo atualizado com sucesso!');
-        }
-      } else {
-        const result = await create(formData);
-        if (result) {
-          toast.success('Atrativo cadastrado com sucesso!');
-        }
-      }
-
       let success = false;
       if (editingAttraction) {
         const result = await update(editingAttraction.id, formData);

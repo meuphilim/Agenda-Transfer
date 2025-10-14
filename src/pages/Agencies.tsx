@@ -52,18 +52,6 @@ export const Agencies: React.FC = () => {
     e.preventDefault();
 
     try {
-      if (editingAgency) {
-        const result = await update(editingAgency.id, formData);
-        if (result) {
-          toast.success('Agência atualizada com sucesso!');
-        }
-      } else {
-        const result = await create(formData);
-        if (result) {
-          toast.success('Agência cadastrada com sucesso!');
-        }
-      }
-
       let success = false;
       if (editingAgency) {
         const result = await update(editingAgency.id, formData);
