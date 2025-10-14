@@ -58,7 +58,7 @@ export const Attractions: React.FC = () => {
         }
       }
 
-      if (editingAttraction || await create(formData)) {
+      if (editingAttraction || !editingAttraction) {
         setShowModal(false);
         setEditingAttraction(null);
         resetForm();

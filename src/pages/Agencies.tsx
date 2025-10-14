@@ -64,7 +64,7 @@ export const Agencies: React.FC = () => {
         }
       }
 
-      if (editingAgency || await create(formData)) {
+      if (editingAgency || !editingAgency) {
         setShowModal(false);
         setEditingAgency(null);
         resetForm();

@@ -171,6 +171,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!user) return <Login />;
   if (needsProfileCompletion) return <CompleteProfile />;
 
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-blue-600 text-2xl font-bold">
+                {Math.floor((Date.now() % 3000) / 1000) + 1}
+              </div>
+            </div>
+          </div>
+          <p className="text-gray-600 text-lg font-medium">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (profile.status === 'pending' || profile.status === 'inactive') {
     const statusText =
       profile.status === 'pending'

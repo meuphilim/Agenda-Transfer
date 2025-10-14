@@ -294,7 +294,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (session.user) {
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setNeedsProfileCompletion(false);
+        setAccountSetup(true);
+      } else if (session?.user) {
         const userId = session.user.id;
 
         if (!userId) {
@@ -314,12 +320,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setNeedsProfileCompletion(false);
         }
         
-        setAccountSetup(true);
-      } else {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setNeedsProfileCompletion(false);
         setAccountSetup(true);
       }
     });

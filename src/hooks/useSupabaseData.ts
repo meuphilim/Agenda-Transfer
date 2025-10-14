@@ -160,8 +160,17 @@ export function useSupabaseData<T extends { id: string }>({
       )
       .subscribe();
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [table, realtime, enabled]);
 
