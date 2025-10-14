@@ -46,19 +46,22 @@ export const Attractions: React.FC = () => {
     e.preventDefault();
 
     try {
+      let success = false;
       if (editingAttraction) {
         const result = await update(editingAttraction.id, formData);
         if (result) {
           toast.success('Atrativo atualizado com sucesso!');
+          success = true;
         }
       } else {
         const result = await create(formData);
         if (result) {
           toast.success('Atrativo cadastrado com sucesso!');
+          success = true;
         }
       }
 
-      if (editingAttraction || !editingAttraction) {
+      if (success) {
         setShowModal(false);
         setEditingAttraction(null);
         resetForm();

@@ -192,6 +192,11 @@ VITE_SESSION_TIMEOUT=1800000
 
 # App
 VITE_APP_URL=http://localhost:5173
+
+# Backend (Vercel Environment)
+# Esta chave é usada no endpoint da API para operações de administrador.
+# NUNCA exponha esta chave no frontend.
+SUPABASE_SERVICE_KEY=sua_chave_de_serviço_aqui
 ```
 
 ### 4. Execute o projeto
@@ -402,12 +407,24 @@ npm run build
 # Copie o conteúdo da pasta dist/ para seu servidor web
 ```
 
-### Outras Plataformas
+### Vercel
 
-- **Vercel:** `vercel --prod`
-- **Netlify:** `netlify deploy --prod`
-- **AWS S3 + CloudFront**
-- **Azure Static Web Apps**
+O deploy na Vercel é o método recomendado para este projeto, pois ele suporta os endpoints de API serverless.
+
+1.  **Conecte seu repositório do Git** com a Vercel.
+2.  **Configure o projeto:**
+    *   **Framework Preset:** `Vite`
+    *   **Build Command:** `npm run build`
+    *   **Output Directory:** `dist`
+    *   **Install Command:** `npm install`
+3.  **Configure as Variáveis de Ambiente:**
+    *   Vá para `Settings > Environment Variables` no seu projeto Vercel.
+    *   Adicione as seguintes variáveis:
+        *   `VITE_SUPABASE_URL`
+        *   `VITE_SUPABASE_ANON_KEY`
+        *   `SUPABASE_SERVICE_KEY` (esta é a sua chave de serviço, que deve ser mantida em segredo)
+
+4.  **Faça o deploy.**
 
 ---
 
