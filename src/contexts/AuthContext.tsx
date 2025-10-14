@@ -40,19 +40,6 @@ export const useAuth = () => {
   return context;
 };
 
-// Logger condicional para desenvolvimento
-const logger = {
-  log: (...args: any[]) => {
-    if (import.meta.env.DEV) {
-      console.log('[AuthContext]', ...args);
-    }
-  },
-  error: (...args: any[]) => {
-    if (import.meta.env.DEV) {
-      console.error('[AuthContext]', ...args);
-    }
-  }
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -72,18 +59,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Validação de entrada
       if (!userId || typeof userId !== 'string') {
-        logger.error('ERRO: userId é inválido:', userId);
+        console.error('ERRO: userId é inválido:', userId);
         return null;
       }
 
       // Prevenir requisições duplicadas
       if (fetchInProgressRef.current.has(userId)) {
-        logger.log('⏸️ Fetch já em andamento para:', userId);
+        console.log('⏸️ Fetch já em andamento para:', userId);
         return null;
       }
 
       fetchInProgressRef.current.add(userId);
-      logger.log(`Buscando profile para usuário: ${userId}`);
+      console.log(`Buscando profile para usuário: ${userId}`);
 
       const { data, error } = await supabase
         .from('profiles')
@@ -93,26 +80,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         if (error.message.includes('infinite recursion')) {
-          logger.error('🚨 RECURSÃO INFINITA DETECTADA!');
+          console.error('🚨 RECURSÃO INFINITA DETECTADA!');
           return null;
         }
-        logger.error('❌ Erro ao buscar profile:', error);
+        console.error('❌ Erro ao buscar profile:', error);
         return null;
       }
 
       if (data) {
-        logger.log('✅ Profile encontrado:', data);
+        console.log('✅ Profile encontrado:', data);
         retryCountRef.current.delete(userId); // Reset contador de retries
         return data;
       }
 
-      logger.log('⏳ Profile ainda não existe');
+      console.log('⏳ Profile ainda não existe');
       return null;
 
     } catch (error) {
-      logger.error('🚨 Exceção em fetchProfile:', error);
+      console.error('🚨 Exceção em fetchProfile:', error);
       if (error instanceof Error && error.message.includes('infinite recursion')) {
-        logger.error('🚨 RECURSÃO INFINITA NO CATCH!');
+        console.error('🚨 RECURSÃO INFINITA NO CATCH!');
       }
       return null;
     } finally {
@@ -122,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
     if (!user) {
-      logger.log('⚠️ Cannot refresh profile - no user');
+      console.log('⚠️ Cannot refresh profile - no user');
       return null;
     }
     
@@ -132,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(profile);
       return profile;
     } catch (error) {
-      logger.error('❌ Error refreshing profile:', error);
+      console.error('❌ Error refreshing profile:', error);
       return null;
     } finally {
       setLoading(false);
@@ -162,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAccountSetup(true);
       }
     } catch (error) {
-      logger.error('Erro ao completar perfil:', error);
+      console.error('Erro ao completar perfil:', error);
       throw error;
     }
   }, [user, fetchProfile]);
@@ -170,14 +157,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // OTIMIZADO: Retry com backoff exponencial e limite por usuário
   const setupAccountWithRetry = useCallback(async (userId: string): Promise<UserProfile | null> => {
     if (!userId) {
-      logger.error('Parâmetros inválidos');
+      console.error('Parâmetros inválidos');
       return null;
     }
 
     const currentRetries = retryCountRef.current.get(userId) ?? 0;
 
     if (currentRetries >= maxRetries) {
-      logger.error(`❌ Max retries alcançado para ${userId}`);
+      console.error(`❌ Max retries alcançado para ${userId}`);
       setNeedsProfileCompletion(true);
       return null;
     }
@@ -186,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile = await fetchProfile(userId);
 
       if (profile) {
-        logger.log('✅ Account setup completed successfully');
+        console.log('✅ Account setup completed successfully');
         setNeedsProfileCompletion(false);
         retryCountRef.current.delete(userId);
         return profile;
@@ -194,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Incrementa contador de retry
       retryCountRef.current.set(userId, currentRetries + 1);
-      logger.log(`🔄 Retry ${currentRetries + 1}/${maxRetries}`);
+      console.log(`🔄 Retry ${currentRetries + 1}/${maxRetries}`);
 
       // Backoff exponencial: 1s, 2s, 4s
       if (currentRetries < maxRetries - 1) {
@@ -204,12 +191,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (error) {
       if (error instanceof Error && error.message.includes('infinite recursion')) {
-        logger.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
+        console.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
         retryCountRef.current.delete(userId);
         return null;
       }
       
-      logger.error('❌ Error in setupAccountWithRetry:', error);
+      console.error('❌ Error in setupAccountWithRetry:', error);
       retryCountRef.current.set(userId, currentRetries + 1);
     }
 
@@ -227,22 +214,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const getSession = async () => {
       try {
         setLoading(true);
-        logger.log('🔄 Getting session...');
+        console.log('🔄 Getting session...');
 
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
-          logger.error('❌ Error getting session:', error);
+          console.error('❌ Error getting session:', error);
           return;
         }
 
-        logger.log('✅ Session loaded:', !!session);
+        console.log('✅ Session loaded:', !!session);
 
         if (session.user) {
           const userId = session.user.id;
 
           if (!userId) {
-            logger.error('❌ Session user ID is null/undefined');
+            console.error('❌ Session user ID is null/undefined');
             return;
           }
 
@@ -252,7 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const profile = await setupAccountWithRetry(userId);
 
           if (!profile) {
-            logger.log('⚠️ Account setup failed');
+            console.log('⚠️ Account setup failed');
             setNeedsProfileCompletion(true);
           } else {
             setProfile(profile);
@@ -268,10 +255,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setAccountSetup(true);
         }
       } catch (error) {
-        logger.error('🚨 Error in getSession:', error);
+        console.error('🚨 Error in getSession:', error);
         
         if (error instanceof Error && error.message.includes('infinite recursion')) {
-          logger.error('🚨 RECURSÃO INFINITA!');
+          console.error('🚨 RECURSÃO INFINITA!');
           setAccountSetup(false);
           setNeedsProfileCompletion(false);
         }
@@ -286,11 +273,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      logger.log('🔄 Auth state changed:', event);
+      console.log('🔄 Auth state changed:', event);
 
       // Ignora INITIAL_SESSION para evitar fetch duplicado
       if (event === 'INITIAL_SESSION') {
-        logger.log('⏭️ Ignorando INITIAL_SESSION');
+        console.log('⏭️ Ignorando INITIAL_SESSION');
         return;
       }
 
@@ -304,7 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userId = session.user.id;
 
         if (!userId) {
-          logger.error('❌ Auth state change - user ID is null');
+          console.error('❌ Auth state change - user ID is null');
           return;
         }
 
@@ -332,7 +319,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     try {
-      logger.log('🚪 Signing out...');
+      console.log('🚪 Signing out...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -342,16 +329,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsProfileCompletion(false);
       setAccountSetup(true);
       retryCountRef.current.clear();
-      logger.log('✅ Sign out successful');
+      console.log('✅ Sign out successful');
     } catch (error) {
-      logger.error('❌ Error signing out:', error);
+      console.error('❌ Error signing out:', error);
       throw error;
     }
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      logger.log('🔑 Attempting sign in...');
+      console.log('🔑 Attempting sign in...');
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -360,13 +347,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      logger.log('✅ Sign in successful:', data.user.id);
+      console.log('✅ Sign in successful:', data.user.id);
 
       if (data.user) {
         const userId = data.user.id;
 
         if (!userId) {
-          logger.error('❌ Sign in - user ID is null');
+          console.error('❌ Sign in - user ID is null');
           throw new Error('AUTHENTICATION_FAILED');
         }
 
@@ -384,14 +371,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return data;
     } catch (error) {
-      logger.error('❌ Error in signIn:', error);
+      console.error('❌ Error in signIn:', error);
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     try {
-      logger.log('📝 Attempting sign up...');
+      console.log('📝 Attempting sign up...');
 
       const { error, data } = await supabase.auth.signUp({
         email,
@@ -406,11 +393,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      logger.log('✅ Sign up successful:', data.user.id);
+      console.log('✅ Sign up successful:', data.user.id);
 
       return data;
     } catch (error) {
-      logger.error('❌ Error in signUp:', error);
+      console.error('❌ Error in signUp:', error);
       throw error;
     }
   };
