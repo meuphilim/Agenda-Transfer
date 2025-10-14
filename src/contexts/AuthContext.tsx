@@ -425,7 +425,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
-    isAdmin: profile.is_admin ?? false,
+    isAdmin: profile?.is_admin ?? false,
     refreshProfile,
     completeProfile,
   };
