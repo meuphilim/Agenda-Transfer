@@ -4,15 +4,15 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import { adminApi } from '../services/adminApi';
 import { 
-  UserGroupIcon, 
-  CheckCircleIcon, 
-  XCircleIcon, 
-  ClockIcon,
-  PencilIcon,
-  TrashIcon,
-  EyeIcon,
-  XMarkIcon
-} from '@heroicons/react/24/outline';
+  Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Pencil,
+  Trash2,
+  Eye,
+  X
+} from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -109,7 +109,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
@@ -234,13 +234,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   const getStatusIcon = (status: UserStatus) => {
     switch (status) {
       case 'active':
-        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'inactive':
-        return <XCircleIcon className="h-5 w-5 text-red-500" />;
+        return <XCircle className="h-5 w-5 text-red-500" />;
       case 'pending':
-        return <ClockIcon className="h-5 w-5 text-yellow-500" />;
+        return <Clock className="h-5 w-5 text-yellow-500" />;
       default:
-        return <ClockIcon className="h-5 w-5 text-gray-500" />;
+        return <Clock className="h-5 w-5 text-gray-500" />;
     }
   };
 
@@ -265,7 +265,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
@@ -321,7 +321,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       onClick={() => onStatusUpdate(user.id, 'active')}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                     >
-                      <CheckCircleIcon className="h-4 w-4 mr-1" />
+                      <CheckCircle className="h-4 w-4 mr-1" />
                       Ativar
                     </button>
                   )}
@@ -330,7 +330,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       onClick={() => onStatusUpdate(user.id, 'inactive')}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                     >
-                      <XCircleIcon className="h-4 w-4 mr-1" />
+                      <XCircle className="h-4 w-4 mr-1" />
                       Desativar
                     </button>
                   )}
@@ -339,7 +339,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       onClick={() => onStatusUpdate(user.id, 'pending')}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700"
                     >
-                      <ClockIcon className="h-4 w-4 mr-1" />
+                      <Clock className="h-4 w-4 mr-1" />
                       Pendente
                     </button>
                   )}
@@ -357,7 +357,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       : 'bg-blue-600 hover:bg-blue-700'
                   }`}
                 >
-                  <UserGroupIcon className="h-4 w-4 mr-1" />
+                  <Users className="h-4 w-4 mr-1" />
                   {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
                 </button>
               </div>
@@ -373,7 +373,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   }}
                   className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                 >
-                  <TrashIcon className="h-4 w-4 mr-1" />
+                  <Trash2 className="h-4 w-4 mr-1" />
                   Excluir Usuário
                 </button>
               </div>
@@ -554,7 +554,7 @@ export const UserManagement = () => {
       <div className="p-6">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-            <XCircleIcon className="h-8 w-8 text-red-600" />
+            <XCircle className="h-8 w-8 text-red-600" />
           </div>
           <h1 className="text-2xl font-bold text-red-600">
             Acesso Negado
@@ -692,7 +692,7 @@ export const UserManagement = () => {
                             className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
                             title="Ver detalhes"
                           >
-                            <EyeIcon className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </button>
                           
                           <button
@@ -700,7 +700,7 @@ export const UserManagement = () => {
                             className="text-green-600 hover:text-green-900 transition-colors duration-200"
                             title="Editar usuário"
                           >
-                            <PencilIcon className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </button>
                           
                           {user.status === 'pending' && (
@@ -709,7 +709,7 @@ export const UserManagement = () => {
                               className="text-green-600 hover:text-green-900 transition-colors duration-200"
                               title="Aprovar usuário"
                             >
-                              <CheckCircleIcon className="h-4 w-4" />
+                              <CheckCircle className="h-4 w-4" />
                             </button>
                           )}
                           
@@ -719,7 +719,7 @@ export const UserManagement = () => {
                               className="text-red-600 hover:text-red-900 transition-colors duration-200"
                               title="Desativar usuário"
                             >
-                              <XCircleIcon className="h-4 w-4" />
+                              <XCircle className="h-4 w-4" />
                             </button>
                           )}
                           
@@ -729,7 +729,7 @@ export const UserManagement = () => {
                               className="text-green-600 hover:text-green-900 transition-colors duration-200"
                               title="Reativar usuário"
                             >
-                              <CheckCircleIcon className="h-4 w-4" />
+                              <CheckCircle className="h-4 w-4" />
                             </button>
                           )}
                         </div>
@@ -741,7 +741,7 @@ export const UserManagement = () => {
               
               {filteredUsers.length === 0 && (
                 <div className="text-center py-12">
-                  <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <Users className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
                   <p className="mt-1 text-sm text-gray-500">
                     {filter === 'all' 

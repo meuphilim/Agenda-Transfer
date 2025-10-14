@@ -1,5 +1,5 @@
 // src/components/Error/ErrorState.tsx
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle } from 'lucide-react';
 
 interface ErrorStateProps {
   title: string;
@@ -19,7 +19,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       <div className="bg-red-50 border border-red-200 rounded-lg p-6">
         <div className="flex items-start">
           <div className="flex-shrink-0">
-            <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+            <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
           <div className="ml-3">
             <h3 className="text-sm font-medium text-red-800">{title}</h3>

@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
-import { ChevronLeftIcon, ChevronRightIcon, FunnelIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChevronLeft, ChevronRight, Filter, Plus, X } from 'lucide-react';
 
 interface ScheduleItem {
   id: string;
@@ -416,7 +416,7 @@ export const Schedule: React.FC = () => {
               onClick={previousWeek}
               className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
             >
-              <ChevronLeftIcon className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             
             <div className="text-lg font-medium">
@@ -428,7 +428,7 @@ export const Schedule: React.FC = () => {
               onClick={nextWeek}
               className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
             >
-              <ChevronRightIcon className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5" />
             </button>
             
             <button
@@ -441,7 +441,7 @@ export const Schedule: React.FC = () => {
 
           {/* Filtros */}
           <div className="flex items-center space-x-3">
-            <FunnelIcon className="h-5 w-5 text-gray-400" />
+            <Filter className="h-5 w-5 text-gray-400" />
             
             <select
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -560,7 +560,7 @@ export const Schedule: React.FC = () => {
                         }}
                         className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
                       >
-                        <PlusIcon className="h-4 w-4 mr-1" />
+                        <Plus className="h-4 w-4 mr-1" />
                         Adicionar
                       </button>
                     </div>
@@ -605,7 +605,7 @@ export const Schedule: React.FC = () => {
                   onClick={() => setShowQuickAddModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 

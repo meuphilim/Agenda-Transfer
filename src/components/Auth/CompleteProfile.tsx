@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
-import { UserIcon } from '@heroicons/react/24/outline';
+import { User } from 'lucide-react';
 
 interface FormData {
   fullName: string;
@@ -113,7 +113,7 @@ export const CompleteProfile: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
-            <UserIcon className="h-8 w-8 text-blue-600" />
+            <User className="h-8 w-8 text-blue-600" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Complete seu Perfil

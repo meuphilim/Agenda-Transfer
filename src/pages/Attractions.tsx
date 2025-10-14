@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 interface Attraction {
   id: string;
@@ -131,7 +131,7 @@ export const Attractions: React.FC = () => {
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <PlusIcon className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2" />
           Novo Atrativo
         </button>
       </div>
@@ -191,14 +191,14 @@ export const Attractions: React.FC = () => {
                       onClick={() => handleEdit(attraction)}
                       className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       // onClick={() => handleDelete(attraction.id)}
                       onClick={() => handleDelete(attraction.id, attraction.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>

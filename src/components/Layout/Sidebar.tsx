@@ -4,21 +4,21 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ProfileModal } from '../Profile/ProfileModal';
 import { toast } from 'react-toastify';
 import { 
-  HomeIcon, 
-  CalendarDaysIcon, 
-  ClipboardDocumentListIcon,
-  Cog6ToothIcon,
-  UserIcon,
-  ArrowRightOnRectangleIcon,
-  UserGroupIcon
-} from '@heroicons/react/24/outline';
+  Home,
+  CalendarDays,
+  ClipboardList,
+  Settings,
+  User,
+  LogOut,
+  Users
+} from 'lucide-react';
 
 const getNavigation = (isAdmin: boolean): NavigationItem[] => [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon },
-  { name: 'Reservas', href: '/reservas', icon: ClipboardDocumentListIcon },
-  { name: 'Cadastros', href: '/cadastros', icon: Cog6ToothIcon },
-  ...(isAdmin ? [{ name: 'Gerenciar Usuários', href: '/usuarios', icon: UserGroupIcon }] : []),
+  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Agenda', href: '/agenda', icon: CalendarDays },
+  { name: 'Reservas', href: '/reservas', icon: ClipboardList },
+  { name: 'Cadastros', href: '/cadastros', icon: Settings },
+  ...(isAdmin ? [{ name: 'Gerenciar Usuários', href: '/usuarios', icon: Users }] : []),
 ];
 
 interface NavigationItem {
@@ -106,7 +106,7 @@ export const Sidebar: React.FC = () => {
             disabled={signingOut}
             className="w-full group flex items-start px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <UserIcon className="mr-3 h-5 w-5 flex-shrink-0 mt-0.5" />
+            <User className="mr-3 h-5 w-5 flex-shrink-0 mt-0.5" />
             <div className="flex flex-col items-start min-w-0 flex-1 text-left">
               <span className="truncate w-full">
                 {profile.full_name || user.email.split('@')[0] || 'Usuário'}
@@ -159,7 +159,7 @@ export const Sidebar: React.FC = () => {
               </>
             ) : (
               <>
-                <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 flex-shrink-0" />
+                <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />
                 Sair
               </>
             )}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
-import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -316,7 +316,7 @@ export const Packages: React.FC = () => {
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <PlusIcon className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2" />
           Nova Reserva
         </button>
       </div>
@@ -425,13 +425,13 @@ export const Packages: React.FC = () => {
                       onClick={() => handleEdit(pkg)}
                       className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(pkg.id)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
@@ -454,7 +454,7 @@ export const Packages: React.FC = () => {
                   onClick={handleModalClose}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  <X className="h-6 w-6" />
                 </button>
               </div>
 
@@ -605,7 +605,7 @@ export const Packages: React.FC = () => {
                       onClick={addAttraction}
                       className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
-                      <PlusIcon className="h-4 w-4 mr-1" />
+                      <Plus className="h-4 w-4 mr-1" />
                       Adicionar
                     </button>
                   </div>
@@ -619,7 +619,7 @@ export const Packages: React.FC = () => {
                           onClick={() => removeAttraction(index)}
                           className="text-red-600 hover:text-red-800"
                         >
-                          <XMarkIcon className="h-4 w-4" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                       
