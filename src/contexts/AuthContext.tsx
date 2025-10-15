@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentUser = session.user;
         setSession(session);
         setUser(currentUser);
-
+        
         const profile = await setupAccountWithRetry(currentUser.id);
         setProfile(profile);
         setNeedsProfileCompletion(!profile);
