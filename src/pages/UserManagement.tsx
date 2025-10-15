@@ -14,6 +14,8 @@ import {
   X
 } from 'lucide-react';
 
+// ... (interfaces e modais permanecem os mesmos)
+
 interface UserProfile {
   id: string;
   full_name: string;
@@ -577,25 +579,17 @@ export const UserManagement = () => {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Gerencie usuários, status e permissões do sistema
-          </p>
-        </div>
-        <button
-          onClick={fetchUsers}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Atualizar
-        </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Gerencie usuários, status e permissões do sistema.
+        </p>
       </div>
 
       {/* Filtros e Busca */}
       <div className="mb-6 space-y-4">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             {[
               { key: 'all', label: 'Todos', count: getFilterCount('all') },
               { key: 'pending', label: 'Pendentes', count: getFilterCount('pending') },
