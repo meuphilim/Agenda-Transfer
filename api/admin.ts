@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, User } from '@supabase/supabase-js';
 
 export const config = {
   runtime: 'edge',
@@ -134,15 +134,25 @@ export default async (req: Request) => {
         // Continuar sem emails se houver erro
       }
 
-      // CORREÇÃO DO ERRO 1: Tipar explicitamente os profiles
+      // SOLUÇÃO DEFINITIVA: Criar array de emails antes do map
+      const emailMap = new Map<string, string>();
+
+      if (authData?.users && Array.isArray(authData.users)) {
+        authData.users.forEach((authUser: User) => {
+          if (authUser.id && authUser.email) {
+            emailMap.set(authUser.id, authUser.email);
+          }
+        });
+      }
+
+      // Tipar explicitamente os profiles
       const typedProfiles: Profile[] = profiles as Profile[];
 
-      // Combinar perfis com emails (com tipagem explícita)
-      const usersWithEmail: ProfileWithEmail[] = typedProfiles.map((profile: Profile) => {
-        const authUser = authData?.users.find((au) => au.id === profile.id);
+      // Combinar perfis com emails usando o Map
+      const usersWithEmail: ProfileWithEmail[] = typedProfiles.map((profile: Profile): ProfileWithEmail => {
         return {
           ...profile,
-          email: authUser?.email || null,
+          email: emailMap.get(profile.id) || null,
         };
       });
 
@@ -164,7 +174,7 @@ export default async (req: Request) => {
         );
       }
 
-      // CORREÇÃO DO ERRO 2: Usar type específico para updates
+      // Usar type específico para updates
       const allowedFields: (keyof ProfileUpdate)[] = ['full_name', 'phone', 'is_admin', 'status'];
       const updateData: ProfileUpdate = {};
 
