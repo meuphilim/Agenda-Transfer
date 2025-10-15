@@ -1,8 +1,7 @@
-// src/components/ProtectedRoute.tsx - VERSÃO AJUSTADA PARA 10 MINUTOS DE INATIVIDADE
+// src/components/ProtectedRoute.tsx - VERSÃO FINAL CORRIGIDA
 import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Auth/Login';
 import { CompleteProfile } from './Auth/CompleteProfile';
-import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 
 interface ProtectedRouteProps {
@@ -11,22 +10,33 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading, profile, signOut, needsProfileCompletion, refreshProfile } = useAuth();
-  const location = useLocation();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ✅ CONSTANTES DE TIMEOUT
-  const LOADING_TIMEOUT = 10000; // 10 segundos para carregamento inicial
+  // ✅ CORREÇÃO: useEffect para polling de status movido para o topo do componente.
+  // Garante que o hook seja chamado incondicionalmente, respeitando as regras do React.
+  useEffect(() => {
+    // A lógica de polling só é ativada se o perfil estiver no estado 'pending'.
+    if (profile?.status === 'pending') {
+      const intervalId = setInterval(() => {
+        console.log('⏳ Verificando status da conta...');
+        refreshProfile();
+      }, 5000); // Verifica a cada 5 segundos
 
-  // ✅ GESTÃO DE TIMEOUT DE LOADING
+      // Limpa o intervalo quando o componente é desmontado ou o status muda.
+      return () => clearInterval(intervalId);
+    }
+  }, [profile, refreshProfile]);
+
+  // Gestão de timeout de carregamento inicial
   useEffect(() => {
     if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
 
     if (loading) {
       loadingTimerRef.current = setTimeout(() => {
-        console.error('⚠️ Loading timeout - aplicação demorou muito para carregar');
+        console.error('⚠️ Timeout: A aplicação demorou muito para carregar.');
         setLoadingTimeout(true);
-      }, LOADING_TIMEOUT);
+      }, 15000); // Aumentado para 15 segundos
     } else {
       setLoadingTimeout(false);
     }
@@ -36,87 +46,52 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
   }, [loading]);
 
-  // ✅ LOADING UI
+  // --- RENDERIZAÇÃO CONDICIONAL ---
+
+  // 1. Estado de Carregamento Inicial
   if (loading && !loadingTimeout) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto mb-4"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-blue-600 text-2xl font-bold">
-                {Math.floor((Date.now() % 3000) / 1000) + 1}
-              </div>
-            </div>
-          </div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg font-medium">Carregando aplicação...</p>
-          <p className="text-gray-400 text-sm mt-2">Verificando suas credenciais</p>
+          <p className="text-gray-400 text-sm mt-2">Verificando suas credenciais...</p>
         </div>
       </div>
     );
   }
 
+  // 2. Estado de Timeout de Carregamento
   if (loadingTimeout) {
-    const handleReload = () => window.location.reload();
-
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="max-w-md w-full space-y-8 p-8 bg-white shadow-lg rounded-lg text-center">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Tempo Limite Excedido</h2>
-          <p className="text-gray-600 mb-4">A aplicação demorou mais de 10 segundos para carregar.</p>
-          <button
-            onClick={handleReload}
-            className="w-full py-3 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
-          >
+          <p className="text-gray-600 mb-4">A aplicação não conseguiu carregar. Tente limpar o cache ou recarregar a página.</p>
+          <button onClick={() => window.location.reload()} className="w-full py-3 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">
             Recarregar Página
           </button>
-           <button
-                onClick={() => {
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.reload();
-              }}
-              className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Limpar Sessão e Tentar Novamente
-            </button>
         </div>
       </div>
     );
   }
 
-  if (!user) return <Login />;
-  if (needsProfileCompletion) return <CompleteProfile />;
+  // 3. Usuário não autenticado
+  if (!user) {
+    return <Login />;
+  }
 
+  // 4. Perfil incompleto
+  if (needsProfileCompletion) {
+    return <CompleteProfile />;
+  }
+
+  // 5. Perfil pendente ou inativo
   if (!profile || profile.status === 'pending' || profile.status === 'inactive') {
-    useEffect(() => {
-      // Only poll if the profile is missing or pending
-      if (!profile || profile?.status === 'pending') {
-        const intervalId = setInterval(() => {
-          console.log('⏳ Verificando status da conta...');
-          refreshProfile();
-        }, 5000); // Check every 5 seconds
-
-        return () => clearInterval(intervalId);
-      }
-    }, [profile, refreshProfile]);
-
-    const isPending = !profile || profile?.status === 'pending';
-
+    const isPending = !profile || profile.status === 'pending';
     const statusText = isPending
       ? 'Sua conta está aguardando aprovação do administrador.'
-      : 'Sua conta foi desativada. Entre em contato com o administrador.';
-
-    const handleSignOut = async () => {
-      try {
-        await signOut();
-      } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-      }
-    };
+      : 'Sua conta foi desativada. Entre em contato com o suporte.';
 
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -126,15 +101,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           </h2>
           <p className="text-gray-600 mb-4">{statusText}</p>
           {isPending && (
-            <div className="flex items-center justify-center space-x-2">
+            <div className="flex items-center justify-center space-x-2 my-4">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
               <p className="text-gray-500 text-sm">Verificando status...</p>
             </div>
           )}
-          <button
-            onClick={handleSignOut}
-            className="w-full py-2 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors mt-4"
-          >
+          <button onClick={() => signOut()} className="w-full py-2 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">
             Sair
           </button>
         </div>
@@ -142,7 +114,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  if (location.pathname === '/login') return <Navigate to="/" replace />;
-
+  // 6. Usuário autenticado e ativo
   return <>{children}</>;
 };
