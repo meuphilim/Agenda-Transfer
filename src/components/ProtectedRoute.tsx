@@ -94,7 +94,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!profile || profile.status === 'pending' || profile.status === 'inactive') {
     useEffect(() => {
       // Only poll if the profile is missing or pending
-      if (!profile || profile.status === 'pending') {
+      if (!profile || profile?.status === 'pending') {
         const intervalId = setInterval(() => {
           console.log('⏳ Verificando status da conta...');
           refreshProfile();
@@ -104,7 +104,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       }
     }, [profile, refreshProfile]);
 
-    const isPending = !profile || profile.status === 'pending';
+    const isPending = !profile || profile?.status === 'pending';
 
     const statusText = isPending
       ? 'Sua conta está aguardando aprovação do administrador.'
@@ -122,14 +122,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="max-w-md w-full space-y-8 p-8 bg-white shadow-lg rounded-lg text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            {profile.status === 'pending' ? 'Conta Pendente' : 'Conta Desativada'}
+            {isPending ? 'Conta Pendente' : 'Conta Desativada'}
           </h2>
           <p className="text-gray-600 mb-4">{statusText}</p>
-          {profile.status === 'pending' && (
-             <div className="flex items-center justify-center space-x-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
-                <p className="text-gray-500 text-sm">Verificando status...</p>
-             </div>
+          {isPending && (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+              <p className="text-gray-500 text-sm">Verificando status...</p>
+            </div>
           )}
           <button
             onClick={handleSignOut}
