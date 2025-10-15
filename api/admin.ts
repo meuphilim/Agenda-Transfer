@@ -24,6 +24,16 @@ interface ProfileWithEmail extends Profile {
   email: string | null;
 }
 
+/**
+ * Type para atualizações permitidas no perfil
+ */
+type ProfileUpdate = {
+  full_name?: string | null;
+  phone?: string | null;
+  is_admin?: boolean;
+  status?: 'pending' | 'active' | 'inactive';
+};
+
 export default async (req: Request) => {
   // Tratar requisições OPTIONS (CORS preflight)
   if (req.method === 'OPTIONS') {
@@ -124,8 +134,11 @@ export default async (req: Request) => {
         // Continuar sem emails se houver erro
       }
 
+      // CORREÇÃO DO ERRO 1: Tipar explicitamente os profiles
+      const typedProfiles: Profile[] = profiles as Profile[];
+
       // Combinar perfis com emails (com tipagem explícita)
-      const usersWithEmail: ProfileWithEmail[] = (profiles as Profile[]).map((profile) => {
+      const usersWithEmail: ProfileWithEmail[] = typedProfiles.map((profile: Profile) => {
         const authUser = authData?.users.find((au) => au.id === profile.id);
         return {
           ...profile,
@@ -151,13 +164,24 @@ export default async (req: Request) => {
         );
       }
 
-      // Validar campos permitidos para atualização
-      const allowedFields = ['full_name', 'phone', 'is_admin', 'status'];
-      const updateData: Partial<Profile> = {};
+      // CORREÇÃO DO ERRO 2: Usar type específico para updates
+      const allowedFields: (keyof ProfileUpdate)[] = ['full_name', 'phone', 'is_admin', 'status'];
+      const updateData: ProfileUpdate = {};
 
       for (const [key, value] of Object.entries(updates)) {
-        if (allowedFields.includes(key)) {
-          updateData[key as keyof Profile] = value as any;
+        if (allowedFields.includes(key as keyof ProfileUpdate)) {
+          const typedKey = key as keyof ProfileUpdate;
+          // Validação de tipo por campo
+          if (typedKey === 'full_name' || typedKey === 'phone') {
+            updateData[typedKey] = typeof value === 'string' ? value : null;
+          } else if (typedKey === 'is_admin') {
+            updateData[typedKey] = Boolean(value);
+          } else if (typedKey === 'status') {
+            const validStatuses = ['pending', 'active', 'inactive'];
+            if (typeof value === 'string' && validStatuses.includes(value)) {
+              updateData[typedKey] = value as 'pending' | 'active' | 'inactive';
+            }
+          }
         }
       }
 
