@@ -49,63 +49,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accountSetup, setAccountSetup] = useState(true);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   
-  // Controle de requisições em andamento
-  const fetchInProgressRef = useRef<Set<string>>(new Set());
+  const fetchInProgressRef = useRef<Map<string, Promise<UserProfile | null>>>(new Map());
   const retryCountRef = useRef<Map<string, number>>(new Map());
   const maxRetries = 3;
 
-  // FUNÇÃO OTIMIZADA: Cache e debounce de requisições
-  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    try {
-      // Validação de entrada
-      if (!userId || typeof userId !== 'string') {
-        console.error('ERRO: userId é inválido:', userId);
-        return null;
-      }
+  const fetchProfile = useCallback(async (userId: string, forceRefresh = false): Promise<UserProfile | null> => {
+    if (!userId || typeof userId !== 'string') {
+      console.error('ERRO: userId é inválido:', userId);
+      return null;
+    }
 
-      // Prevenir requisições duplicadas
-      if (fetchInProgressRef.current.has(userId)) {
-        console.log('⏸️ Fetch já em andamento para:', userId);
-        return null;
-      }
+    if (!forceRefresh && fetchInProgressRef.current.has(userId)) {
+      console.log('⏸️ Aguardando fetch em andamento para:', userId);
+      return fetchInProgressRef.current.get(userId)!;
+    }
 
-      fetchInProgressRef.current.add(userId);
-      console.log(`Buscando profile para usuário: ${userId}`);
+    const fetchPromise = (async () => {
+      try {
+        console.log(`Buscando profile para usuário: ${userId}`);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        if (error.message.includes('infinite recursion')) {
-          console.error('🚨 RECURSÃO INFINITA DETECTADA!');
+        if (error) {
+          console.error('❌ Erro ao buscar profile:', error);
           return null;
         }
-        console.error('❌ Erro ao buscar profile:', error);
+
+        if (data) {
+          console.log('✅ Profile encontrado:', data);
+          retryCountRef.current.delete(userId);
+          return data;
+        }
+
+        console.log('⏳ Profile ainda não existe');
         return null;
+      } catch (error) {
+        console.error('🚨 Exceção em fetchProfile:', error);
+        return null;
+      } finally {
+        fetchInProgressRef.current.delete(userId);
       }
+    })();
 
-      if (data) {
-        console.log('✅ Profile encontrado:', data);
-        retryCountRef.current.delete(userId); // Reset contador de retries
-        return data;
-      }
-
-      console.log('⏳ Profile ainda não existe');
-      return null;
-
-    } catch (error) {
-      console.error('🚨 Exceção em fetchProfile:', error);
-      if (error instanceof Error && error.message.includes('infinite recursion')) {
-        console.error('🚨 RECURSÃO INFINITA NO CATCH!');
-      }
-      return null;
-    } finally {
-      fetchInProgressRef.current.delete(userId);
-    }
-  }, []); // ✅ Sem dependências externas
+    fetchInProgressRef.current.set(userId, fetchPromise);
+    return fetchPromise;
+  }, []);
 
   const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
     if (!user) {
@@ -114,15 +105,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      setLoading(true);
-      const profile = await fetchProfile(user.id);
-      setProfile(profile);
-      return profile;
+      // Don't set loading to true here to avoid flashing the loading indicator
+      const refreshedProfile = await fetchProfile(user.id, true); // Force refresh
+      if (refreshedProfile) {
+        setProfile(refreshedProfile);
+      }
+      return refreshedProfile;
     } catch (error) {
       console.error('❌ Error refreshing profile:', error);
       return null;
-    } finally {
-      setLoading(false);
     }
   }, [user, fetchProfile]);
 
@@ -154,52 +145,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, fetchProfile]);
 
-  // OTIMIZADO: Retry com backoff exponencial e limite por usuário
   const setupAccountWithRetry = useCallback(async (userId: string): Promise<UserProfile | null> => {
     if (!userId) {
-      console.error('Parâmetros inválidos');
+      console.error('Parâmetros inválidos para setupAccountWithRetry');
       return null;
     }
 
-    const currentRetries = retryCountRef.current.get(userId) ?? 0;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        console.log(`Tentativa ${i + 1} de buscar profile para ${userId}`);
+        const profile = await fetchProfile(userId);
 
-    if (currentRetries >= maxRetries) {
-      console.error(`❌ Max retries alcançado para ${userId}`);
-      setNeedsProfileCompletion(true);
-      return null;
+        if (profile) {
+          console.log('✅ Account setup completed successfully');
+          return profile;
+        }
+
+        // Espera com backoff exponencial antes de tentar novamente
+        const delay = 1000 * Math.pow(2, i);
+        console.log(`🔄 Profile não encontrado. Tentando novamente em ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+      } catch (error) {
+        console.error(`❌ Erro na tentativa ${i + 1} de setupAccount:`, error);
+        // Espera antes da próxima tentativa em caso de erro de rede, etc.
+        const delay = 1000 * Math.pow(2, i);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
 
-    try {
-      const profile = await fetchProfile(userId);
-
-      if (profile) {
-        console.log('✅ Account setup completed successfully');
-        setNeedsProfileCompletion(false);
-        retryCountRef.current.delete(userId);
-        return profile;
-      }
-
-      // Incrementa contador de retry
-      retryCountRef.current.set(userId, currentRetries + 1);
-      console.log(`🔄 Retry ${currentRetries + 1}/${maxRetries}`);
-
-      // Backoff exponencial: 1s, 2s, 4s
-      if (currentRetries < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, currentRetries)));
-        return await setupAccountWithRetry(userId);
-      }
-
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('infinite recursion')) {
-        console.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
-        retryCountRef.current.delete(userId);
-        return null;
-      }
-      
-      console.error('❌ Error in setupAccountWithRetry:', error);
-      retryCountRef.current.set(userId, currentRetries + 1);
-    }
-
+    console.error(`❌ Máximo de retries (${maxRetries}) alcançado para ${userId}.`);
     setNeedsProfileCompletion(true);
     return null;
   }, [fetchProfile]);

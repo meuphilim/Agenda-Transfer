@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, loading, profile, signOut, needsProfileCompletion } = useAuth();
+  const { user, loading, profile, signOut, needsProfileCompletion, refreshProfile } = useAuth();
   const location = useLocation();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,29 +91,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!user) return <Login />;
   if (needsProfileCompletion) return <CompleteProfile />;
 
-  if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto mb-4"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-blue-600 text-2xl font-bold">
-                {Math.floor((Date.now() % 3000) / 1000) + 1}
-              </div>
-            </div>
-          </div>
-          <p className="text-gray-600 text-lg font-medium">Carregando perfil...</p>
-        </div>
-      </div>
-    );
-  }
+  if (!profile || profile.status === 'pending' || profile.status === 'inactive') {
+    useEffect(() => {
+      // Only poll if the profile is missing or pending
+      if (!profile || profile.status === 'pending') {
+        const intervalId = setInterval(() => {
+          console.log('⏳ Verificando status da conta...');
+          refreshProfile();
+        }, 5000); // Check every 5 seconds
 
-  if (profile.status === 'pending' || profile.status === 'inactive') {
-    const statusText =
-      profile.status === 'pending'
-        ? 'Sua conta está aguardando aprovação do administrador.'
-        : 'Sua conta foi desativada. Entre em contato com o administrador.';
+        return () => clearInterval(intervalId);
+      }
+    }, [profile, refreshProfile]);
+
+    const isPending = !profile || profile.status === 'pending';
+
+    const statusText = isPending
+      ? 'Sua conta está aguardando aprovação do administrador.'
+      : 'Sua conta foi desativada. Entre em contato com o administrador.';
 
     const handleSignOut = async () => {
       try {
@@ -130,9 +125,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
             {profile.status === 'pending' ? 'Conta Pendente' : 'Conta Desativada'}
           </h2>
           <p className="text-gray-600 mb-4">{statusText}</p>
+          {profile.status === 'pending' && (
+             <div className="flex items-center justify-center space-x-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+                <p className="text-gray-500 text-sm">Verificando status...</p>
+             </div>
+          )}
           <button
             onClick={handleSignOut}
-            className="w-full py-2 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+            className="w-full py-2 px-4 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors mt-4"
           >
             Sair
           </button>
