@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 interface Agency {
   id: string;
@@ -52,19 +52,22 @@ export const Agencies: React.FC = () => {
     e.preventDefault();
 
     try {
+      let success = false;
       if (editingAgency) {
         const result = await update(editingAgency.id, formData);
         if (result) {
           toast.success('Agência atualizada com sucesso!');
+          success = true;
         }
       } else {
         const result = await create(formData);
         if (result) {
           toast.success('Agência cadastrada com sucesso!');
+          success = true;
         }
       }
 
-      if (editingAgency || await create(formData)) {
+      if (success) {
         setShowModal(false);
         setEditingAgency(null);
         resetForm();
@@ -78,11 +81,11 @@ export const Agencies: React.FC = () => {
     setEditingAgency(agency);
     setFormData({
       name: agency.name,
-      contact_person: agency.contact_person || '',
-      phone: agency.phone || '',
-      email: agency.email || '',
-      cnpj: agency.cnpj || '',
-      address: agency.address || '',
+      contact_person: agency.contact_person ?? '',
+      phone: agency.phone ?? '',
+      email: agency.email ?? '',
+      cnpj: agency.cnpj ?? '',
+      address: agency.address ?? '',
     });
     setShowModal(true);
   };
@@ -134,7 +137,7 @@ export const Agencies: React.FC = () => {
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <PlusIcon className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2" />
           Nova Agência
         </button>
       </div>
@@ -193,14 +196,14 @@ export const Agencies: React.FC = () => {
                       onClick={() => handleEdit(agency)}
                       className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
                     >
-                      <PencilIcon className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       // onClick={() => handleDelete(agency.id)}
                       onClick={() => handleDelete(agency.id, agency.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
-import { UserIcon } from '@heroicons/react/24/outline';
+import { User } from 'lucide-react';
 
 interface FormData {
   fullName: string;
@@ -21,6 +21,16 @@ export const CompleteProfile: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
   const { completeProfile, signOut, user } = useAuth();
+
+  if (!user) {
+    // This case should ideally not be reached if routing is correct,
+    // but it's a good safeguard.
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-red-500">Erro: Usuário não encontrado. Redirecionando...</p>
+      </div>
+    );
+  }
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -113,7 +123,7 @@ export const CompleteProfile: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
-            <UserIcon className="h-8 w-8 text-blue-600" />
+            <User className="h-8 w-8 text-blue-600" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Complete seu Perfil
@@ -121,7 +131,7 @@ export const CompleteProfile: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600">
             Para continuar, precisamos de algumas informações adicionais
           </p>
-          {user?.email && (
+          {user.email && (
             <p className="mt-1 text-center text-xs text-gray-500">
               Logado como: {user.email}
             </p>
