@@ -3,7 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-toastify';
-import { XMarkIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { X, UserCircle2 } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -23,8 +23,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     if (profile) {
       setFormData({
-        full_name: profile.full_name || '',
-        phone: profile.phone || '',
+        full_name: profile.full_name ?? '',
+        phone: profile.phone ?? '',
       });
     }
   }, [profile, isOpen]); // ✅ Atualiza quando modal abre
@@ -71,7 +71,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         .from('profiles')
         .update({
           full_name: formData.full_name.trim(),
-          phone: formData.phone || null,
+          phone: formData.phone ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -155,7 +155,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
-                      <UserCircleIcon className="h-10 w-10 text-blue-600" />
+                      <UserCircle2 className="h-10 w-10 text-blue-600" />
                     </div>
                     <div>
                       <Dialog.Title
@@ -174,7 +174,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     disabled={loading}
                     className="text-gray-400 hover:text-gray-600 transition-colors duration-200 disabled:opacity-50"
                   >
-                    <XMarkIcon className="h-6 w-6" />
+                    <X className="h-6 w-6" />
                   </button>
                 </div>
 
@@ -239,7 +239,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     </label>
                     <input
                       type="email"
-                      value={user?.email || ''}
+                      value={user?.email ?? ''}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 shadow-sm sm:text-sm cursor-not-allowed text-gray-600"
                       disabled
                     />

@@ -155,7 +155,7 @@ export function useCachedQuery<T extends { id: string }>(options: CachedQueryOpt
   useEffect(() => {
     const checkStale = setInterval(() => {
       const entry = queryCache.get(cacheKey);
-      if (entry && entry.isStale) {
+      if (entry?.isStale) {
         fetchData(true);
       }
     }, staleTime);
