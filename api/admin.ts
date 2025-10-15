@@ -1,26 +1,29 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+export const config = {
+  runtime: 'edge',
 };
 
-interface UserProfile {
+// Interface para tipagem do Profile
+interface Profile {
   id: string;
-  full_name: string;
+  full_name: string | null;
   phone: string | null;
   is_admin: boolean;
-  status: 'pending' | 'active' | 'inactive';
+  status: string;
   created_at: string;
   updated_at: string;
 }
 
-Deno.serve(async (req: Request) => {
+export default async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
-      headers: corsHeaders,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
     });
   }
 
@@ -29,16 +32,13 @@ Deno.serve(async (req: Request) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY!;
 
     const userToken = authHeader.replace('Bearer ', '');
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -50,10 +50,7 @@ Deno.serve(async (req: Request) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid token or user not found' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -66,10 +63,7 @@ Deno.serve(async (req: Request) => {
     if (profileError || !profile?.is_admin || profile.status !== 'active') {
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Admin access required' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -80,9 +74,6 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    const url = new URL(req.url);
-    const path = url.pathname.split('/').pop();
-
     if (req.method === 'GET') {
       const { data: users, error } = await adminClient
         .from('profiles')
@@ -91,9 +82,18 @@ Deno.serve(async (req: Request) => {
 
       if (error) throw error;
 
+      // Validação: garantir que users existe e é array
+      if (!users || !Array.isArray(users)) {
+        return new Response(
+          JSON.stringify({ users: [] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { data: authUsers } = await adminClient.auth.admin.listUsers();
 
-      const usersWithEmail = users.map((user: UserProfile) => {
+      // Tipagem explícita: users como Profile[]
+      const usersWithEmail = (users as Profile[]).map((user) => {
         const authUser = authUsers?.users.find((au) => au.id === user.id);
         return {
           ...user,
@@ -103,10 +103,7 @@ Deno.serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({ users: usersWithEmail }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -117,10 +114,7 @@ Deno.serve(async (req: Request) => {
       if (!userId || !updates) {
         return new Response(
           JSON.stringify({ error: 'Missing userId or updates' }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
@@ -135,10 +129,7 @@ Deno.serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({ user: data }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -149,10 +140,7 @@ Deno.serve(async (req: Request) => {
       if (!userId) {
         return new Response(
           JSON.stringify({ error: 'Missing userId' }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
@@ -168,28 +156,21 @@ Deno.serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({ success: true, message: 'User deleted successfully' }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
-      {
-        status: 405,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 405, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Admin users error:', error);
+    console.error('Admin API error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Internal server error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
-});
+};

@@ -41,7 +41,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Atualizar cache
       const tableCache = new Map();
-      data?.forEach(item => {
+      data.forEach(item => {
         tableCache.set(item.id, item);
       });
       
@@ -64,7 +64,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
     
-    return tableCache?.get(id) || null;
+    return tableCache ? tableCache.get(id) || null : null;
   }, []);
 
   const setInCache = useCallback((table: string, id: string, data: any) => {

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const ADMIN_USERS_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`;
+const ADMIN_USERS_ENDPOINT = '/api/admin';
 
 interface UserProfile {
   id: string;
@@ -43,7 +43,7 @@ export const adminApi = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        return { error: errorData.error || 'Failed to fetch users' };
+        return { error: errorData.error || 'Falha ao buscar usuários' };
       }
 
       const data = await response.json();
@@ -66,7 +66,7 @@ export const adminApi = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        return { error: errorData.error || 'Failed to update user' };
+        return { error: errorData.error || 'Falha ao atualizar usuário' };
       }
 
       const data = await response.json();
@@ -89,7 +89,7 @@ export const adminApi = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        return { error: errorData.error || 'Failed to delete user' };
+        return { error: errorData.error || 'Falha ao excluir usuário' };
       }
 
       const data = await response.json();

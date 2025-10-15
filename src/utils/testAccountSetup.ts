@@ -22,7 +22,12 @@ export const testAccountSetup = async () => {
       return false;
     }
 
-    console.log('✅ Signup realizado:', signUpData.user?.id);
+    if (!signUpData.user) {
+      console.error('❌ User não criado');
+      return false;
+    }
+
+    console.log('✅ Signup realizado:', signUpData.user.id);
 
     // Aguarda processamento
     await new Promise(resolve => setTimeout(resolve, 3000));
