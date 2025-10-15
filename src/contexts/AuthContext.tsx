@@ -1,8 +1,9 @@
-// src/contexts/AuthContext.tsx - VERSÃO OTIMIZADA
+// src/contexts/AuthContext.tsx - VERSÃO CORRIGIDA E OTIMIZADA
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+// Tipos exportados para uso em outros locais da aplicação.
 export type UserStatus = 'pending' | 'active' | 'inactive';
 
 export interface UserProfile {
@@ -35,291 +36,183 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth deve ser utilizado dentro de um AuthProvider');
   }
   return context;
 };
-
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accountSetup, setAccountSetup] = useState(true);
+  const [accountSetup, setAccountSetup] = useState(false);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   
-  // Controle de requisições em andamento
-  const fetchInProgressRef = useRef<Set<string>>(new Set());
-  const retryCountRef = useRef<Map<string, number>>(new Map());
-  const maxRetries = 3;
+  const fetchInProgressRef = useRef<Map<string, Promise<UserProfile | null>>>(new Map());
 
-  // FUNÇÃO OTIMIZADA: Cache e debounce de requisições
-  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    try {
-      // Validação de entrada
-      if (!userId || typeof userId !== 'string') {
-        console.error('ERRO: userId é inválido:', userId);
-        return null;
-      }
+  // ✅ CORREÇÃO: Função memoizada com useCallback para buscar o perfil do usuário.
+  // Evita recriações em re-renderizações e estabiliza a dependência de outros hooks.
+  const fetchProfile = useCallback(async (userId: string, forceRefresh = false): Promise<UserProfile | null> => {
+    if (!userId || typeof userId !== 'string') {
+      console.error('ERRO: ID de usuário inválido fornecido para fetchProfile:', userId);
+      return null;
+    }
 
-      // Prevenir requisições duplicadas
-      if (fetchInProgressRef.current.has(userId)) {
-        console.log('⏸️ Fetch já em andamento para:', userId);
-        return null;
-      }
+    if (!forceRefresh && fetchInProgressRef.current.has(userId)) {
+      console.log(`⏸️ Aguardando busca de perfil em andamento para: ${userId}`);
+      return fetchInProgressRef.current.get(userId)!;
+    }
 
-      fetchInProgressRef.current.add(userId);
-      console.log(`Buscando profile para usuário: ${userId}`);
+    const fetchPromise = (async () => {
+      try {
+        console.log(`🔎 Buscando perfil para o usuário: ${userId}`);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        if (error.message.includes('infinite recursion')) {
-          console.error('🚨 RECURSÃO INFINITA DETECTADA!');
+        if (error) {
+          console.error('❌ Erro ao buscar perfil:', error);
           return null;
         }
-        console.error('❌ Erro ao buscar profile:', error);
+
+        if (data) {
+          console.log('✅ Perfil encontrado:', data);
+          return data;
+        }
+
+        console.log('⏳ Perfil ainda não existe para o usuário, aguardando criação...');
         return null;
+      } catch (error) {
+        console.error('🚨 Exceção crítica em fetchProfile:', error);
+        return null;
+      } finally {
+        fetchInProgressRef.current.delete(userId);
       }
+    })();
 
-      if (data) {
-        console.log('✅ Profile encontrado:', data);
-        retryCountRef.current.delete(userId); // Reset contador de retries
-        return data;
-      }
+    fetchInProgressRef.current.set(userId, fetchPromise);
+    return fetchPromise;
+  }, []);
 
-      console.log('⏳ Profile ainda não existe');
-      return null;
-
-    } catch (error) {
-      console.error('🚨 Exceção em fetchProfile:', error);
-      if (error instanceof Error && error.message.includes('infinite recursion')) {
-        console.error('🚨 RECURSÃO INFINITA NO CATCH!');
-      }
-      return null;
-    } finally {
-      fetchInProgressRef.current.delete(userId);
-    }
-  }, []); // ✅ Sem dependências externas
-
-  const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
-    if (!user) {
-      console.log('⚠️ Cannot refresh profile - no user');
-      return null;
-    }
-    
-    try {
-      setLoading(true);
-      const profile = await fetchProfile(user.id);
-      setProfile(profile);
-      return profile;
-    } catch (error) {
-      console.error('❌ Error refreshing profile:', error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [user, fetchProfile]);
-
-  const completeProfile = useCallback(async (fullName: string, phone: string) => {
-    if (!user) throw new Error('Usuário não autenticado');
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .insert([{
-          id: user.id,
-          full_name: fullName,
-          phone: phone,
-          is_admin: false,
-          status: 'pending'
-        }]);
-
-      if (error) throw error;
-
-      const profile = await fetchProfile(user.id);
-      if (profile) {
-        setProfile(profile);
-        setNeedsProfileCompletion(false);
-        setAccountSetup(true);
-      }
-    } catch (error) {
-      console.error('Erro ao completar perfil:', error);
-      throw error;
-    }
-  }, [user, fetchProfile]);
-
-  // OTIMIZADO: Retry com backoff exponencial e limite por usuário
+  // ✅ CORREÇÃO: Função memoizada para tentar configurar a conta com retentativas.
   const setupAccountWithRetry = useCallback(async (userId: string): Promise<UserProfile | null> => {
     if (!userId) {
-      console.error('Parâmetros inválidos');
+      console.error('ERRO: ID de usuário inválido para setupAccountWithRetry.');
       return null;
     }
 
-    const currentRetries = retryCountRef.current.get(userId) ?? 0;
-
-    if (currentRetries >= maxRetries) {
-      console.error(`❌ Max retries alcançado para ${userId}`);
-      setNeedsProfileCompletion(true);
-      return null;
-    }
-
-    try {
+    for (let i = 0; i < 3; i++) {
+      console.log(`⏳ Tentativa ${i + 1} de buscar perfil para ${userId}`);
       const profile = await fetchProfile(userId);
 
       if (profile) {
-        console.log('✅ Account setup completed successfully');
-        setNeedsProfileCompletion(false);
-        retryCountRef.current.delete(userId);
+        console.log('✅ Configuração da conta finalizada com sucesso.');
         return profile;
       }
 
-      // Incrementa contador de retry
-      retryCountRef.current.set(userId, currentRetries + 1);
-      console.log(`🔄 Retry ${currentRetries + 1}/${maxRetries}`);
-
-      // Backoff exponencial: 1s, 2s, 4s
-      if (currentRetries < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, currentRetries)));
-        return await setupAccountWithRetry(userId);
-      }
-
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('infinite recursion')) {
-        console.error('🚨 RECURSÃO DETECTADA - Parando tentativas');
-        retryCountRef.current.delete(userId);
-        return null;
-      }
-      
-      console.error('❌ Error in setupAccountWithRetry:', error);
-      retryCountRef.current.set(userId, currentRetries + 1);
+      const delay = 1000 * Math.pow(2, i);
+      console.log(`🔄 Perfil não encontrado. Tentando novamente em ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
 
+    console.error(`❌ Máximo de retentativas (3) alcançado para ${userId}.`);
     setNeedsProfileCompletion(true);
     return null;
   }, [fetchProfile]);
 
-  // OTIMIZADO: Prevenir múltiplas inicializações
-  const isInitialized = useRef(false);
-
+  // ✅ CORREÇÃO: useEffect principal com array de dependências vazio [].
+  // Roda apenas uma vez, na montagem do componente, para configurar o listener de autenticação.
   useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
+    console.log('AuthProvider montado. Configurando listener de autenticação...');
+    setLoading(true);
 
-    const getSession = async () => {
-      try {
-        setLoading(true);
-        console.log('🔄 Getting session...');
+    // Função para processar a sessão do usuário
+    const processSession = async (session: Session | null) => {
+      if (session?.user) {
+        const currentUser = session.user;
+        setSession(session);
+        setUser(currentUser);
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error('❌ Error getting session:', error);
-          return;
-        }
-
-        console.log('✅ Session loaded:', !!session);
-
-        if (session.user) {
-          const userId = session.user.id;
-
-          if (!userId) {
-            console.error('❌ Session user ID is null/undefined');
-            return;
-          }
-
-          setSession(session);
-          setUser(session.user);
-
-          const profile = await setupAccountWithRetry(userId);
-
-          if (!profile) {
-            console.log('⚠️ Account setup failed');
-            setNeedsProfileCompletion(true);
-          } else {
-            setProfile(profile);
-            setNeedsProfileCompletion(false);
-          }
-          
-          setAccountSetup(true);
-        } else {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setNeedsProfileCompletion(false);
-          setAccountSetup(true);
-        }
-      } catch (error) {
-        console.error('🚨 Error in getSession:', error);
-        
-        if (error instanceof Error && error.message.includes('infinite recursion')) {
-          console.error('🚨 RECURSÃO INFINITA!');
-          setAccountSetup(false);
-          setNeedsProfileCompletion(false);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    // ✅ Listener de auth state separado do fetch inicial
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event);
-
-      // Ignora INITIAL_SESSION para evitar fetch duplicado
-      if (event === 'INITIAL_SESSION') {
-        console.log('⏭️ Ignorando INITIAL_SESSION');
-        return;
-      }
-
-      if (event === 'SIGNED_OUT') {
+        const profile = await setupAccountWithRetry(currentUser.id);
+        setProfile(profile);
+        setNeedsProfileCompletion(!profile);
+      } else {
+        // Limpa o estado se não houver sessão
         setSession(null);
         setUser(null);
         setProfile(null);
         setNeedsProfileCompletion(false);
-        setAccountSetup(true);
-      } else if (session?.user) {
-        const userId = session.user.id;
-
-        if (!userId) {
-          console.error('❌ Auth state change - user ID is null');
-          return;
-        }
-
-        setSession(session);
-        setUser(session.user);
-
-        const profile = await fetchProfile(userId);
-
-        if (!profile) {
-          setNeedsProfileCompletion(true);
-        } else {
-          setProfile(profile);
-          setNeedsProfileCompletion(false);
-        }
-        
-        setAccountSetup(true);
       }
+      setAccountSetup(true);
+      setLoading(false);
+    };
+
+    // Pega a sessão inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Verificando sessão inicial...');
+      processSession(session);
     });
 
+    // Configura o listener para futuras mudanças de estado de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log(`🔄 Evento de autenticação recebido: ${event}`);
+        processSession(session);
+      }
+    );
+
+    // Função de limpeza para remover o listener quando o componente for desmontado
     return () => {
+      console.log('AuthProvider desmontado. Removendo listener.');
       subscription.unsubscribe();
-      isInitialized.current = false;
     };
-  }, [setupAccountWithRetry]); // ✅ Dependência correta
+  }, [setupAccountWithRetry]); // setupAccountWithRetry é estável devido ao useCallback
+
+  const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
+    if (!user) {
+      console.log('⚠️ Impossível atualizar perfil - usuário não logado.');
+      return null;
+    }
+
+    try {
+      const refreshedProfile = await fetchProfile(user.id, true); // Força a atualização
+      if (refreshedProfile) {
+        setProfile(refreshedProfile);
+      }
+      return refreshedProfile;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar perfil:', error);
+      return null;
+    }
+  }, [user, fetchProfile]);
+
+  const completeProfile = useCallback(async (fullName: string, phone: string) => {
+    if (!user) throw new Error('Usuário não autenticado para completar o perfil.');
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .insert([{ id: user.id, full_name: fullName, phone: phone, is_admin: false, status: 'pending' }]);
+
+      if (error) throw error;
+
+      const profile = await fetchProfile(user.id, true); // Força a busca do perfil recém-criado
+      if (profile) {
+        setProfile(profile);
+        setNeedsProfileCompletion(false);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao completar perfil:', error);
+      throw error;
+    }
+  }, [user, fetchProfile]);
 
   const signOut = useCallback(async () => {
     try {
-      console.log('🚪 Signing out...');
+      console.log('🚪 Desconectando usuário...');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
@@ -327,77 +220,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setProfile(null);
       setNeedsProfileCompletion(false);
-      setAccountSetup(true);
-      retryCountRef.current.clear();
-      console.log('✅ Sign out successful');
+      console.log('✅ Usuário desconectado com sucesso.');
     } catch (error) {
-      console.error('❌ Error signing out:', error);
+      console.error('❌ Erro ao desconectar:', error);
       throw error;
     }
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('🔑 Attempting sign in...');
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      console.log('🔑 Tentando autenticar...');
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      console.log('✅ Sign in successful:', data.user.id);
-
-      if (data.user) {
-        const userId = data.user.id;
-
-        if (!userId) {
-          console.error('❌ Sign in - user ID is null');
-          throw new Error('AUTHENTICATION_FAILED');
-        }
-
-        const profile = await setupAccountWithRetry(userId);
-        setProfile(profile);
-
-        if (!profile) {
-          setNeedsProfileCompletion(true);
-        } else {
-          setNeedsProfileCompletion(false);
-        }
-
-        setAccountSetup(true);
-      }
-
+      // O listener onAuthStateChange cuidará de atualizar o estado.
+      console.log(`✅ Autenticação bem-sucedida para: ${data.user.id}`);
       return data;
     } catch (error) {
-      console.error('❌ Error in signIn:', error);
+      console.error('❌ Erro na autenticação:', error);
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     try {
-      console.log('📝 Attempting sign up...');
-
-      const { error, data } = await supabase.auth.signUp({
+      console.log('📝 Tentando registrar novo usuário...');
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone: phone,
-          },
-        },
+        options: { data: { full_name: fullName, phone: phone } },
       });
 
       if (error) throw error;
-
-      console.log('✅ Sign up successful:', data.user.id);
-
+      if (!data.user) throw new Error("Cadastro falhou, usuário não foi criado.");
+      // O listener onAuthStateChange cuidará de atualizar o estado.
+      console.log(`✅ Registro bem-sucedido para: ${data.user.id}`);
       return data;
     } catch (error) {
-      console.error('❌ Error in signUp:', error);
+      console.error('❌ Erro no registro:', error);
       throw error;
     }
   };

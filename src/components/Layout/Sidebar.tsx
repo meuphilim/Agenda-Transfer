@@ -103,21 +103,21 @@ export const Sidebar: React.FC = () => {
           {/* Profile Button */}
           <button
             onClick={() => setShowProfileModal(true)}
-            disabled={signingOut}
+            disabled={signingOut || !profile}
             className="w-full group flex items-start px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <User className="mr-3 h-5 w-5 flex-shrink-0 mt-0.5" />
             <div className="flex flex-col items-start min-w-0 flex-1 text-left">
               <span className="truncate w-full">
-                {profile.full_name || user.email.split('@')[0] || 'Usuário'}
+                {profile?.full_name ?? user?.email?.split('@')[0] ?? 'Usuário'}
               </span>
               {isAdmin ? (
                 <span className="text-xs text-blue-600 font-semibold">
                   Administrador
                 </span>
-              ) : profile.full_name ? (
+              ) : profile?.full_name ? (
                 <span className="text-xs text-gray-500 truncate w-full">
-                  {user.email}
+                  {user?.email ?? '...'}
                 </span>
               ) : (
                 <span className="text-xs text-orange-600 font-medium">

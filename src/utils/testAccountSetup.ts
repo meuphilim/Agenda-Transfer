@@ -22,6 +22,11 @@ export const testAccountSetup = async () => {
       return false;
     }
 
+    if (!signUpData.user) {
+      console.error('❌ User não criado');
+      return false;
+    }
+
     console.log('✅ Signup realizado:', signUpData.user.id);
 
     // Aguarda processamento

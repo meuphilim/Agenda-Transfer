@@ -1,3 +1,14 @@
+/**
+ * ErrorBoundary - Componente para captura de erros React
+ *
+ * Captura erros em toda a árvore de componentes filhos,
+ * registra os erros e exibe uma UI de fallback.
+ *
+ * @exemplo
+ * <ErrorBoundary>
+ *   <App />
+ * </ErrorBoundary>
+ */
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 

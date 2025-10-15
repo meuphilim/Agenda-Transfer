@@ -73,7 +73,7 @@ export default async (req: Request) => {
 
       const { data: authUsers } = await adminClient.auth.admin.listUsers();
 
-      const usersWithEmail = users.map((user) => {
+      const usersWithEmail = users.map((user: { id: string; }) => {
         const authUser = authUsers?.users.find((au) => au.id === user.id);
         return {
           ...user,

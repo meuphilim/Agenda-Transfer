@@ -30,7 +30,9 @@ export function useSessionHeartbeat({
       const inactiveTime = Date.now() - lastActivityRef.current;
       if (inactiveTime >= inactivityTimeout) {
         toast.warning('Sessão expirou por inatividade');
-        onSessionExpired();
+        if (onSessionExpired) {
+          onSessionExpired();
+        }
       }
     }, inactivityTimeout);
   }, [inactivityTimeout, onSessionExpired]);
@@ -125,7 +127,9 @@ export function useSessionHeartbeat({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           toast.error('Sessão expirou enquanto o aplicativo estava em segundo plano');
-          onSessionExpired();
+          if (onSessionExpired) {
+            onSessionExpired();
+          }
         }
       }
     };
