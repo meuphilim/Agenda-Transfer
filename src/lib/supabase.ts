@@ -46,7 +46,7 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       agencies: {
@@ -301,4 +301,4 @@ export type Database = {
       };
     };
   };
-};
+}

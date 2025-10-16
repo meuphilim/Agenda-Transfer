@@ -65,6 +65,8 @@ export function useSupabaseData<T extends { id: string }>({
 
       if (fetchError) throw fetchError;
 
+      // The consumer of this hook is responsible for ensuring that the `select`
+      // query matches the provided type `T`.
       setData((result as unknown as T[]) || []);
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao carregar dados';
@@ -88,7 +90,7 @@ export function useSupabaseData<T extends { id: string }>({
 
       // Atualizar estado local imediatamente
       setData(prev => [result, ...prev]);
-      
+
       return result;
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao criar item';
@@ -110,7 +112,7 @@ export function useSupabaseData<T extends { id: string }>({
 
       // Atualizar estado local imediatamente
       setData(prev => prev.map(item => item.id === id ? result : item));
-      
+
       return result;
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao atualizar item';
@@ -130,7 +132,7 @@ export function useSupabaseData<T extends { id: string }>({
 
       // Atualizar estado local imediatamente
       setData(prev => prev.filter(item => item.id !== id));
-      
+
       return true;
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao excluir item';
@@ -145,8 +147,8 @@ export function useSupabaseData<T extends { id: string }>({
 
     const channel = supabase
       .channel(`${table}_changes`)
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table }, 
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table },
         (payload) => {
           switch (payload.eventType) {
             case 'INSERT':
@@ -159,7 +161,7 @@ export function useSupabaseData<T extends { id: string }>({
               });
               break;
             case 'UPDATE':
-              setData(prev => prev.map(item => 
+              setData(prev => prev.map(item =>
                 item.id === payload.new.id ? payload.new as T : item
               ));
               break;

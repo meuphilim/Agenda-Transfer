@@ -1,16 +1,5 @@
-/**
- * ErrorBoundary - Componente para captura de erros React
- *
- * Captura erros em toda a árvore de componentes filhos,
- * registra os erros e exibe uma UI de fallback.
- *
- * @exemplo
- * <ErrorBoundary>
- *   <App />
- * </ErrorBoundary>
- */
 import React, { Component, ReactNode } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface Props {
   children: ReactNode;
@@ -99,7 +88,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="max-w-2xl w-full space-y-8 p-8 bg-white shadow-lg rounded-lg">
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                <AlertTriangle className="h-8 w-8 text-red-600" />
+                <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
               </div>
 
               <h2 className="text-2xl font-bold text-red-600 mb-2">

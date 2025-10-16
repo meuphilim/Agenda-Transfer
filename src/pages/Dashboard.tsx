@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
-  CalendarDaysIcon, 
-  TruckIcon, 
-  UserIcon, 
-  ClipboardDocumentListIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
+  CalendarDays,
+  Truck,
+  User,
+  ClipboardList,
+  CheckCircle,
+  AlertTriangle
+} from 'lucide-react';
 
 interface DashboardStats {
   totalPackages: number;
@@ -57,11 +57,11 @@ export const Dashboard: React.FC = () => {
           .limit(5)
       ]);
 
-      const packages = packagesResult.data || [];
-      const vehicles = vehiclesResult.data || [];
-      const drivers = driversResult.data || [];
-      const upcoming = upcomingResult.data || [];
-      const recent = recentResult.data || [];
+      const packages = packagesResult.data ?? [];
+      const vehicles = vehiclesResult.data ?? [];
+      const drivers = driversResult.data ?? [];
+      const upcoming = upcomingResult.data ?? [];
+      const recent = recentResult.data ?? [];
 
       setStats({
         totalPackages: packages.length,
@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <ClipboardDocumentListIcon className="h-8 w-8 text-blue-600" />
+                <ClipboardList className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -144,7 +144,7 @@ export const Dashboard: React.FC = () => {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -164,7 +164,7 @@ export const Dashboard: React.FC = () => {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <TruckIcon className="h-8 w-8 text-blue-600" />
+                <Truck className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -184,7 +184,7 @@ export const Dashboard: React.FC = () => {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <UserIcon className="h-8 w-8 text-orange-600" />
+                <User className="h-8 w-8 text-orange-600" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -222,7 +222,7 @@ export const Dashboard: React.FC = () => {
                       <div className="relative flex space-x-3">
                         <div>
                           <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
-                            <ClipboardDocumentListIcon className="w-5 h-5 text-white" />
+                            <ClipboardList className="w-5 h-5 text-white" />
                           </span>
                         </div>
                         <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
@@ -258,7 +258,7 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <CalendarDaysIcon className="h-5 w-5 text-blue-500" />
+                  <CalendarDays className="h-5 w-5 text-blue-500" />
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-gray-700">
@@ -269,7 +269,7 @@ export const Dashboard: React.FC = () => {
               
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <TruckIcon className="h-5 w-5 text-green-500" />
+                  <Truck className="h-5 w-5 text-green-500" />
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-gray-700">
@@ -281,7 +281,7 @@ export const Dashboard: React.FC = () => {
               {stats.busyDrivers > 0 && (
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
+                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-gray-700">

@@ -138,7 +138,7 @@ Sistema profissional de gestão para turismo receptivo, desenvolvido com React, 
 ### Bibliotecas Adicionais
 - **React Toastify** - Notificações elegantes
 - **Headless UI** - Componentes acessíveis
-- **Heroicons** - Ícones SVG
+- **Lucide React** - Ícones SVG
 - **React Hook Form** - Gerenciamento de formulários
 
 ### DevOps & CI/CD
@@ -192,6 +192,11 @@ VITE_SESSION_TIMEOUT=1800000
 
 # App
 VITE_APP_URL=http://localhost:5173
+
+# Backend (Vercel Environment)
+# Esta chave é usada no endpoint da API para operações de administrador.
+# NUNCA exponha esta chave no frontend.
+SUPABASE_SERVICE_KEY=sua_chave_de_serviço_aqui
 ```
 
 ### 4. Execute o projeto
@@ -269,36 +274,31 @@ Agenda-Transfer/
 │       └── ci.yml                 # CI/CD automático
 ├── public/                        # Assets públicos
 ├── src/
-│   ├── components/                # Componentes React
-│   │   ├── Auth/                 # Login, Signup, CompleteProfile
-│   │   ├── Layout/               # Layout, Sidebar
-│   │   ├── Profile/              # ProfileModal
-│   │   ├── ErrorBoundary.tsx     # Tratamento de erros
-│   │   └── ProtectedRoute.tsx    # Proteção de rotas
+│   ├── components/                # Componentes React (Auth, Layout, Profile, etc.)
 │   ├── contexts/                  # Contextos React
-│   │   ├── AuthContext.tsx       # Autenticação global
-│   │   └── DataContext.tsx       # Dados globais
+│   │   └── AuthContext.tsx       # Autenticação e sessão global
 │   ├── hooks/                     # Custom hooks
-│   │   └── useSupabaseData.ts    # Hook para Supabase
+│   │   └── useSupabaseData.ts    # Hook para buscar dados do Supabase
 │   ├── lib/                       # Bibliotecas
 │   │   └── supabase.ts           # Cliente Supabase
 │   ├── pages/                     # Páginas da aplicação
 │   │   ├── Dashboard.tsx         # Dashboard principal
 │   │   ├── Schedule.tsx          # Agenda
 │   │   ├── Packages.tsx          # Pacotes
-│   │   ├── Settings.tsx          # Configurações/Cadastros
-│   │   ├── Drivers.tsx           # Motoristas
-│   │   ├── Vehicles.tsx          # Veículos
+│   │   ├── Settings.tsx          # Hub de Cadastros (Agências, Veículos, etc.)
 │   │   └── UserManagement.tsx    # Gestão de usuários
+│   ├── services/                  # Serviços (API)
 │   ├── types/                     # Definições TypeScript
 │   ├── utils/                     # Utilitários
 │   ├── App.tsx                    # Componente raiz
 │   ├── main.tsx                   # Entry point
 │   └── index.css                  # Estilos globais
+├── api/                           # API Backend (Serverless Functions)
+│   └── admin.ts                   # Endpoints de administração
 ├── supabase/
 │   └── migrations/                # Migrations do banco
 ├── .env.example                   # Exemplo de variáveis
-├── .eslintrc.cjs                  # Config ESLint
+├── eslint.config.js               # Config ESLint
 ├── .gitignore
 ├── index.html
 ├── package.json
@@ -402,12 +402,24 @@ npm run build
 # Copie o conteúdo da pasta dist/ para seu servidor web
 ```
 
-### Outras Plataformas
+### Vercel
 
-- **Vercel:** `vercel --prod`
-- **Netlify:** `netlify deploy --prod`
-- **AWS S3 + CloudFront**
-- **Azure Static Web Apps**
+O deploy na Vercel é o método recomendado para este projeto, pois ele suporta os endpoints de API serverless.
+
+1.  **Conecte seu repositório do Git** com a Vercel.
+2.  **Configure o projeto:**
+    *   **Framework Preset:** `Vite`
+    *   **Build Command:** `npm run build`
+    *   **Output Directory:** `dist`
+    *   **Install Command:** `npm install`
+3.  **Configure as Variáveis de Ambiente:**
+    *   Vá para `Settings > Environment Variables` no seu projeto Vercel.
+    *   Adicione as seguintes variáveis:
+        *   `VITE_SUPABASE_URL`
+        *   `VITE_SUPABASE_ANON_KEY`
+        *   `SUPABASE_SERVICE_KEY` (esta é a sua chave de serviço, que deve ser mantida em segredo)
+
+4.  **Faça o deploy.**
 
 ---
 
