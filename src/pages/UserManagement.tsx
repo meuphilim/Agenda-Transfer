@@ -13,7 +13,8 @@ import {
   Eye,
   X,
   UserCheck,
-  UserX
+  UserX,
+  UserCog
 } from 'lucide-react';
 
 interface UserProfile {
@@ -414,10 +415,9 @@ export const UserManagement = () => {
   const { isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!isAdmin) {
-      return;
+    if (isAdmin) {
+      fetchUsers();
     }
-    fetchUsers();
   }, [isAdmin]);
 
   const fetchUsers = async () => {
@@ -515,6 +515,15 @@ export const UserManagement = () => {
     }
   };
 
+  const getStatusDotColor = (status: UserStatus) => {
+    switch (status) {
+      case 'active': return 'bg-green-500';
+      case 'pending': return 'bg-yellow-500';
+      case 'inactive': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesFilter = filter === 'all' || user.status === filter;
     const matchesSearch = searchTerm === '' || 
@@ -599,67 +608,57 @@ export const UserManagement = () => {
             />
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                    Nome
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Email
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Telefone
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Status
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Tipo
-                  </th>
-                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Cadastro
-                  </th>
-                  <th scope="col" className="relative py-3.5 pl-3 pr-6">
-                    <span className="sr-only">Ações</span>
-                  </th>
+          <div className="overflow-hidden">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cadastro</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {user.full_name}
+              <tbody className="bg-white">
+                {filteredUsers.map((user, index) => (
+                  <tr key={user.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-100 transition-colors duration-150`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-medium text-sm">
+                            {user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {user.email}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {user.phone ?? '-'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                        <span className={`w-2 h-2 rounded-full mr-2 ${getStatusDotColor(user.status)}`}></span>
                         {getStatusText(user.status)}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                        user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {user.is_admin ? <UserCog className="w-3 h-3 mr-1" /> : <Users className="w-3 h-3 mr-1" />}
                         {user.is_admin ? 'Admin' : 'Usuário'}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(user.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button onClick={() => handleViewUser(user)} className="text-blue-600 hover:text-blue-900" title="Ver detalhes"><Eye className="h-4 w-4" /></button>
-                        <button onClick={() => handleEditUser(user)} className="text-green-600 hover:text-green-900" title="Editar usuário"><Pencil className="h-4 w-4" /></button>
-                        {user.status === 'pending' && <button onClick={() => updateUserStatus(user.id, 'active')} className="text-green-600 hover:text-green-900" title="Aprovar usuário"><CheckCircle className="h-4 w-4" /></button>}
-                        {user.status === 'active' && <button onClick={() => updateUserStatus(user.id, 'inactive')} className="text-red-600 hover:text-red-900" title="Desativar usuário"><XCircle className="h-4 w-4" /></button>}
-                        {user.status === 'inactive' && <button onClick={() => updateUserStatus(user.id, 'active')} className="text-green-600 hover:text-green-900" title="Reativar usuário"><CheckCircle className="h-4 w-4" /></button>}
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-3">
+                        <button onClick={() => handleViewUser(user)} className="text-blue-600 hover:text-blue-900 transition-colors duration-200" title="Ver detalhes"><Eye className="h-5 w-5" /></button>
+                        <button onClick={() => handleEditUser(user)} className="text-green-600 hover:text-green-900 transition-colors duration-200" title="Editar usuário"><Pencil className="h-5 w-5" /></button>
+                        {user.status === 'pending' && <button onClick={() => updateUserStatus(user.id, 'active')} className="text-green-600 hover:text-green-900 transition-colors duration-200" title="Aprovar usuário"><CheckCircle className="h-5 w-5" /></button>}
+                        {user.status === 'active' && <button onClick={() => updateUserStatus(user.id, 'inactive')} className="text-red-600 hover:text-red-900 transition-colors duration-200" title="Desativar usuário"><XCircle className="h-5 w-5" /></button>}
+                        {user.status === 'inactive' && <button onClick={() => updateUserStatus(user.id, 'active')} className="text-green-600 hover:text-green-900 transition-colors duration-200" title="Reativar usuário"><CheckCircle className="h-5 w-5" /></button>}
                       </div>
                     </td>
                   </tr>
@@ -668,7 +667,7 @@ export const UserManagement = () => {
             </table>
 
             {filteredUsers.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-12 bg-gray-50">
                 <Users className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
                 <p className="mt-1 text-sm text-gray-500">
