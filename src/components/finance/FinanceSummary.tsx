@@ -1,14 +1,9 @@
-import { Landmark, Package, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
-
-type PaymentStatus = 'pago' | 'pendente' | 'cancelado';
-
-interface PackageReport {
-  valor_total: number;
-  status_pagamento: PaymentStatus;
-}
+import { Package, CheckCircle, AlertTriangle, XCircle, CreditCard } from 'lucide-react';
+import { Booking } from '../../types/finance';
 
 interface FinanceSummaryProps {
-  reports: PackageReport[];
+  bookings: Booking[];
+  expenses: number; // Mocked expenses
 }
 
 interface SummaryCardProps {
@@ -39,22 +34,20 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ reports }) => {
-  const totalRecebido = reports
+export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ bookings, expenses }) => {
+  const totalRecebido = bookings
     .filter(r => r.status_pagamento === 'pago')
     .reduce((sum, r) => sum + r.valor_total, 0);
 
-  const totalPendente = reports
+  const totalPendente = bookings
     .filter(r => r.status_pagamento === 'pendente')
     .reduce((sum, r) => sum + r.valor_total, 0);
 
-  const totalCancelado = reports
+  const totalCancelado = bookings
     .filter(r => r.status_pagamento === 'cancelado')
     .reduce((sum, r) => sum + r.valor_total, 0);
 
-  const totalPacotes = reports.length;
-
-  const totalGeral = totalRecebido + totalPendente;
+  const totalPacotes = bookings.length;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-6">
@@ -64,7 +57,7 @@ export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ reports }) => {
         value={formatCurrency(totalRecebido)}
         icon={<CheckCircle className="h-6 w-6 text-green-700" />}
         color="bg-green-100"
-        description="Soma dos pacotes pagos"
+        description="Soma das reservas pagas"
       />
 
       <SummaryCard
@@ -76,11 +69,11 @@ export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ reports }) => {
       />
 
       <SummaryCard
-        title="Total Geral"
-        value={formatCurrency(totalGeral)}
-        icon={<Landmark className="h-6 w-6 text-blue-700" />}
-        color="bg-blue-100"
-        description="Recebido + Pendente"
+        title="Despesas"
+        value={formatCurrency(expenses)}
+        icon={<CreditCard className="h-6 w-6 text-orange-700" />}
+        color="bg-orange-100"
+        description="Total de despesas no período"
       />
 
       <SummaryCard
@@ -88,15 +81,15 @@ export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ reports }) => {
         value={formatCurrency(totalCancelado)}
         icon={<XCircle className="h-6 w-6 text-red-700" />}
         color="bg-red-100"
-        description="Valores de pacotes cancelados"
+        description="Valores de reservas canceladas"
       />
 
       <SummaryCard
-        title="Nº de Pacotes"
+        title="Nº de Reservas"
         value={totalPacotes}
         icon={<Package className="h-6 w-6 text-indigo-700" />}
         color="bg-indigo-100"
-        description="Total de pacotes no período"
+        description="Total de reservas no período"
       />
 
     </div>

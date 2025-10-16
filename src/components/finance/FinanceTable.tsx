@@ -1,19 +1,13 @@
-import { BadgeCheck, BadgeX, BadgeAlert, Package, User, Wallet, Calendar } from 'lucide-react';
-
-type PaymentStatus = 'pago' | 'pendente' | 'cancelado';
-
-interface PackageReport {
-  id: string;
-  cliente: string;
-  pacote: string;
-  valor_total: number;
-  status_pagamento: PaymentStatus;
-  data_venda: string;
-}
+import { BadgeCheck, BadgeX, BadgeAlert, Package, Wallet, Calendar, Pencil, Building, UserCheck as DriverIcon } from 'lucide-react';
+import { Booking, Agency, Driver, Package as PackageType, PaymentStatus } from '../../types/finance';
 
 interface FinanceTableProps {
-  reports: PackageReport[];
+  bookings: Booking[];
+  agencies: Agency[];
+  drivers: Driver[];
+  packages: PackageType[];
   loading: boolean;
+  onEdit: (booking: Booking) => void;
 }
 
 const getStatusStyle = (status: PaymentStatus) => {
@@ -65,23 +59,29 @@ const formatDate = (dateString: string) => {
   });
 };
 
-export const FinanceTable: React.FC<FinanceTableProps> = ({ reports, loading }) => {
+const getNameById = (id: string | null, items: {id: string, name: string}[]) => {
+    if (!id) return 'N/A';
+    const item = items.find(i => i.id === id);
+    return item ? item.name : 'Desconhecido';
+}
+
+export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, drivers, packages, loading, onEdit }) => {
   if (loading) {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-500">Carregando relatórios...</p>
+        <p className="mt-4 text-gray-500">Carregando reservas...</p>
       </div>
     );
   }
 
-  if (reports.length === 0) {
+  if (bookings.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
         <Package className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum pacote encontrado</h3>
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma reserva encontrada</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Ajuste os filtros ou verifique se há pacotes cadastrados no período.
+          Ajuste os filtros ou verifique se há reservas cadastradas no período.
         </p>
       </div>
     );
@@ -94,12 +94,17 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ reports, loading }) 
           <tr>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <div className="flex items-center">
-                <User className="w-4 h-4 mr-2" /> Cliente
+                <Building className="w-4 h-4 mr-2" /> Agência
               </div>
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                <div className="flex items-center">
                 <Package className="w-4 h-4 mr-2" /> Pacote
+              </div>
+            </th>
+             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+               <div className="flex items-center">
+                <DriverIcon className="w-4 h-4 mr-2" /> Motorista
               </div>
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -115,21 +120,27 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ reports, loading }) 
                 <Calendar className="w-4 h-4 mr-2" /> Data Venda
               </div>
             </th>
+            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Ações
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {reports.map((report) => {
-            const statusStyle = getStatusStyle(report.status_pagamento);
+          {bookings.map((booking) => {
+            const statusStyle = getStatusStyle(booking.status_pagamento);
             return (
-              <tr key={report.id} className="hover:bg-gray-50 transition-colors duration-200">
+              <tr key={booking.id} className="hover:bg-gray-50 transition-colors duration-200">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{report.cliente}</div>
+                  <div className="text-sm font-medium text-gray-900">{getNameById(booking.agency_id, agencies)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{report.pacote}</div>
+                  <div className="text-sm text-gray-700">{getNameById(booking.package_id, packages)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-semibold">{formatCurrency(report.valor_total)}</div>
+                  <div className="text-sm text-gray-700">{getNameById(booking.driver_id, drivers)}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900 font-semibold">{formatCurrency(booking.valor_total)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${statusStyle.bgColor} ${statusStyle.textColor}`}>
@@ -138,7 +149,12 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ reports, loading }) 
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{formatDate(report.data_venda)}</div>
+                  <div className="text-sm text-gray-700">{formatDate(booking.data_venda)}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button onClick={() => onEdit(booking)} className="text-blue-600 hover:text-blue-900 transition-colors duration-200" title="Editar Reserva">
+                        <Pencil className="h-5 w-5" />
+                    </button>
                 </td>
               </tr>
             );
