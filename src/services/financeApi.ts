@@ -1,124 +1,82 @@
-import { Agency, Driver, Package, Booking } from '../types/finance';
+import { supabase } from '../lib/supabase';
+import { Database } from '../types/database.types';
 
-// Mock Data
-const agencies: Agency[] = [
-  { id: 'agency-1', name: 'Bonito Way' },
-  { id: 'agency-2', name: 'H2O Ecoturismo' },
-  { id: 'agency-3', name: 'Ygarapé Tour' },
-];
+export type PackageWithRelations = Database['public']['Tables']['packages']['Row'] & {
+  agencies: Pick<Database['public']['Tables']['agencies']['Row'], 'id' | 'name'> | null;
+  drivers: Pick<Database['public']['Tables']['drivers']['Row'], 'id' | 'name'> | null;
+  // Campos financeiros mockados para manter a UI funcional
+  valor_total: number;
+  valor_diaria: number;
+  valor_net: number;
+  translado_aeroporto: boolean;
+  status_pagamento: 'pago' | 'pendente' | 'cancelado';
+};
 
-const drivers: Driver[] = [
-  { id: 'driver-1', name: 'Carlos Souza' },
-  { id: 'driver-2', name: 'Mariana Lima' },
-  { id: 'driver-3', name: 'Ricardo Neves' },
-];
-
-const packages: Package[] = [
-  { id: 'pkg-1', name: 'Gruta do Lago Azul' },
-  { id: 'pkg-2', name: 'Rio da Prata' },
-  { id: 'pkg-3', name: 'Abismo Anhumas' },
-  { id: 'pkg-4', name: 'Estância Mimosa' },
-];
-
-const bookings: Booking[] = [
-  {
-    id: 'booking-1',
-    agency_id: 'agency-1',
-    package_id: 'pkg-1',
-    driver_id: 'driver-1',
-    status_pagamento: 'pago',
-    valor_total: 350.00,
-    valor_diaria: 100.00,
-    valor_net: 250.00,
-    translado_aeroporto: true,
-    data_venda: '2025-10-05',
-  },
-  {
-    id: 'booking-2',
-    agency_id: 'agency-2',
-    package_id: 'pkg-2',
-    driver_id: 'driver-2',
-    status_pagamento: 'pendente',
-    valor_total: 280.00,
-    valor_diaria: 80.00,
-    valor_net: 200.00,
-    translado_aeroporto: false,
-    data_venda: '2025-10-07',
-  },
-  {
-    id: 'booking-3',
-    agency_id: 'agency-1',
-    package_id: 'pkg-3',
-    driver_id: 'driver-3',
-    status_pagamento: 'pago',
-    valor_total: 1200.00,
-    valor_diaria: 300.00,
-    valor_net: 900.00,
-    translado_aeroporto: true,
-    data_venda: '2025-10-08',
-  },
-  {
-    id: 'booking-4',
-    agency_id: 'agency-3',
-    package_id: 'pkg-4',
-    driver_id: null,
-    status_pagamento: 'cancelado',
-    valor_total: 450.00,
-    valor_diaria: 120.00,
-    valor_net: 330.00,
-    translado_aeroporto: false,
-    data_venda: '2025-10-10',
-  },
-];
-
-export interface FinanceData {
-  agencies: Agency[];
-  drivers: Driver[];
-  packages: Package[];
-  bookings: Booking[];
-}
-
-// Mock API service for finance data
 export const financeApi = {
-  list: async (filters?: Record<string, any>): Promise<{ data: FinanceData; error: null | string }> => {
-    console.log('Fetching financial data with filters:', filters);
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+  list: async (filters?: Record<string, any>): Promise<{ data: PackageWithRelations[]; error: Error | null }> => {
+    try {
+      let query = supabase
+        .from('packages')
+        .select(`
+          *,
+          agencies (id, name),
+          drivers (id, name)
+        `);
 
-    return {
-      data: {
-        agencies,
-        drivers,
-        packages,
-        bookings
-      },
-      error: null
-    };
+      if (filters?.startDate) {
+        query = query.gte('start_date', filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte('end_date', filters.endDate);
+      }
+      if (filters?.status && filters.status !== 'all') {
+        // Mapeia status de pagamento para status de pacote
+        const packageStatus = filters.status === 'pago' ? 'completed' : filters.status === 'pendente' ? 'confirmed' : 'cancelled';
+        query = query.eq('status', packageStatus);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      // Adiciona dados financeiros mockados
+      const enhancedData = data.map((pkg, index) => ({
+        ...pkg,
+        valor_total: 500 + (index * 150),
+        valor_diaria: 100 + (index * 20),
+        valor_net: 400 + (index * 130),
+        translado_aeroporto: index % 2 === 0,
+        // Converte status do pacote para status de pagamento
+        status_pagamento: pkg.status === 'completed' ? 'pago' : pkg.status === 'confirmed' ? 'pendente' : 'cancelado',
+      }));
+
+      return { data: enhancedData, error: null };
+
+    } catch (err: any) {
+      console.error('Erro ao buscar pacotes:', err);
+      return { data: [], error: err };
+    }
   },
 
-  updateBooking: async (bookingId: string, updates: Partial<Booking>): Promise<{ data: Booking | null, error: null | string }> => {
-    console.log(`Updating booking ${bookingId} with:`, updates);
-    await new Promise(resolve => setTimeout(resolve, 300));
+  updatePackage: async (packageId: string, updates: Partial<Database['public']['Tables']['packages']['Update']>) => {
+    const { data, error } = await supabase
+      .from('packages')
+      .update(updates)
+      .eq('id', packageId)
+      .select()
+      .single();
 
-    const index = bookings.findIndex(b => b.id === bookingId);
-    if (index === -1) {
-      return { data: null, error: 'Reserva não encontrada.' };
-    }
-
-    bookings[index] = { ...bookings[index], ...updates };
-    return { data: bookings[index], error: null };
+    return { data, error };
   },
 
-  deleteBooking: async (bookingId: string): Promise<{ error: null | string }> => {
-    console.log(`Deleting booking ${bookingId}`);
-    await new Promise(resolve => setTimeout(resolve, 300));
+  deletePackage: async (packageId: string) => {
+    const { error } = await supabase
+      .from('packages')
+      .delete()
+      .eq('id', packageId);
 
-    const index = bookings.findIndex(b => b.id === bookingId);
-    if (index === -1) {
-      return { error: 'Reserva não encontrada.' };
-    }
-
-    bookings.splice(index, 1);
-    return { error: null };
+    return { error };
   }
 };

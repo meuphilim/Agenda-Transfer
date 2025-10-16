@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { X, Save, Trash2 } from 'lucide-react';
-import { Booking, Agency, Driver, Package } from '../../types/finance';
+import { PackageWithRelations } from '../../services/financeApi';
+import { Agency, Driver } from '../../types/finance';
 
 interface FinancePackageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (booking: Booking) => Promise<void>;
-  onDelete: (bookingId: string) => Promise<void>;
-  booking: Booking | null;
+  onSave: (pkg: PackageWithRelations) => Promise<void>;
+  onDelete: (packageId: string) => Promise<void>;
+  pkg: PackageWithRelations | null;
   agencies: Agency[];
   drivers: Driver[];
-  packages: Package[];
 }
 
 const formatCurrencyForInput = (value: number) => {
@@ -27,19 +27,18 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
   onClose,
   onSave,
   onDelete,
-  booking,
+  pkg,
   agencies,
   drivers,
-  packages,
 }) => {
-  const [formData, setFormData] = useState<Booking | null>(null);
+  const [formData, setFormData] = useState<PackageWithRelations | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (booking) {
-      setFormData({ ...booking });
+    if (pkg) {
+      setFormData({ ...pkg });
     }
-  }, [booking]);
+  }, [pkg]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (!formData) return;
@@ -60,10 +59,10 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
     setLoading(true);
     try {
       await onSave(formData);
-      toast.success('Reserva atualizada com sucesso!');
+      toast.success('Pacote atualizado com sucesso!');
       onClose();
     } catch (error) {
-      toast.error('Erro ao salvar a reserva.');
+      toast.error('Erro ao salvar o pacote.');
     } finally {
       setLoading(false);
     }
@@ -71,14 +70,14 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
 
   const handleDelete = async () => {
     if (!formData) return;
-    if (window.confirm('Tem certeza que deseja excluir esta reserva?')) {
+    if (window.confirm('Tem certeza que deseja excluir este pacote?')) {
       setLoading(true);
       try {
         await onDelete(formData.id);
-        toast.success('Reserva excluída com sucesso!');
+        toast.success('Pacote excluído com sucesso!');
         onClose();
       } catch (error) {
-        toast.error('Erro ao excluir a reserva.');
+        toast.error('Erro ao excluir o pacote.');
       } finally {
         setLoading(false);
       }
@@ -93,7 +92,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
         <div className="p-6">
           <div className="flex justify-between items-center border-b pb-3 mb-5">
             <h3 className="text-xl font-semibold text-gray-900" id="modal-title">
-              Gerenciar Reserva
+              Gerenciar Pacote Financeiro
             </h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-6 w-6" />
@@ -110,12 +109,10 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
                 </select>
               </div>
 
-              {/* Package */}
+              {/* Package Title (readonly) */}
               <div>
-                <label htmlFor="package_id" className="block text-sm font-medium text-gray-700">Pacote</label>
-                <select id="package_id" name="package_id" value={formData.package_id} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                  {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700">Pacote</label>
+                <input id="title" type="text" name="title" value={formData.title} readOnly className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100"/>
               </div>
 
               {/* Driver */}
@@ -137,10 +134,10 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
                 </select>
               </div>
 
-              {/* Data Venda */}
+              {/* Data Início */}
               <div>
-                <label htmlFor="data_venda" className="block text-sm font-medium text-gray-700">Data da Venda</label>
-                <input id="data_venda" type="date" name="data_venda" value={formData.data_venda} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
+                <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">Data de Início</label>
+                <input id="start_date" type="date" name="start_date" value={new Date(formData.start_date).toISOString().split('T')[0]} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"/>
               </div>
 
               {/* Translado */}

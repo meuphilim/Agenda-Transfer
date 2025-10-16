@@ -1,16 +1,13 @@
-import { BadgeCheck, BadgeX, BadgeAlert, Package, Wallet, Calendar, Pencil, Building, UserCheck as DriverIcon } from 'lucide-react';
-import { Booking, Agency, Driver, Package as PackageType, PaymentStatus } from '../../types/finance';
+import { BadgeCheck, BadgeX, BadgeAlert, Package as PackageIcon, Wallet, Calendar, Pencil, Building, UserCheck as DriverIcon } from 'lucide-react';
+import { PackageWithRelations } from '../../services/financeApi';
 
 interface FinanceTableProps {
-  bookings: Booking[];
-  agencies: Agency[];
-  drivers: Driver[];
-  packages: PackageType[];
+  packages: PackageWithRelations[];
   loading: boolean;
-  onEdit: (booking: Booking) => void;
+  onEdit: (pkg: PackageWithRelations) => void;
 }
 
-const getStatusStyle = (status: PaymentStatus) => {
+const getStatusStyle = (status: 'pago' | 'pendente' | 'cancelado') => {
   switch (status) {
     case 'pago':
       return {
@@ -59,29 +56,23 @@ const formatDate = (dateString: string) => {
   });
 };
 
-const getNameById = (id: string | null, items: {id: string, name: string}[]) => {
-    if (!id) return 'N/A';
-    const item = items.find(i => i.id === id);
-    return item ? item.name : 'Desconhecido';
-}
-
-export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, drivers, packages, loading, onEdit }) => {
+export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, onEdit }) => {
   if (loading) {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-500">Carregando reservas...</p>
+        <p className="mt-4 text-gray-500">Carregando pacotes...</p>
       </div>
     );
   }
 
-  if (bookings.length === 0) {
+  if (packages.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-lg">
-        <Package className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma reserva encontrada</h3>
+        <PackageIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum pacote encontrado</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Ajuste os filtros ou verifique se há reservas cadastradas no período.
+          Ajuste os filtros ou verifique se há pacotes cadastrados no período.
         </p>
       </div>
     );
@@ -99,7 +90,7 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, 
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                <div className="flex items-center">
-                <Package className="w-4 h-4 mr-2" /> Pacote
+                <PackageIcon className="w-4 h-4 mr-2" /> Pacote
               </div>
             </th>
              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -113,11 +104,11 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, 
               </div>
             </th>
             <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
+              Status Pag.
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <div className="flex items-center">
-                <Calendar className="w-4 h-4 mr-2" /> Data Venda
+                <Calendar className="w-4 h-4 mr-2" /> Data Início
               </div>
             </th>
             <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -126,21 +117,21 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, 
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {bookings.map((booking) => {
-            const statusStyle = getStatusStyle(booking.status_pagamento);
+          {packages.map((pkg) => {
+            const statusStyle = getStatusStyle(pkg.status_pagamento);
             return (
-              <tr key={booking.id} className="hover:bg-gray-50 transition-colors duration-200">
+              <tr key={pkg.id} className="hover:bg-gray-50 transition-colors duration-200">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{getNameById(booking.agency_id, agencies)}</div>
+                  <div className="text-sm font-medium text-gray-900">{pkg.agencies?.name ?? 'N/A'}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{getNameById(booking.package_id, packages)}</div>
+                  <div className="text-sm text-gray-700">{pkg.title}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{getNameById(booking.driver_id, drivers)}</div>
+                  <div className="text-sm text-gray-700">{pkg.drivers?.name ?? 'N/A'}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-semibold">{formatCurrency(booking.valor_total)}</div>
+                  <div className="text-sm text-gray-900 font-semibold">{formatCurrency(pkg.valor_total)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${statusStyle.bgColor} ${statusStyle.textColor}`}>
@@ -149,10 +140,10 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, 
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{formatDate(booking.data_venda)}</div>
+                  <div className="text-sm text-gray-700">{formatDate(pkg.start_date)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button onClick={() => onEdit(booking)} className="text-blue-600 hover:text-blue-900 transition-colors duration-200" title="Editar Reserva">
+                    <button onClick={() => onEdit(pkg)} className="text-blue-600 hover:text-blue-900 transition-colors duration-200" title="Editar Pacote">
                         <Pencil className="h-5 w-5" />
                     </button>
                 </td>
@@ -164,5 +155,3 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ bookings, agencies, 
     </div>
   );
 };
-
-export default FinanceTable;

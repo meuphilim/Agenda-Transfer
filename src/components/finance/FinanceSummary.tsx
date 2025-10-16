@@ -1,8 +1,8 @@
 import { Package, CheckCircle, AlertTriangle, XCircle, CreditCard } from 'lucide-react';
-import { Booking } from '../../types/finance';
+import { PackageWithRelations } from '../../services/financeApi';
 
 interface FinanceSummaryProps {
-  bookings: Booking[];
+  packages: PackageWithRelations[];
   expenses: number; // Mocked expenses
 }
 
@@ -34,20 +34,20 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ bookings, expenses }) => {
-  const totalRecebido = bookings
+export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ packages, expenses }) => {
+  const totalRecebido = packages
     .filter(r => r.status_pagamento === 'pago')
     .reduce((sum, r) => sum + r.valor_total, 0);
 
-  const totalPendente = bookings
+  const totalPendente = packages
     .filter(r => r.status_pagamento === 'pendente')
     .reduce((sum, r) => sum + r.valor_total, 0);
 
-  const totalCancelado = bookings
+  const totalCancelado = packages
     .filter(r => r.status_pagamento === 'cancelado')
     .reduce((sum, r) => sum + r.valor_total, 0);
 
-  const totalPacotes = bookings.length;
+  const totalPacotes = packages.length;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-6">
@@ -57,7 +57,7 @@ export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ bookings, expens
         value={formatCurrency(totalRecebido)}
         icon={<CheckCircle className="h-6 w-6 text-green-700" />}
         color="bg-green-100"
-        description="Soma das reservas pagas"
+        description="Soma dos pacotes pagos"
       />
 
       <SummaryCard
@@ -81,19 +81,17 @@ export const FinanceSummary: React.FC<FinanceSummaryProps> = ({ bookings, expens
         value={formatCurrency(totalCancelado)}
         icon={<XCircle className="h-6 w-6 text-red-700" />}
         color="bg-red-100"
-        description="Valores de reservas canceladas"
+        description="Valores de pacotes cancelados"
       />
 
       <SummaryCard
-        title="Nº de Reservas"
+        title="Nº de Pacotes"
         value={totalPacotes}
         icon={<Package className="h-6 w-6 text-indigo-700" />}
         color="bg-indigo-100"
-        description="Total de reservas no período"
+        description="Total de pacotes no período"
       />
 
     </div>
   );
 };
-
-export default FinanceSummary;
