@@ -1,12 +1,15 @@
 import jsPDF from 'jspdf';
 import autoTable, { HookData } from 'jspdf-autotable';
 
-interface Column {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DataRow = Record<string, any>;
+
+export interface Column<T extends DataRow> {
   header: string;
-  accessor: string | ((row: any) => string | number);
+  accessor: keyof T | ((row: T) => string | number);
 }
 
-export const exportToPdf = (data: any[], columns: Column[]) => {
+export const exportToPdf = <T extends DataRow>(data: T[], columns: Column<T>[]) => {
   const doc = new jsPDF();
 
   const themeColor = "#00A86B";
@@ -27,7 +30,8 @@ export const exportToPdf = (data: any[], columns: Column[]) => {
         if (typeof col.accessor === 'function') {
           return col.accessor(row);
         }
-        return row[col.accessor];
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        return String(row[col.accessor] ?? '');
       })
     ),
     startY: 40,

@@ -4,31 +4,16 @@ import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Database } from '../types/database.types';
 
-enum PackageStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
-}
-
-interface Package {
-  id: string;
-  title: string;
-  agency_id: string;
-  vehicle_id: string;
-  driver_id: string;
-  start_date: string;
-  end_date: string;
-  total_participants: number;
-  status: PackageStatus;
-  notes: string | null;
-  client_name: string;
+type PackageWithRelations = Database['public']['Tables']['packages']['Row'] & {
   agencies?: { name: string };
   vehicles?: { license_plate: string; model: string };
-  drivers?: { name: string };
-}
+  drivers?: { name: string; valor_diaria: number | null };
+};
+type Attraction = Database['public']['Tables']['attractions']['Row'];
+type PackageActivity = Database['public']['Tables']['package_attractions']['Row'];
+type PackageStatus = Database['public']['Tables']['packages']['Row']['status'];
 
 interface PackageFormData {
   title: string;
@@ -40,26 +25,18 @@ interface PackageFormData {
   total_participants: number;
   notes: string;
   client_name: string;
-}
-
-interface PackageAttraction {
-  id?: string;
-  attraction_id: string;
-  scheduled_date: string;
-  start_time: string;
-  end_time: string;
-  notes: string;
+  considerar_diaria_motorista: boolean;
 }
 
 export const Packages: React.FC = () => {
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [agencies, setAgencies] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [attractions, setAttractions] = useState<any[]>([]);
+  const [packages, setPackages] = useState<PackageWithRelations[]>([]);
+  const [agencies, setAgencies] = useState<Database['public']['Tables']['agencies']['Row'][]>([]);
+  const [vehicles, setVehicles] = useState<Database['public']['Tables']['vehicles']['Row'][]>([]);
+  const [drivers, setDrivers] = useState<Database['public']['Tables']['drivers']['Row'][]>([]);
+  const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingPackage, setEditingPackage] = useState<Package | null>(null);
+  const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
   const [formData, setFormData] = useState<PackageFormData>({
     title: '',
     agency_id: '',
@@ -70,8 +47,9 @@ export const Packages: React.FC = () => {
     total_participants: 1,
     notes: '',
     client_name: '',
+    considerar_diaria_motorista: false,
   });
-  const [packageAttractions, setPackageAttractions] = useState<PackageAttraction[]>([]);
+  const [packageAttractions, setPackageAttractions] = useState<Partial<PackageActivity>[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -84,7 +62,7 @@ export const Packages: React.FC = () => {
           *,
           agencies(name),
           vehicles(license_plate, model),
-          drivers(name)
+          drivers(name, valor_diaria)
         `).order('created_at', { ascending: false }),
         supabase.from('agencies').select('*').eq('active', true).order('name'),
         supabase.from('vehicles').select('*').eq('active', true).order('license_plate'),
@@ -92,7 +70,7 @@ export const Packages: React.FC = () => {
         supabase.from('attractions').select('*').eq('active', true).order('name')
       ]);
 
-      setPackages(packagesResult.data ?? []);
+      setPackages(packagesResult.data as PackageWithRelations[] ?? []);
       setAgencies(agenciesResult.data ?? []);
       setVehicles(vehiclesResult.data ?? []);
       setDrivers(driversResult.data ?? []);
@@ -145,18 +123,19 @@ export const Packages: React.FC = () => {
         }
 
         // Inserir novos atrativos
-        const attractionsToInsert = packageAttractions.map(attr => ({
+        const activitiesToInsert = packageAttractions.map(attr => ({
           package_id: packageId,
           attraction_id: attr.attraction_id,
           scheduled_date: attr.scheduled_date,
           start_time: attr.start_time ?? null,
           end_time: attr.end_time ?? null,
           notes: attr.notes ?? null,
+          considerar_valor_net: attr.considerar_valor_net,
         }));
 
         const { error: attractionsError } = await supabase
           .from('package_attractions')
-          .insert(attractionsToInsert);
+          .insert(activitiesToInsert);
 
         if (attractionsError) throw attractionsError;
       }
@@ -164,13 +143,13 @@ export const Packages: React.FC = () => {
       setShowModal(false);
       setEditingPackage(null);
       resetForm();
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast.error('Erro ao salvar pacote: ' + error.message);
     }
   };
 
-  const handleEdit = async (pkg: Package) => {
+  const handleEdit = async (pkg: PackageWithRelations) => {
     setEditingPackage(pkg);
     setFormData({
       title: pkg.title,
@@ -182,6 +161,7 @@ export const Packages: React.FC = () => {
       total_participants: pkg.total_participants,
       notes: pkg.notes ?? '',
       client_name: pkg.client_name ?? '',
+      considerar_diaria_motorista: pkg.considerar_diaria_motorista ?? false,
     });
 
     // Carregar atrativos do pacote
@@ -203,14 +183,11 @@ export const Packages: React.FC = () => {
     if (!confirm('Tem certeza que deseja excluir este pacote?')) return;
 
     try {
-      const { error } = await supabase
-        .from('packages')
-        .delete()
-        .eq('id', id);
-
+      await supabase.from('package_attractions').delete().eq('package_id', id);
+      const { error } = await supabase.from('packages').delete().eq('id', id);
       if (error) throw error;
       toast.success('Pacote excluído com sucesso!');
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast.error('Erro ao excluir pacote: ' + error.message);
     }
@@ -227,6 +204,7 @@ export const Packages: React.FC = () => {
       total_participants: 1,
       notes: '',
       client_name: '',
+      considerar_diaria_motorista: false,
     });
     setPackageAttractions([]);
   };
@@ -244,6 +222,7 @@ export const Packages: React.FC = () => {
       start_time: '',
       end_time: '',
       notes: '',
+      considerar_valor_net: false,
     }]);
   };
 
@@ -251,30 +230,33 @@ export const Packages: React.FC = () => {
     setPackageAttractions(packageAttractions.filter((_, i) => i !== index));
   };
 
-  const updateAttraction = (index: number, field: keyof PackageAttraction, value: string) => {
+  const updateAttraction = (index: number, field: keyof PackageActivity, value: string | boolean) => {
     const updated = [...packageAttractions];
-    updated[index] = { ...updated[index], [field]: value };
+    const current = updated[index];
+    if (current) {
+        (current as any)[field] = value;
+    }
     setPackageAttractions(updated);
   };
 
   const getStatusColor = (status: PackageStatus) => {
-    const colors = {
-      [PackageStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
-      [PackageStatus.CONFIRMED]: 'bg-green-100 text-green-800',
-      [PackageStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
-      [PackageStatus.COMPLETED]: 'bg-gray-100 text-gray-800',
-      [PackageStatus.CANCELLED]: 'bg-red-100 text-red-800',
+    const colors: Record<PackageStatus, string> = {
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'confirmed': 'bg-green-100 text-green-800',
+      'in_progress': 'bg-blue-100 text-blue-800',
+      'completed': 'bg-gray-100 text-gray-800',
+      'cancelled': 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusText = (status: PackageStatus) => {
-    const statusText = {
-      [PackageStatus.PENDING]: 'Pendente',
-      [PackageStatus.CONFIRMED]: 'Confirmado',
-      [PackageStatus.IN_PROGRESS]: 'Em Andamento',
-      [PackageStatus.COMPLETED]: 'Concluído',
-      [PackageStatus.CANCELLED]: 'Cancelado',
+    const statusText: Record<PackageStatus, string> = {
+      'pending': 'Pendente',
+      'confirmed': 'Confirmado',
+      'in_progress': 'Em Andamento',
+      'completed': 'Concluído',
+      'cancelled': 'Cancelado',
     };
     return statusText[status];
   };
@@ -289,7 +271,7 @@ export const Packages: React.FC = () => {
       if (error) throw error;
       
       toast.success('Status atualizado com sucesso!');
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast.error('Erro ao atualizar status: ' + error.message);
     }
@@ -385,33 +367,33 @@ export const Packages: React.FC = () => {
                         {getStatusText(pkg.status)}
                       </span>
                       <div className="flex gap-1">
-                        {pkg.status === PackageStatus.PENDING && (
+                        {pkg.status === 'pending' && (
                           <button
-                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED)}
+                            onClick={() => handleUpdateStatus(pkg.id, 'confirmed')}
                             className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors duration-200"
                           >
                             Confirmar
                           </button>
                         )}
-                        {pkg.status === PackageStatus.CONFIRMED && (
+                        {pkg.status === 'confirmed' && (
                           <button
-                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS)}
+                            onClick={() => handleUpdateStatus(pkg.id, 'in_progress')}
                             className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors duration-200"
                           >
                             Iniciar
                           </button>
                         )}
-                        {pkg.status === PackageStatus.IN_PROGRESS && (
+                        {pkg.status === 'in_progress' && (
                           <button
-                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.COMPLETED)}
+                            onClick={() => handleUpdateStatus(pkg.id, 'completed')}
                             className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors duration-200"
                           >
                             Concluir
                           </button>
                         )}
-                        {[PackageStatus.PENDING, PackageStatus.CONFIRMED].includes(pkg.status) && (
+                        {(pkg.status === 'pending' || pkg.status === 'confirmed') && (
                           <button
-                            onClick={() => handleUpdateStatus(pkg.id, PackageStatus.CANCELLED)}
+                            onClick={() => handleUpdateStatus(pkg.id, 'cancelled')}
                             className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors duration-200"
                           >
                             Cancelar
@@ -461,10 +443,11 @@ export const Packages: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
                       Título do Pacote *
                     </label>
                     <input
+                      id="title"
                       type="text"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -474,10 +457,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="client_name" className="block text-sm font-medium text-gray-700 mb-1">
                       Nome do Cliente *
                     </label>
                     <input
+                      id="client_name"
                       type="text"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -487,10 +471,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="agency_id" className="block text-sm font-medium text-gray-700 mb-1">
                       Agência *
                     </label>
                     <select
+                      id="agency_id"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       value={formData.agency_id}
@@ -506,10 +491,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="total_participants" className="block text-sm font-medium text-gray-700 mb-1">
                       Participantes *
                     </label>
                     <input
+                      id="total_participants"
                       type="number"
                       min="1"
                       required
@@ -520,10 +506,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">
                       Data Início *
                     </label>
                     <input
+                      id="start_date"
                       type="date"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -533,10 +520,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-1">
                       Data Fim *
                     </label>
                     <input
+                      id="end_date"
                       type="date"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -546,10 +534,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="vehicle_id" className="block text-sm font-medium text-gray-700 mb-1">
                       Veículo *
                     </label>
                     <select
+                      id="vehicle_id"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       value={formData.vehicle_id}
@@ -565,10 +554,11 @@ export const Packages: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="driver_id" className="block text-sm font-medium text-gray-700 mb-1">
                       Motorista *
                     </label>
                     <select
+                      id="driver_id"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       value={formData.driver_id}
@@ -584,11 +574,32 @@ export const Packages: React.FC = () => {
                   </div>
                 </div>
 
+                {formData.driver_id && (
+                  <div className="flex items-center mt-3 p-3 bg-green-50 rounded-md">
+                    <label htmlFor="considerar_diaria_motorista" className="ml-2 block text-sm text-gray-900 flex items-center">
+                      <input
+                        type="checkbox"
+                        id="considerar_diaria_motorista"
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mr-2"
+                        checked={formData.considerar_diaria_motorista}
+                        onChange={(e) => setFormData({...formData, considerar_diaria_motorista: e.target.checked})}
+                      />
+                      Considerar diária do motorista no fechamento
+                      {(drivers.find(d => d.id === formData.driver_id)?.valor_diaria) && (
+                        <span className="ml-2 text-green-600 font-medium">
+                          (R$ {drivers.find(d => d.id === formData.driver_id)?.valor_diaria?.toFixed(2).replace('.', ',')})
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
                     Observações
                   </label>
                   <textarea
+                    id="notes"
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     value={formData.notes}
@@ -610,7 +621,7 @@ export const Packages: React.FC = () => {
                     </button>
                   </div>
 
-                  {packageAttractions.map((attraction, index) => (
+                  {packageAttractions.map((activity, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-sm font-medium text-gray-700">Atividade {index + 1}</span>
@@ -625,13 +636,14 @@ export const Packages: React.FC = () => {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor={`attraction_id_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                             Atrativo/Passeio *
                           </label>
                           <select
+                            id={`attraction_id_${index}`}
                             required
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            value={attraction.attraction_id}
+                            value={activity.attraction_id ?? ''}
                             onChange={(e) => updateAttraction(index, 'attraction_id', e.target.value)}
                           >
                             <option value="">Selecione</option>
@@ -644,42 +656,62 @@ export const Packages: React.FC = () => {
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor={`scheduled_date_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                             Data *
                           </label>
                           <input
+                            id={`scheduled_date_${index}`}
                             type="date"
                             required
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            value={attraction.scheduled_date}
+                            value={activity.scheduled_date}
                             onChange={(e) => updateAttraction(index, 'scheduled_date', e.target.value)}
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor={`start_time_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                             Hora Início
                           </label>
                           <input
+                            id={`start_time_${index}`}
                             type="time"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            value={attraction.start_time}
+                            value={activity.start_time ?? ''}
                             onChange={(e) => updateAttraction(index, 'start_time', e.target.value)}
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor={`end_time_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                             Hora Fim
                           </label>
                           <input
+                            id={`end_time_${index}`}
                             type="time"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            value={attraction.end_time}
+                            value={activity.end_time ?? ''}
                             onChange={(e) => updateAttraction(index, 'end_time', e.target.value)}
                           />
                         </div>
                       </div>
+                      {(attractions.find(a => a.id === activity.attraction_id)?.valor_net) && (
+                        <div className="flex items-center mt-3 p-3 bg-blue-50 rounded-md">
+                           <label htmlFor={`considerar_valor_net_${index}`} className="ml-2 block text-sm text-gray-900 flex items-center">
+                            <input
+                              type="checkbox"
+                              id={`considerar_valor_net_${index}`}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                              checked={activity.considerar_valor_net}
+                              onChange={(e) => updateAttraction(index, 'considerar_valor_net', e.target.checked)}
+                            />
+                            Considerar valor NET do atrativo
+                            <span className="ml-2 text-blue-600 font-medium">
+                              (R$ {attractions.find(a => a.id === activity.attraction_id)?.valor_net?.toFixed(2).replace('.', ',')})
+                            </span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -2,22 +2,16 @@ import { useState } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Database } from '../types/database.types';
 
-interface Attraction {
-  id: string;
-  name: string;
-  description: string | null;
-  estimated_duration: number;
-  location: string | null;
-  active: boolean;
-  created_at: string;
-}
+type Attraction = Database['public']['Tables']['attractions']['Row'];
 
 interface AttractionFormData {
   name: string;
   description: string;
   estimated_duration: number;
   location: string;
+  valor_net: string;
 }
 
 export const Attractions: React.FC = () => {
@@ -40,21 +34,27 @@ export const Attractions: React.FC = () => {
     description: '',
     estimated_duration: 60,
     location: '',
+    valor_net: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const dataToSave = {
+        ...formData,
+        valor_net: formData.valor_net ? parseFloat(formData.valor_net) : null,
+    };
+
     try {
       let success = false;
       if (editingAttraction) {
-        const result = await update(editingAttraction.id, formData);
+        const result = await update(editingAttraction.id, dataToSave);
         if (result) {
           toast.success('Atrativo atualizado com sucesso!');
           success = true;
         }
       } else {
-        const result = await create(formData);
+        const result = await create(dataToSave);
         if (result) {
           toast.success('Atrativo cadastrado com sucesso!');
           success = true;
@@ -78,6 +78,7 @@ export const Attractions: React.FC = () => {
       description: attraction.description ?? '',
       estimated_duration: attraction.estimated_duration,
       location: attraction.location ?? '',
+      valor_net: attraction.valor_net?.toString() ?? '',
     });
     setShowModal(true);
   };
@@ -97,6 +98,7 @@ export const Attractions: React.FC = () => {
       description: '',
       estimated_duration: 60,
       location: '',
+      valor_net: '',
     });
   };
 
@@ -154,6 +156,9 @@ export const Attractions: React.FC = () => {
                   Duração
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Valor NET
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -180,6 +185,9 @@ export const Attractions: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatDuration(attraction.estimated_duration)}
                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                    {attraction.valor_net ? `R$ ${attraction.valor_net.toFixed(2).replace('.', ',')}` : '-'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       attraction.active 
@@ -197,7 +205,6 @@ export const Attractions: React.FC = () => {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      // onClick={() => handleDelete(attraction.id)}
                       onClick={() => handleDelete(attraction.id, attraction.name)}
                       className="text-red-600 hover:text-red-900 transition-colors duration-200"
                     >
@@ -220,10 +227,11 @@ export const Attractions: React.FC = () => {
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                   Nome do Atrativo *
                 </label>
                 <input
+                  id="name"
                   type="text"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -233,10 +241,11 @@ export const Attractions: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                   Localização
                 </label>
                 <input
+                  id="location"
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   value={formData.location}
@@ -245,10 +254,11 @@ export const Attractions: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="estimated_duration" className="block text-sm font-medium text-gray-700 mb-1">
                   Duração Estimada (minutos) *
                 </label>
                 <input
+                  id="estimated_duration"
                   type="number"
                   min="1"
                   required
@@ -259,10 +269,27 @@ export const Attractions: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="valor_net" className="block text-sm font-medium text-gray-700 mb-1">
+                  Valor NET
+                </label>
+                <input
+                  id="valor_net"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="R$ 0,00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.valor_net}
+                  onChange={(e) => setFormData({...formData, valor_net: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
                   Descrição
                 </label>
                 <textarea
+                  id="description"
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   value={formData.description}

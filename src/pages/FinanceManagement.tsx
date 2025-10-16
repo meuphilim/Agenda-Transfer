@@ -7,7 +7,7 @@ import { FinanceFilters, FinanceFiltersState } from '../components/finance/Finan
 import { FinanceSummary } from '../components/finance/FinanceSummary';
 import { FinanceTable } from '../components/finance/FinanceTable';
 import { FinancePackageModal } from '../components/finance/FinancePackageModal';
-import { exportToPdf } from '../utils/pdfExporter';
+import { exportToPdf, Column } from '../utils/pdfExporter';
 import { Agency, Driver } from '../types/finance';
 
 const getInitialFilters = (): FinanceFiltersState => {
@@ -37,15 +37,16 @@ export const FinanceManagement: React.FC = () => {
       const { data, error } = await financeApi.list(filters);
       if (error) throw new Error(error.message);
       setPackages(data);
-    } catch (error: any) {
-      toast.error('Erro ao carregar dados financeiros: ' + error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
+      toast.error(`Erro ao carregar dados financeiros: ${message}`);
     } finally {
       setLoading(false);
     }
   }, [filters]);
 
   useEffect(() => {
-    fetchFinancialData();
+    void fetchFinancialData();
   }, [fetchFinancialData]);
 
   const filteredPackages = useMemo(() => {
@@ -104,13 +105,13 @@ export const FinanceManagement: React.FC = () => {
       return;
     }
 
-    const columns = [
-      { header: 'Agência', accessor: (row: PackageWithRelations) => row.agencies?.name ?? 'N/A' },
+    const columns: Column<PackageWithRelations>[] = [
+      { header: 'Agência', accessor: (row) => row.agencies?.name ?? 'N/A' },
       { header: 'Pacote', accessor: 'title' },
-      { header: 'Motorista', accessor: (row: PackageWithRelations) => row.drivers?.name ?? 'N/A' },
-      { header: 'Valor', accessor: (row: PackageWithRelations) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.valor_total) },
+      { header: 'Motorista', accessor: (row) => row.drivers?.name ?? 'N/A' },
+      { header: 'Valor', accessor: (row) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(row.valor_total) },
       { header: 'Status', accessor: 'status_pagamento' },
-      { header: 'Data Início', accessor: (row: PackageWithRelations) => new Date(row.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) }
+      { header: 'Data Início', accessor: (row) => new Date(row.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) }
     ];
 
     exportToPdf(filteredPackages, columns);

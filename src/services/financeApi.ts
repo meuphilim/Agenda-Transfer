@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Database } from '../types/database.types';
+import { FinanceFiltersState } from '../components/finance/FinanceFilters';
 
 export type PackageWithRelations = Database['public']['Tables']['packages']['Row'] & {
   agencies: Pick<Database['public']['Tables']['agencies']['Row'], 'id' | 'name'> | null;
@@ -13,7 +14,7 @@ export type PackageWithRelations = Database['public']['Tables']['packages']['Row
 };
 
 export const financeApi = {
-  list: async (filters?: Record<string, any>): Promise<{ data: PackageWithRelations[]; error: Error | null }> => {
+  list: async (filters?: Partial<FinanceFiltersState>): Promise<{ data: PackageWithRelations[]; error: Error | null }> => {
     try {
       let query = supabase
         .from('packages')
@@ -30,7 +31,6 @@ export const financeApi = {
         query = query.lte('end_date', filters.endDate);
       }
       if (filters?.status && filters.status !== 'all') {
-        // Mapeia status de pagamento para status de pacote
         const packageStatus = filters.status === 'pago' ? 'completed' : filters.status === 'pendente' ? 'confirmed' : 'cancelled';
         query = query.eq('status', packageStatus);
       }
@@ -41,22 +41,21 @@ export const financeApi = {
         throw error;
       }
 
-      // Adiciona dados financeiros mockados
-      const enhancedData = data.map((pkg, index) => ({
+      const enhancedData: PackageWithRelations[] = data.map((pkg, index) => ({
         ...pkg,
         valor_total: 500 + (index * 150),
         valor_diaria: 100 + (index * 20),
         valor_net: 400 + (index * 130),
         translado_aeroporto: index % 2 === 0,
-        // Converte status do pacote para status de pagamento
         status_pagamento: pkg.status === 'completed' ? 'pago' : pkg.status === 'confirmed' ? 'pendente' : 'cancelado',
       }));
 
       return { data: enhancedData, error: null };
 
-    } catch (err: any) {
-      console.error('Erro ao buscar pacotes:', err);
-      return { data: [], error: err };
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error('Ocorreu um erro desconhecido.');
+      console.error('Erro ao buscar pacotes:', error.message);
+      return { data: [], error };
     }
   },
 

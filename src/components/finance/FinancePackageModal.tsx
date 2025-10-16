@@ -61,7 +61,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
       await onSave(formData);
       toast.success('Pacote atualizado com sucesso!');
       onClose();
-    } catch (error) {
+    } catch {
       toast.error('Erro ao salvar o pacote.');
     } finally {
       setLoading(false);
@@ -76,7 +76,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
         await onDelete(formData.id);
         toast.success('Pacote excluído com sucesso!');
         onClose();
-      } catch (error) {
+      } catch {
         toast.error('Erro ao excluir o pacote.');
       } finally {
         setLoading(false);
@@ -118,6 +118,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
               {/* Driver */}
               <div>
                 <label htmlFor="driver_id" className="block text-sm font-medium text-gray-700">Motorista</label>
+                {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
                 <select id="driver_id" name="driver_id" value={formData.driver_id ?? ''} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                   <option value="">Nenhum</option>
                   {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -170,7 +171,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
 
           <div className="flex justify-between items-center pt-5 border-t mt-5">
             <button
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
             >
@@ -185,7 +186,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({
                     Cancelar
                 </button>
                 <button
-                    onClick={handleSave}
+                    onClick={() => void handleSave()}
                     disabled={loading}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                 >
