@@ -608,6 +608,7 @@ export const UserManagement = () => {
             />
           </div>
 
+		  <div className="bg-white shadow-lg rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -681,6 +682,7 @@ export const UserManagement = () => {
               </div>
             )}
           </div>
+		  </div>
         </div>
       </div>
 
