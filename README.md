@@ -274,36 +274,31 @@ Agenda-Transfer/
 │       └── ci.yml                 # CI/CD automático
 ├── public/                        # Assets públicos
 ├── src/
-│   ├── components/                # Componentes React
-│   │   ├── Auth/                 # Login, Signup, CompleteProfile
-│   │   ├── Layout/               # Layout, Sidebar
-│   │   ├── Profile/              # ProfileModal
-│   │   ├── ErrorBoundary.tsx     # Tratamento de erros
-│   │   └── ProtectedRoute.tsx    # Proteção de rotas
+│   ├── components/                # Componentes React (Auth, Layout, Profile, etc.)
 │   ├── contexts/                  # Contextos React
-│   │   ├── AuthContext.tsx       # Autenticação global
-│   │   └── DataContext.tsx       # Dados globais
+│   │   └── AuthContext.tsx       # Autenticação e sessão global
 │   ├── hooks/                     # Custom hooks
-│   │   └── useSupabaseData.ts    # Hook para Supabase
+│   │   └── useSupabaseData.ts    # Hook para buscar dados do Supabase
 │   ├── lib/                       # Bibliotecas
 │   │   └── supabase.ts           # Cliente Supabase
 │   ├── pages/                     # Páginas da aplicação
 │   │   ├── Dashboard.tsx         # Dashboard principal
 │   │   ├── Schedule.tsx          # Agenda
 │   │   ├── Packages.tsx          # Pacotes
-│   │   ├── Settings.tsx          # Configurações/Cadastros
-│   │   ├── Drivers.tsx           # Motoristas
-│   │   ├── Vehicles.tsx          # Veículos
+│   │   ├── Settings.tsx          # Hub de Cadastros (Agências, Veículos, etc.)
 │   │   └── UserManagement.tsx    # Gestão de usuários
+│   ├── services/                  # Serviços (API)
 │   ├── types/                     # Definições TypeScript
 │   ├── utils/                     # Utilitários
 │   ├── App.tsx                    # Componente raiz
 │   ├── main.tsx                   # Entry point
 │   └── index.css                  # Estilos globais
+├── api/                           # API Backend (Serverless Functions)
+│   └── admin.ts                   # Endpoints de administração
 ├── supabase/
 │   └── migrations/                # Migrations do banco
 ├── .env.example                   # Exemplo de variáveis
-├── .eslintrc.cjs                  # Config ESLint
+├── eslint.config.js               # Config ESLint
 ├── .gitignore
 ├── index.html
 ├── package.json
