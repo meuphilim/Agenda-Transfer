@@ -9,7 +9,7 @@ interface SyncOptions {
 
 class SupabaseSync {
   private static instance: SupabaseSync;
-  private syncQueue: Map<string, Promise<any>> = new Map();
+  private syncQueue = new Map<string, Promise<any>>();
 
   static getInstance(): SupabaseSync {
     if (!SupabaseSync.instance) {
@@ -28,7 +28,7 @@ class SupabaseSync {
   ): Promise<T> {
     // Se já existe uma operação em andamento, aguarda ela
     if (this.syncQueue.has(key)) {
-      return this.syncQueue.get(key)!;
+      return this.syncQueue.get(key);
     }
 
     const promise = this.performOperation(operation, options);
@@ -60,7 +60,7 @@ class SupabaseSync {
       }
       
       if (options.showToast !== false) {
-        toast.error(error.message || 'Erro na operação');
+        toast.error(error.message ?? 'Erro na operação');
       }
       
       throw error;
@@ -80,7 +80,7 @@ class SupabaseSync {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     });
   }
 
@@ -95,7 +95,7 @@ class SupabaseSync {
         .gt('updated_at', lastSync.toISOString());
 
       if (error) throw error;
-      return (count || 0) === 0;
+      return (count ?? 0) === 0;
     } catch (error) {
       console.error(`Erro ao verificar sincronização de ${table}:`, error);
       return false;
@@ -181,7 +181,7 @@ export const syncOperations = {
 
         const { data, error } = await query;
         if (error) throw error;
-        return data || [];
+        return data ?? [];
       },
       options
     );

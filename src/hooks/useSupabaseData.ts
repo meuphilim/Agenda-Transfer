@@ -65,6 +65,8 @@ export function useSupabaseData<T extends { id: string }>({
 
       if (fetchError) throw fetchError;
 
+      // The consumer of this hook is responsible for ensuring that the `select`
+      // query matches the provided type `T`.
       setData((result as unknown as T[]) || []);
     } catch (err: any) {
       const errorMessage = err.message || 'Erro ao carregar dados';
