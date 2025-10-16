@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 interface Driver {
   id: string;
@@ -66,9 +66,9 @@ export const Drivers: React.FC = () => {
       
       const data = {
         ...formData,
-        license_expiry: formData.license_expiry ?? null,
-        phone: formData.phone ?? null,
-        email: formData.email ?? null,
+        license_expiry: formData.license_expiry || null,
+        phone: formData.phone || null,
+        email: formData.email || null,
       };
 
       let success = false;
@@ -108,10 +108,10 @@ export const Drivers: React.FC = () => {
     setEditingDriver(driver);
     setFormData({
       name: driver.name,
-      phone: driver.phone ?? '',
-      email: driver.email ?? '',
+      phone: driver.phone || '',
+      email: driver.email || '',
       license_number: driver.license_number,
-      license_expiry: driver.license_expiry ?? '',
+      license_expiry: driver.license_expiry || '',
       status: driver.status,
       category: driver.category,
       ear: driver.ear,
@@ -229,7 +229,7 @@ export const Drivers: React.FC = () => {
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <PlusIcon className="h-4 w-4 mr-2" />
           Novo Motorista
         </button>
       </div>
@@ -290,7 +290,7 @@ export const Drivers: React.FC = () => {
                       <div className="text-sm text-gray-900">
                         {driver.phone ? formatPhoneNumber(driver.phone) : '-'}
                       </div>
-                      <div className="text-sm text-gray-500">{driver.email ?? '-'}</div>
+                      <div className="text-sm text-gray-500">{driver.email || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{driver.license_number}</div>
@@ -320,14 +320,14 @@ export const Drivers: React.FC = () => {
                         className="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-200"
                         title="Editar motorista"
                       >
-                        <Pencil className="h-5 w-5" />
+                        <PencilIcon className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => handleDelete(driver.id, driver.name)}
                         className="text-red-600 hover:text-red-900 transition-colors duration-200"
                         title="Excluir motorista"
                       >
-                        <Trash2 className="h-5 w-5" />
+                        <TrashIcon className="h-5 w-5" />
                       </button>
                     </td>
                   </tr>

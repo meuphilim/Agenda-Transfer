@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { UserStatus } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
-import { adminApi } from '../services/adminApi';
 import { 
-  Users,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Pencil,
-  Trash2,
-  Eye,
-  X,
-  UserCheck,
-  UserX,
-  UserCog
-} from 'lucide-react';
+  UserGroupIcon, 
+  CheckCircleIcon, 
+  XCircleIcon, 
+  ClockIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 
 interface UserProfile {
   id: string;
@@ -25,7 +22,7 @@ interface UserProfile {
   status: UserStatus;
   created_at: string;
   updated_at: string;
-  email?: string | null;
+  email?: string;
 }
 
 interface UserEditModalProps {
@@ -53,7 +50,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     if (user) {
       setFormData({
         full_name: user.full_name,
-        phone: user.phone ?? '',
+        phone: user.phone || '',
         is_admin: user.is_admin,
         status: user.status,
       });
@@ -83,13 +80,13 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
     setFormData({ ...formData, phone: formatted });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
     setLoading(true);
     try {
-      onSave(user.id, formData);
+      await onSave(user.id, formData);
       onClose();
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
@@ -101,7 +98,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
   if (!isOpen || !user) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
@@ -112,7 +109,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <X className="h-6 w-6" />
+              <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
@@ -138,7 +135,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({
                 type="email"
                 disabled
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
-                value={user.email ?? ''}
+                value={user.email || ''}
               />
               <p className="mt-1 text-xs text-gray-500">O email não pode ser alterado</p>
             </div>
@@ -237,13 +234,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   const getStatusIcon = (status: UserStatus) => {
     switch (status) {
       case 'active':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
       case 'inactive':
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return <XCircleIcon className="h-5 w-5 text-red-500" />;
       case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
+        return <ClockIcon className="h-5 w-5 text-yellow-500" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-500" />;
+        return <ClockIcon className="h-5 w-5 text-gray-500" />;
     }
   };
 
@@ -257,7 +254,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
@@ -268,7 +265,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <X className="h-6 w-6" />
+              <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
@@ -285,7 +282,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Telefone</label>
-              <p className="mt-1 text-sm text-gray-900">{user.phone ?? 'Não informado'}</p>
+              <p className="mt-1 text-sm text-gray-900">{user.phone || 'Não informado'}</p>
             </div>
 
             <div>
@@ -324,7 +321,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       onClick={() => onStatusUpdate(user.id, 'active')}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                     >
-                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <CheckCircleIcon className="h-4 w-4 mr-1" />
                       Ativar
                     </button>
                   )}
@@ -333,7 +330,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       onClick={() => onStatusUpdate(user.id, 'inactive')}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                     >
-                      <XCircle className="h-4 w-4 mr-1" />
+                      <XCircleIcon className="h-4 w-4 mr-1" />
                       Desativar
                     </button>
                   )}
@@ -342,7 +339,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       onClick={() => onStatusUpdate(user.id, 'pending')}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700"
                     >
-                      <Clock className="h-4 w-4 mr-1" />
+                      <ClockIcon className="h-4 w-4 mr-1" />
                       Pendente
                     </button>
                   )}
@@ -360,7 +357,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                       : 'bg-blue-600 hover:bg-blue-700'
                   }`}
                 >
-                  <Users className="h-4 w-4 mr-1" />
+                  <UserGroupIcon className="h-4 w-4 mr-1" />
                   {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
                 </button>
               </div>
@@ -376,7 +373,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
                   }}
                   className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                 >
-                  <Trash2 className="h-4 w-4 mr-1" />
+                  <TrashIcon className="h-4 w-4 mr-1" />
                   Excluir Usuário
                 </button>
               </div>
@@ -397,13 +394,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
   );
 };
 
-const tabs = [
-  { key: 'all', name: 'Todos', icon: Users },
-  { key: 'pending', name: 'Pendentes', icon: Clock },
-  { key: 'active', name: 'Ativos', icon: UserCheck },
-  { key: 'inactive', name: 'Inativos', icon: UserX },
-];
-
 export const UserManagement = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,17 +405,38 @@ export const UserManagement = () => {
   const { isAdmin } = useAuth();
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchUsers();
+    if (!isAdmin) {
+      return;
     }
+    fetchUsers();
   }, [isAdmin]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await adminApi.listUsers();
-      if (error) throw new Error(error);
-      setUsers(data ?? []);
+      
+      // Buscar perfis
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // Buscar emails dos usuários do auth
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.warn('Não foi possível carregar emails dos usuários:', authError);
+      }
+
+      // Combinar dados
+      const usersWithEmail = profiles?.map(profile => ({
+        ...profile,
+        email: authUsers?.find(user => user.id === profile.id)?.email || 'Email não disponível'
+      })) || [];
+
+      setUsers(usersWithEmail);
     } catch (error: any) {
       toast.error('Erro ao carregar usuários: ' + error.message);
       console.error('Erro ao carregar usuários:', error);
@@ -436,11 +447,17 @@ export const UserManagement = () => {
 
   const updateUserStatus = async (userId: string, status: UserStatus) => {
     try {
-      const { error } = await adminApi.updateUser(userId, { status });
-      if (error) throw new Error(error);
-      setUsers(users.map(user =>
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.map(user => 
         user.id === userId ? { ...user, status } : user
       ));
+
       toast.success('Status do usuário atualizado com sucesso!');
     } catch (error: any) {
       toast.error('Erro ao atualizar status: ' + error.message);
@@ -449,11 +466,17 @@ export const UserManagement = () => {
 
   const updateUserAdmin = async (userId: string, isAdmin: boolean) => {
     try {
-      const { error } = await adminApi.updateUser(userId, { is_admin: isAdmin });
-      if (error) throw new Error(error);
-      setUsers(users.map(user =>
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_admin: isAdmin, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.map(user => 
         user.id === userId ? { ...user, is_admin: isAdmin } : user
       ));
+
       toast.success(`Usuário ${isAdmin ? 'promovido a' : 'removido de'} administrador!`);
       setShowDetailsModal(false);
     } catch (error: any) {
@@ -463,8 +486,24 @@ export const UserManagement = () => {
 
   const deleteUser = async (userId: string) => {
     try {
-      const { error } = await adminApi.deleteUser(userId);
-      if (error) throw new Error(error);
+      // Primeiro remove o perfil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (profileError) throw profileError;
+
+      // Tenta remover do auth (pode falhar se não tiver permissão admin)
+      try {
+        const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+        if (authError) {
+          console.warn('Não foi possível remover usuário do auth:', authError);
+        }
+      } catch (error) {
+        console.warn('Erro ao remover usuário do auth:', error);
+      }
+
       setUsers(users.filter(user => user.id !== userId));
       toast.success('Usuário excluído com sucesso!');
       setShowDetailsModal(false);
@@ -480,11 +519,17 @@ export const UserManagement = () => {
 
   const handleSaveUser = async (userId: string, updates: Partial<UserProfile>) => {
     try {
-      const { error } = await adminApi.updateUser(userId, updates);
-      if (error) throw new Error(error);
-      setUsers(users.map(user =>
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsers(users.map(user => 
         user.id === userId ? { ...user, ...updates } : user
       ));
+
       toast.success('Usuário atualizado com sucesso!');
     } catch (error: any) {
       toast.error('Erro ao atualizar usuário: ' + error.message);
@@ -499,10 +544,14 @@ export const UserManagement = () => {
 
   const getStatusColor = (status: UserStatus) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'inactive': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'inactive':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -515,21 +564,13 @@ export const UserManagement = () => {
     }
   };
 
-  const getStatusDotColor = (status: UserStatus) => {
-    switch (status) {
-      case 'active': return 'bg-green-500';
-      case 'pending': return 'bg-yellow-500';
-      case 'inactive': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
   const filteredUsers = users.filter(user => {
     const matchesFilter = filter === 'all' || user.status === filter;
     const matchesSearch = searchTerm === '' || 
       user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.phone ?? '').includes(searchTerm);
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone?.includes(searchTerm);
+    
     return matchesFilter && matchesSearch;
   });
 
@@ -543,7 +584,7 @@ export const UserManagement = () => {
       <div className="p-6">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-            <XCircle className="h-8 w-8 text-red-600" />
+            <XCircleIcon className="h-8 w-8 text-red-600" />
           </div>
           <h1 className="text-2xl font-bold text-red-600">
             Acesso Negado
@@ -566,139 +607,206 @@ export const UserManagement = () => {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Gerenciamento de Usuários
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Gerencie usuários, status e permissões do sistema
-        </p>
+      <div className="mb-6 flex justify-between items-center">
+        <div className="sm:flex-auto">
+          <h1 className="text-3xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            Gerencie usuários, status e permissões do sistema
+          </p>
+        </div>
+        <button
+          onClick={fetchUsers}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Atualizar
+        </button>
       </div>
 
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+      {/* Filtros e Busca */}
+      <div className="mb-6 space-y-4">
         <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
-            {tabs.map((tab) => (
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { key: 'all', label: 'Todos', count: getFilterCount('all') },
+              { key: 'pending', label: 'Pendentes', count: getFilterCount('pending') },
+              { key: 'active', label: 'Ativos', count: getFilterCount('active') },
+              { key: 'inactive', label: 'Inativos', count: getFilterCount('inactive') },
+            ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key as any)}
-                className={`group relative min-w-0 flex-1 overflow-hidden py-4 px-6 text-sm font-medium text-center hover:bg-gray-50 focus:z-10 ${
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
                   filter === tab.key
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 border-b-2 border-transparent'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center justify-center">
-                  <tab.icon className="h-5 w-5 mr-2" />
-                  {tab.name} ({getFilterCount(tab.key as any)})
-                </div>
+                {tab.label} ({tab.count})
               </button>
             ))}
           </nav>
         </div>
 
-        <div className="p-6">
-          <div className="mb-6">
-            <input
-              type="text"
-              placeholder="Buscar por nome, email ou telefone..."
-              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-		  <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cadastro</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-medium text-sm">
-                            {user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                        <span className={`w-2 h-2 rounded-full mr-2 ${getStatusDotColor(user.status)}`}></span>
-                        {getStatusText(user.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {user.is_admin ? <UserCog className="w-3 h-3 mr-1" /> : <Users className="w-3 h-3 mr-1" />}
-                        {user.is_admin ? 'Admin' : 'Usuário'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => handleViewUser(user)} className="text-blue-600 hover:text-blue-900 transition-colors duration-200" title="Ver detalhes"><Eye className="h-5 w-5" /></button>
-                        <button onClick={() => handleEditUser(user)} className="text-green-600 hover:text-green-900 transition-colors duration-200" title="Editar usuário"><Pencil className="h-5 w-5" /></button>
-                        {user.status === 'pending' && <button onClick={() => updateUserStatus(user.id, 'active')} className="text-green-600 hover:text-green-900 transition-colors duration-200" title="Aprovar usuário"><CheckCircle className="h-5 w-5" /></button>}
-                        {user.status === 'active' && <button onClick={() => updateUserStatus(user.id, 'inactive')} className="text-red-600 hover:text-red-900 transition-colors duration-200" title="Desativar usuário"><XCircle className="h-5 w-5" /></button>}
-                        {user.status === 'inactive' && <button onClick={() => updateUserStatus(user.id, 'active')} className="text-green-600 hover:text-green-900 transition-colors duration-200" title="Reativar usuário"><CheckCircle className="h-5 w-5" /></button>}
-                      </div>
-                    </td>
+        <div className="max-w-md">
+          <input
+            type="text"
+            placeholder="Buscar por nome, email ou telefone..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+      
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 lg:pl-8">
+                      Nome
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Email
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Telefone
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Status
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Tipo
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Cadastro
+                    </th>
+                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6 lg:pr-8">
+                      <span className="sr-only">Ações</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-12 bg-gray-50">
-                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm
-                    ? `Nenhum usuário encontrado para "${searchTerm}".`
-                    : filter === 'all'
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
+                        {user.full_name}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {user.email}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {user.phone || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                          {getStatusText(user.status)}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                          user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.is_admin ? 'Admin' : 'Usuário'}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 lg:pr-8">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleViewUser(user)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                            title="Ver detalhes"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                          </button>
+                          
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                            title="Editar usuário"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          
+                          {user.status === 'pending' && (
+                            <button
+                              onClick={() => updateUserStatus(user.id, 'active')}
+                              className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                              title="Aprovar usuário"
+                            >
+                              <CheckCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          {user.status === 'active' && (
+                            <button
+                              onClick={() => updateUserStatus(user.id, 'inactive')}
+                              className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                              title="Desativar usuário"
+                            >
+                              <XCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          {user.status === 'inactive' && (
+                            <button
+                              onClick={() => updateUserStatus(user.id, 'active')}
+                              className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                              title="Reativar usuário"
+                            >
+                              <CheckCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-12">
+                  <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum usuário encontrado</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {filter === 'all' 
                       ? 'Não há usuários cadastrados no sistema.'
                       : `Não há usuários com status "${getStatusText(filter as UserStatus)}".`
-                  }
-                </p>
-              </div>
-            )}
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-		  </div>
         </div>
       </div>
 
+      {/* Modal de Detalhes */}
       <UserDetailsModal
         user={selectedUser}
         isOpen={showDetailsModal}
-        onClose={() => { setShowDetailsModal(false); setSelectedUser(null); }}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedUser(null);
+        }}
         onStatusUpdate={updateUserStatus}
         onAdminToggle={updateUserAdmin}
         onDeleteUser={deleteUser}
       />
 
+      {/* Modal de Edição */}
       <UserEditModal
         user={selectedUser}
         isOpen={showEditModal}
-        onClose={() => { setShowEditModal(false); setSelectedUser(null); }}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedUser(null);
+        }}
         onSave={handleSaveUser}
       />
     </div>

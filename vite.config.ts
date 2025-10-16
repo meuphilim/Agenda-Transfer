@@ -8,7 +8,4 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-    build: {
-    chunkSizeWarningLimit: 1500, // aumenta o limite para evitar avisos falsos
-  },
 });

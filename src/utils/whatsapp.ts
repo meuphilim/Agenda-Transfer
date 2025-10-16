@@ -1,4 +1,4 @@
-export const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+export const sendWhatsAppMessage = async (phoneNumber: string, message: string) => {
   // Remove caracteres não numéricos do número
   const formattedNumber = phoneNumber.replace(/\D/g, '');
   
