@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 
-interface MobileModalProps {
+interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -11,8 +11,7 @@ interface MobileModalProps {
   footer?: ReactNode;
 }
 
-export const MobileModal = ({ isOpen, onClose, title, children, footer }: MobileModalProps) => {
-  // Verificação para evitar erro de "window is not defined" no lado do servidor
+export const Modal = ({ isOpen, onClose, title, children, footer }: ModalProps) => {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
@@ -24,42 +23,24 @@ export const MobileModal = ({ isOpen, onClose, title, children, footer }: Mobile
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="hidden md:block fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/60 z-40"
             onClick={onClose}
           />
 
           {/* Modal Container */}
           <motion.div
-            initial={{
-              opacity: 0,
-              scale: isMobile ? 1 : 0.95,
-              x: isMobile ? '100%' : 0
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              x: 0
-            }}
-            exit={{
-              opacity: 0,
-              scale: isMobile ? 1 : 0.95,
-              x: isMobile ? '100%' : 0
-            }}
-            transition={{
-              duration: 0.3,
-              ease: 'easeInOut'
-            }}
-            className={cn(
-              // Mobile: Full screen
-              "fixed inset-0 bg-white z-50",
-              // Desktop: Centered modal
-              "md:fixed md:inset-auto md:flex md:items-center md:justify-center md:p-4 md:bg-transparent"
-            )}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            <div className={cn(
-              "h-full flex flex-col",
-              "md:bg-white md:rounded-lg md:shadow-xl md:max-w-2xl md:w-full md:max-h-[90vh]"
-            )}>
+            <div
+              className={cn(
+                "relative bg-white rounded-lg shadow-xl w-full flex flex-col",
+                "max-w-2xl max-h-[90vh]"
+              )}
+            >
 
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">

@@ -8,7 +8,7 @@ import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Database } from '../types/database.types';
 import { cn } from '../lib/utils';
-import { FloatingActionButton, MobileModal } from '../components/Common';
+import { FloatingActionButton, Modal } from '../components/Common';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
 
@@ -48,6 +48,7 @@ interface PackageFormData {
   total_participants: number;
   notes: string;
   client_name: string;
+  status: PackageStatus;
 }
 
 const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void}> = ({ onSend }) => {
@@ -123,7 +124,7 @@ export const Agenda: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<PackageStatus | 'all'>('all');
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
-  const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '' });
+  const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', status: 'pending' });
   const [packageAttractions, setPackageAttractions] = useState<Partial<PackageActivity>[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
@@ -161,7 +162,7 @@ export const Agenda: React.FC = () => {
     }), [packages, statusFilter, searchTerm]);
 
   const resetForm = () => {
-    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '' });
+    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', status: 'pending' });
     setPackageAttractions([]);
     setEditingPackage(null);
   };
@@ -173,7 +174,7 @@ export const Agenda: React.FC = () => {
 
   const handleEdit = async (pkg: PackageWithRelations) => {
     setEditingPackage(pkg);
-    setFormData({ title: pkg.title, agency_id: pkg.agency_id, vehicle_id: pkg.vehicle_id, driver_id: pkg.driver_id, start_date: pkg.start_date, end_date: pkg.end_date, total_participants: pkg.total_participants, notes: pkg.notes ?? '', client_name: pkg.client_name ?? '' });
+    setFormData({ title: pkg.title, agency_id: pkg.agency_id, vehicle_id: pkg.vehicle_id, driver_id: pkg.driver_id, start_date: pkg.start_date, end_date: pkg.end_date, total_participants: pkg.total_participants, notes: pkg.notes ?? '', client_name: pkg.client_name ?? '', status: pkg.status });
     const { data } = await supabase.from('package_attractions').select('*').eq('package_id', pkg.id);
     setPackageAttractions(data ?? []);
     setShowModal(true);
@@ -218,8 +219,9 @@ export const Agenda: React.FC = () => {
   const addAttraction = () => setPackageAttractions([...packageAttractions, { attraction_id: '', scheduled_date: formData.start_date, start_time: '', end_time: '', notes: '' }]);
   const removeAttraction = (index: number) => setPackageAttractions(packageAttractions.filter((_, i) => i !== index));
   const updateAttraction = (index: number, field: keyof Partial<PackageActivity>, value: string | boolean) => {
-    const updated = [...packageAttractions];
-    (updated[index] as Record<string, any>)[field] = value;
+    const updated = packageAttractions.map((item, i) =>
+      i === index ? { ...item, [field]: value } : item
+    );
     setPackageAttractions(updated);
   };
 
@@ -284,13 +286,21 @@ export const Agenda: React.FC = () => {
 
       <FloatingActionButton icon={Plus} onClick={() => { resetForm(); setShowModal(true); }} />
 
-      <MobileModal isOpen={showModal} onClose={handleModalClose} title={editingPackage ? 'Editar Reserva' : 'Nova Reserva'}>
+      <Modal isOpen={showModal} onClose={handleModalClose} title={editingPackage ? 'Editar Reserva' : 'Nova Reserva'}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><label htmlFor="title">Título</label><input id="title" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div className="md:col-span-2"><label htmlFor="client_name">Cliente</label><input id="client_name" required value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div><label htmlFor="agency_id">Agência</label><select id="agency_id" required value={formData.agency_id} onChange={e => setFormData({...formData, agency_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
             <div><label htmlFor="total_participants">Participantes</label><input id="total_participants" type="number" required value={formData.total_participants} onChange={e => setFormData({...formData, total_participants: +e.target.value})} className="w-full p-2 border rounded" /></div>
+            <div>
+              <label htmlFor="status">Status</label>
+              <select id="status" required value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as PackageStatus})} className="w-full p-2 border rounded">
+                {Object.entries(packageStatuses).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
             <div><label htmlFor="start_date">Data Início</label><input id="start_date" type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div><label htmlFor="end_date">Data Fim</label><input id="end_date" type="date" required value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div><label htmlFor="vehicle_id">Veículo</label><select id="vehicle_id" required value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.model} ({v.license_plate})</option>)}</select></div>
@@ -311,13 +321,13 @@ export const Agenda: React.FC = () => {
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t"><button type="button" onClick={handleModalClose} className="px-4 py-2 border rounded">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Salvar</button></div>
         </form>
-      </MobileModal>
+      </Modal>
 
       {showConfirmSendModal && selectedScheduleItem && (
-        <MobileModal isOpen={showConfirmSendModal} onClose={() => setShowConfirmSendModal(false)} title="Confirmar Envio">
+        <Modal isOpen={showConfirmSendModal} onClose={() => setShowConfirmSendModal(false)} title="Confirmar Envio">
             <p>Enviar programação para o WhatsApp de <strong>{selectedScheduleItem.packages.drivers.name}</strong>?</p>
             <div className="flex justify-end gap-3 pt-4 border-t"><button type="button" onClick={() => setShowConfirmSendModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button onClick={handleConfirmSend} className="px-4 py-2 bg-blue-600 text-white rounded">Enviar</button></div>
-        </MobileModal>
+        </Modal>
       )}
     </>
   );
