@@ -38,8 +38,8 @@ export const SidebarProvider = ({
 }: SidebarProviderProps) => {
   const [openState, setOpenState] = useState(false);
 
-  const open = openProp !== undefined ? openProp : openState;
-  const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
+  const open = openProp ?? openState;
+  const setOpen = setOpenProp ?? setOpenState;
 
   return (
     <SidebarContext.Provider value={{ open, setOpen, animate }}>
@@ -155,7 +155,7 @@ const MobileSidebar = ({
                 ease: 'easeInOut',
               }}
               className={cn(
-                'fixed h-full w-64 inset-y-0 left-0 bg-white shadow-2xl z-50 flex flex-col',
+                'fixed h-full w-64 inset-y-0 left-0 bg-white shadow-2xl z-50 flex flex-col md:hidden',
                 className
               )}
             >
