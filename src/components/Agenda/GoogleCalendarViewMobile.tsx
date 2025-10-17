@@ -1,9 +1,11 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { AgendaListViewMobile } from './AgendaListViewMobile';
 
 interface Event {
   id: string;
   date: string;
+  title: string;
 }
 
 interface GoogleCalendarViewProps {
@@ -11,13 +13,16 @@ interface GoogleCalendarViewProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   onViewPackage: (id: string) => void;
+  onEditPackage: (id: string) => void;
+  onAddActivity: (id: string) => void;
+  packages: any[];
 }
 
-export const GoogleCalendarViewMobile: React.FC<GoogleCalendarViewProps> = ({ events, selectedDate, onDateChange, onViewPackage }) => {
+export const GoogleCalendarViewMobile: React.FC<GoogleCalendarViewProps> = ({ events, selectedDate, onDateChange, onViewPackage, onEditPackage, onAddActivity, packages }) => {
   const getWeekDays = (date: Date): Date[] => {
     const start = new Date(date);
     const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const diff = start.getDate() - day; // adjust when day is sunday
     start.setDate(diff);
     return Array.from({ length: 7 }, (_, i) => {
       const newDate = new Date(start);
@@ -45,7 +50,7 @@ export const GoogleCalendarViewMobile: React.FC<GoogleCalendarViewProps> = ({ ev
         <button onClick={() => handleWeekChange('prev')} className="p-2 rounded-lg hover:bg-gray-100">
           <ChevronLeft size={20} />
         </button>
-        <h3 className="text-base font-semibold">
+        <h3 className="text-base font-semibold capitalize">
           {selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </h3>
         <button onClick={() => handleWeekChange('next')} className="p-2 rounded-lg hover:bg-gray-100">
@@ -54,7 +59,7 @@ export const GoogleCalendarViewMobile: React.FC<GoogleCalendarViewProps> = ({ ev
       </div>
 
       <div className="grid grid-cols-7 border-b">
-        {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((day, i) => (
+        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
           <div key={i} className="text-center py-2 text-xs font-semibold text-gray-500">{day}</div>
         ))}
       </div>
@@ -86,21 +91,7 @@ export const GoogleCalendarViewMobile: React.FC<GoogleCalendarViewProps> = ({ ev
       </div>
 
       <div className="p-3 border-t-2 border-blue-500">
-        <h4 className="text-sm font-semibold mb-2">
-          {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric' })}
-        </h4>
-        {selectedDayEvents.length > 0 ? (
-          <div className="space-y-2">
-            {selectedDayEvents.map((event) => (
-              <div key={event.id} onClick={() => onViewPackage(event.id)} className="p-2 bg-blue-50 rounded border flex justify-between items-center">
-                <span className="text-sm font-medium">{(event as any).title}</span>
-                <ChevronRight size={16} className="text-gray-400" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">Nenhum evento.</p>
-        )}
+        <AgendaListViewMobile date={selectedDate} packages={packages.filter(p => new Date(p.start_date).toDateString() === selectedDate.toDateString())} onView={onViewPackage} onEdit={onEditPackage} onAddActivity={onAddActivity} />
       </div>
     </div>
   );

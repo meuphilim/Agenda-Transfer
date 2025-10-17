@@ -27,9 +27,9 @@ type PackageStatus = Database['public']['Tables']['packages']['Row']['status'];
 
 export const Agenda: React.FC = () => {
   const [packages, setPackages] = useState<Package[]>([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-  const [statusFilter] = useState<PackageStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<PackageStatus | 'all'>('all');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Modal State
@@ -74,7 +74,7 @@ export const Agenda: React.FC = () => {
   };
 
   const handleNewPackage = () => {
-    // Implementar lógica de novo pacote
+    // Lógica para criar um pacote em branco e abrir o modal em modo 'edit'
   };
 
   const handleSendToDriver = (date: Date) => {
@@ -98,6 +98,8 @@ export const Agenda: React.FC = () => {
     sendWhatsAppMessage(driver.phone, message);
     toast.success('Programação enviada!');
   };
+
+  if (loading) return <div className="p-4">Carregando...</div>;
 
   return (
     <>
@@ -129,7 +131,7 @@ export const Agenda: React.FC = () => {
               {viewMode === 'list' ? (
                 <AgendaListViewMobile date={selectedDate} packages={filteredPackages.filter(p => new Date(p.start_date).toDateString() === selectedDate.toDateString())} onView={(id) => handleOpenModal(packages.find(p => p.id === id)!, 'view')} onEdit={(id) => handleOpenModal(packages.find(p => p.id === id)!, 'edit')} onAddActivity={() => {}} />
               ) : (
-                <GoogleCalendarViewMobile selectedDate={selectedDate} onDateChange={setSelectedDate} events={packages.map(p => ({id: p.id, date: p.start_date, title: p.title}))} onViewPackage={(id) => handleOpenModal(packages.find(p => p.id === id)!, 'view')} />
+                <GoogleCalendarViewMobile selectedDate={selectedDate} onDateChange={setSelectedDate} events={packages.map(p => ({id: p.id, date: p.start_date, title: p.title}))} onViewPackage={(id) => handleOpenModal(packages.find(p => p.id === id)!, 'view')} packages={packages} onEditPackage={(id) => handleOpenModal(packages.find(p => p.id === id)!, 'edit')} onAddActivity={() => {}} />
               )}
            </div>
            <FloatingActionButton icon={Plus} onClick={handleNewPackage} />

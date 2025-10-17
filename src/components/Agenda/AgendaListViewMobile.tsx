@@ -5,15 +5,10 @@ import { Button } from '../Common/Button';
 interface Package {
   id: string;
   title: string;
-  agency: { name: string };
-  driver: { name: string };
-  vehicle: { model: string; plate: string };
-  activities?: Activity[];
-}
-interface Activity {
-  id: string;
-  attraction: { name: string };
-  time: string;
+  agencies: { name: string } | null;
+  drivers: { name: string } | null;
+  vehicles: { model: string; license_plate: string } | null;
+  package_attractions?: any[];
 }
 
 interface ListViewProps {
@@ -41,19 +36,19 @@ export const AgendaListViewMobile: React.FC<ListViewProps> = ({ date, packages, 
           <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
             <div className="p-4 bg-gradient-to-r from-gray-50 to-white border-b">
               <h3 className="font-semibold text-gray-900">{pkg.title}</h3>
-              <p className="text-sm text-gray-600 mt-1">{pkg.agency.name}</p>
+              <p className="text-sm text-gray-600 mt-1">{pkg.agencies?.name}</p>
             </div>
             <div className="p-4 space-y-2">
-              <div className="flex items-center text-sm text-gray-700"><User size={14} className="mr-2" />{pkg.driver.name}</div>
-              <div className="flex items-center text-sm text-gray-700"><Truck size={14} className="mr-2" />{pkg.vehicle.model} - {pkg.vehicle.plate}</div>
-              {pkg.activities && pkg.activities.length > 0 && (
+              <div className="flex items-center text-sm text-gray-700"><User size={14} className="mr-2" />{pkg.drivers?.name}</div>
+              <div className="flex items-center text-sm text-gray-700"><Truck size={14} className="mr-2" />{pkg.vehicles?.model} - {pkg.vehicles?.license_plate}</div>
+              {pkg.package_attractions && pkg.package_attractions.length > 0 && (
                 <div className="mt-3 pt-3 border-t">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Atividades</p>
                   <div className="space-y-1">
-                    {pkg.activities.map((act) => (
+                    {pkg.package_attractions.map((act) => (
                       <div key={act.id} className="flex items-start text-sm">
                         <MapPin size={14} className="mr-2 mt-0.5 text-blue-500" />
-                        <span>{act.attraction.name} <span className="text-gray-500">às {act.time}</span></span>
+                        <span>{act.attractions.name} <span className="text-gray-500">às {act.start_time}</span></span>
                       </div>
                     ))}
                   </div>
