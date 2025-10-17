@@ -117,11 +117,10 @@ const MobileSidebar = ({
       {/* Header Mobile */}
       <div
         className={cn(
-          'h-16 px-4 flex flex-row md:hidden items-center justify-between bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg'
+          'h-16 px-4 flex flex-row md:hidden items-center justify-start bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg'
         )}
         {...props}
       >
-        <h1 className="text-xl font-bold text-white">TourManager</h1>
         <button
           onClick={() => setOpen(!open)}
           className="text-white p-2 hover:bg-blue-800 rounded-md transition-colors"
@@ -159,11 +158,12 @@ const MobileSidebar = ({
                 className
               )}
             >
-              {/* Botão Fechar */}
-              <div className="flex items-center justify-end h-16 px-4">
+              {/* Cabeçalho do Painel Móvel */}
+              <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-blue-600 to-blue-700">
+                <h1 className="text-xl font-bold text-white">TourManager</h1>
                 <button
                   onClick={() => setOpen(false)}
-                  className="text-gray-500 p-2 hover:bg-gray-100 rounded-md transition-colors"
+                  className="text-white p-2 hover:bg-blue-800 rounded-md transition-colors"
                   aria-label="Close menu"
                 >
                   <X className="h-6 w-6" />
