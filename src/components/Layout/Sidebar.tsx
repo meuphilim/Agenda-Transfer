@@ -30,7 +30,6 @@ interface NavigationItem {
 const getNavigation = (isAdmin: boolean): NavigationItem[] => [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Agenda', href: '/agenda', icon: CalendarDays },
-  { name: 'Reservas', href: '/reservas', icon: ClipboardList },
   { name: 'Cadastros', href: '/cadastros', icon: Settings },
   ...(isAdmin ? [
     { name: 'Gerenciar Usuários', href: '/usuarios', icon: Users },
