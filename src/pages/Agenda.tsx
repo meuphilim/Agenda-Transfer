@@ -8,9 +8,10 @@ import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Database } from '../types/database.types';
 import { cn } from '../lib/utils';
-import { FloatingActionButton, MobileModal } from '../components/Common';
+import { FloatingActionButton, Modal } from '../components/Common';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
+import { PackageStatus } from '../types/enums';
 
 // Tipos
 type Agency = Database['public']['Tables']['agencies']['Row'];
@@ -23,7 +24,7 @@ type PackageWithRelations = Database['public']['Tables']['packages']['Row'] & {
   vehicles?: Pick<Vehicle, 'license_plate' | 'model'>;
   drivers?: Pick<Driver, 'name'>;
 };
-type PackageStatus = Database['public']['Tables']['packages']['Row']['status'];
+
 type ScheduleItem = PackageActivity & {
   packages: {
     id: string;
@@ -71,7 +72,7 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void}> = ({ 
       else setScheduleItems(data as ScheduleItem[]);
       setLoading(false);
     };
-    fetchScheduleData();
+    void fetchScheduleData();
   }, [currentWeek]);
 
   const getWeekDays = () => Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(currentWeek, { weekStartsOn: 1 }), i));
@@ -127,6 +128,23 @@ export const Agenda: React.FC = () => {
   const [packageAttractions, setPackageAttractions] = useState<Partial<PackageActivity>[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
+  const [activePackageMenu, setActivePackageMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (activePackageMenu) {
+        const menuElement = document.getElementById(`package-menu-${activePackageMenu}`);
+        if (menuElement && !menuElement.contains(event.target as Node)) {
+          setActivePackageMenu(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick);
+    };
+  }, [activePackageMenu]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -151,7 +169,7 @@ export const Agenda: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { void fetchData(); }, []);
 
   const filteredPackages = useMemo(() => packages
     .filter(pkg => statusFilter === 'all' || pkg.status === statusFilter)
@@ -201,7 +219,7 @@ export const Agenda: React.FC = () => {
         if (attractionsError) throw attractionsError;
       }
       handleModalClose();
-      await fetchData();
+      void fetchData();
     } catch (error: any) {
       toast.error('Erro ao salvar pacote: ' + error.message);
     }
@@ -212,14 +230,15 @@ export const Agenda: React.FC = () => {
     await supabase.from('package_attractions').delete().eq('package_id', id);
     await supabase.from('packages').delete().eq('id', id);
     toast.success('Excluído!');
-    await fetchData();
+    void fetchData();
   };
 
   const addAttraction = () => setPackageAttractions([...packageAttractions, { attraction_id: '', scheduled_date: formData.start_date, start_time: '', end_time: '', notes: '' }]);
   const removeAttraction = (index: number) => setPackageAttractions(packageAttractions.filter((_, i) => i !== index));
   const updateAttraction = (index: number, field: keyof Partial<PackageActivity>, value: string | boolean) => {
-    const updated = [...packageAttractions];
-    (updated[index] as Record<string, any>)[field] = value;
+    const updated = packageAttractions.map((item, i) =>
+      i === index ? { ...item, [field]: value } : item
+    );
     setPackageAttractions(updated);
   };
 
@@ -238,9 +257,44 @@ export const Agenda: React.FC = () => {
     setShowConfirmSendModal(false);
   };
 
-  const getStatusColor = (status: PackageStatus) => ({ 'pending': 'bg-yellow-100 text-yellow-800', 'confirmed': 'bg-green-100 text-green-800', 'in_progress': 'bg-blue-100 text-blue-800', 'completed': 'bg-gray-200 text-gray-800', 'cancelled': 'bg-red-100 text-red-800' }[status]);
-  const packageStatuses = { 'pending': 'Pendente', 'confirmed': 'Confirmado', 'in_progress': 'Em Andamento', 'completed': 'Concluído', 'cancelled': 'Cancelado' };
-  const getStatusText = (status: PackageStatus | 'all') => status === 'all' ? 'Todos' : packageStatuses[status];
+  const getStatusColor = (status: PackageStatus) => {
+    const colors = {
+      [PackageStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
+      [PackageStatus.CONFIRMED]: 'bg-green-100 text-green-800',
+      [PackageStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
+      [PackageStatus.COMPLETED]: 'bg-gray-200 text-gray-800',
+      [PackageStatus.CANCELLED]: 'bg-red-100 text-red-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusText = (status: PackageStatus | 'all') => {
+    if (status === 'all') return 'Todos';
+    const statusText = {
+      [PackageStatus.PENDING]: 'Pendente',
+      [PackageStatus.CONFIRMED]: 'Confirmado',
+      [PackageStatus.IN_PROGRESS]: 'Em Andamento',
+      [PackageStatus.COMPLETED]: 'Concluído',
+      [PackageStatus.CANCELLED]: 'Cancelado',
+    };
+    return statusText[status];
+  };
+
+  const handleUpdateStatus = async (packageId: string, newStatus: PackageStatus) => {
+    try {
+      const { error } = await supabase
+        .from('packages')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', packageId);
+
+      if (error) throw error;
+
+      toast.success('Status atualizado com sucesso!');
+      void fetchData();
+    } catch (error: any) {
+      toast.error('Erro ao atualizar status: ' + error.message);
+    }
+  };
 
   if (loading) return <div className="p-4 md:p-6">Carregando...</div>;
 
@@ -258,7 +312,7 @@ export const Agenda: React.FC = () => {
           </div>
           <div className="mt-4 md:hidden"><button onClick={() => setShowFilters(!showFilters)} className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">Filtros e Visualização <ChevronDown className={cn(showFilters && 'rotate-180')} /></button></div>
           <div className={cn("mt-4 space-y-3 md:block", showFilters ? "block" : "hidden")}>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">{(['all', ...Object.keys(packageStatuses)] as (PackageStatus | 'all')[]).map(status => <button key={status} onClick={() => setStatusFilter(status)} className={cn("flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium", statusFilter === status ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200")}>{getStatusText(status)}</button>)}</div>
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">{(['all', ...Object.values(PackageStatus)] as (PackageStatus | 'all')[]).map(status => <button key={status} onClick={() => setStatusFilter(status)} className={cn("flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium", statusFilter === status ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200")}>{getStatusText(status)}</button>)}</div>
             <div className="md:hidden flex items-center gap-2 border-t pt-4"><p className="text-sm font-medium">Ver como:</p><button onClick={() => setViewMode('list')} className={cn("px-3 py-1 rounded-md text-sm", viewMode === 'list' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100')}>Lista</button><button onClick={() => setViewMode('calendar')} className={cn("px-3 py-1 rounded-md text-sm", viewMode === 'calendar' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100')}>Calendário</button></div>
           </div>
         </div>
@@ -268,10 +322,40 @@ export const Agenda: React.FC = () => {
           {viewMode === 'list' ? (
             <div className="space-y-3">
               {filteredPackages.map(pkg => (
-                <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                  <div className="p-4"><div className="flex justify-between"><h3 className="font-semibold">{pkg.title}</h3><span className={cn("px-3 py-1 rounded-full text-xs", getStatusColor(pkg.status))}>{getStatusText(pkg.status)}</span></div><p className="text-sm text-gray-500">{pkg.agencies?.name}</p></div>
-                  <div className="p-4 space-y-3 border-t"><div className="flex items-center text-sm"><CalendarDays size={14} className="mr-2" /> {format(parseISO(pkg.start_date), 'dd/MM/yy')} a {format(parseISO(pkg.end_date), 'dd/MM/yy')}</div><div className="flex items-center text-sm"><User size={14} className="mr-2" /> {pkg.drivers?.name ?? 'N/D'}</div><div className="flex items-center text-sm"><Truck size={14} className="mr-2" /> {pkg.vehicles?.model ?? 'N/D'}</div></div>
-                  <div className="border-t px-2 py-2 flex gap-2"><button onClick={() => handleEdit(pkg)} className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md"><Eye size={14} /> Ver / Editar</button><button onClick={() => handleDelete(pkg.id)} className="p-2 bg-red-50 text-red-700 rounded-md"><Trash2 size={14} /></button></div>
+                <div key={pkg.id} className="bg-white rounded-lg shadow-sm border relative">
+                  <div className="overflow-hidden rounded-lg">
+                    <div className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-4">
+                          <h3 className="font-semibold truncate">{pkg.title}</h3>
+                          <p className="text-sm text-gray-500">{pkg.agencies?.name}</p>
+                        </div>
+                        <div id={`package-menu-${pkg.id}`} className="relative z-10">
+                          <button onClick={() => setActivePackageMenu(activePackageMenu === pkg.id ? null : pkg.id)} className={cn("px-3 py-1 rounded-full text-xs flex items-center gap-1", getStatusColor(pkg.status))}>
+                            {getStatusText(pkg.status)} <ChevronDown size={14} />
+                          </button>
+                          {activePackageMenu === pkg.id && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-20 border">
+                              {Object.values(PackageStatus).map(status => (
+                                <button
+                                  key={status}
+                                  onClick={() => {
+                                    void handleUpdateStatus(pkg.id, status);
+                                    setActivePackageMenu(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  {getStatusText(status)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-3 border-t"><div className="flex items-center text-sm"><CalendarDays size={14} className="mr-2" /> {format(parseISO(pkg.start_date), 'dd/MM/yy')} a {format(parseISO(pkg.end_date), 'dd/MM/yy')}</div><div className="flex items-center text-sm"><User size={14} className="mr-2" /> {pkg.drivers?.name ?? 'N/D'}</div><div className="flex items-center text-sm"><Truck size={14} className="mr-2" /> {pkg.vehicles?.model ?? 'N/D'}</div></div>
+                    <div className="border-t px-2 py-2 flex gap-2"><button onClick={() => handleEdit(pkg)} className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md"><Eye size={14} /> Ver / Editar</button><button onClick={() => handleDelete(pkg.id)} className="p-2 bg-red-50 text-red-700 rounded-md"><Trash2 size={14} /></button></div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -284,7 +368,7 @@ export const Agenda: React.FC = () => {
 
       <FloatingActionButton icon={Plus} onClick={() => { resetForm(); setShowModal(true); }} />
 
-      <MobileModal isOpen={showModal} onClose={handleModalClose} title={editingPackage ? 'Editar Reserva' : 'Nova Reserva'}>
+      <Modal isOpen={showModal} onClose={handleModalClose} title={editingPackage ? 'Editar Reserva' : 'Nova Reserva'}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><label htmlFor="title">Título</label><input id="title" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded" /></div>
@@ -311,13 +395,13 @@ export const Agenda: React.FC = () => {
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t"><button type="button" onClick={handleModalClose} className="px-4 py-2 border rounded">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Salvar</button></div>
         </form>
-      </MobileModal>
+      </Modal>
 
       {showConfirmSendModal && selectedScheduleItem && (
-        <MobileModal isOpen={showConfirmSendModal} onClose={() => setShowConfirmSendModal(false)} title="Confirmar Envio">
+        <Modal isOpen={showConfirmSendModal} onClose={() => setShowConfirmSendModal(false)} title="Confirmar Envio">
             <p>Enviar programação para o WhatsApp de <strong>{selectedScheduleItem.packages.drivers.name}</strong>?</p>
             <div className="flex justify-end gap-3 pt-4 border-t"><button type="button" onClick={() => setShowConfirmSendModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button onClick={handleConfirmSend} className="px-4 py-2 bg-blue-600 text-white rounded">Enviar</button></div>
-        </MobileModal>
+        </Modal>
       )}
     </>
   );
