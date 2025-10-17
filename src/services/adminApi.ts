@@ -43,7 +43,7 @@ export const adminApi = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        return { error: errorData.error || 'Falha ao buscar usuários' };
+        return { error: errorData.error ?? 'Falha ao buscar usuários' };
       }
 
       const data = await response.json();
@@ -66,7 +66,7 @@ export const adminApi = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        return { error: errorData.error || 'Falha ao atualizar usuário' };
+        return { error: errorData.error ?? 'Falha ao atualizar usuário' };
       }
 
       const data = await response.json();
@@ -89,7 +89,7 @@ export const adminApi = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        return { error: errorData.error || 'Falha ao excluir usuário' };
+        return { error: errorData.error ?? 'Falha ao excluir usuário' };
       }
 
       const data = await response.json();

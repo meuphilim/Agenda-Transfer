@@ -1,5 +1,7 @@
-import React from 'react';
-import { Filter, Search, Calendar, BadgeCheck, BadgeAlert, BadgeX, RotateCcw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Filter, Search, Calendar, ChevronDown, Download } from 'lucide-react';
+import { BottomSheet } from '../Common/BottomSheet';
+import { cn } from '../../lib/utils';
 
 export interface FinanceFiltersState {
   startDate: string;
@@ -14,108 +16,90 @@ interface FinanceFiltersProps {
   onExport: () => void;
 }
 
-const statusOptions = [
-  { value: 'all', label: 'Todos Status', icon: <Filter className="w-4 h-4" /> },
-  { value: 'pago', label: 'Pago', icon: <BadgeCheck className="w-4 h-4 text-green-600" /> },
-  { value: 'pendente', label: 'Pendente', icon: <BadgeAlert className="w-4 h-4 text-yellow-600" /> },
-  { value: 'cancelado', label: 'Cancelado', icon: <BadgeX className="w-4 h-4 text-red-600" /> },
-];
-
 export const FinanceFilters: React.FC<FinanceFiltersProps> = ({ filters, onFilterChange, onExport }) => {
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    onFilterChange({ ...filters, [name]: value });
+    onFilterChange({ ...filters, [name]: e.target.value });
   };
 
-  const handleResetFilters = () => {
-    onFilterChange({
-      startDate: '',
-      endDate: '',
-      status: 'all',
-      searchTerm: '',
-    });
-  };
+  const FiltersContent = () => (
+    <div className="p-4 space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+          <input type="date" id="startDate" name="startDate" value={filters.startDate} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
+        </div>
+        <div>
+          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+          <input type="date" id="endDate" name="endDate" value={filters.endDate} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <select id="status" name="status" value={filters.status} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+          <option value="all">Todos</option>
+          <option value="pago">Pago</option>
+          <option value="pendente">Pendente</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor="searchTerm" className="block text-sm font-medium text-gray-700 mb-1">Buscar Agência</label>
+        <input type="text" id="searchTerm" name="searchTerm" placeholder="Nome da agência..." value={filters.searchTerm} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
+      </div>
+       <div className="pt-4 border-t">
+         <button onClick={() => { onFilterChange({ startDate: '', endDate: '', status: 'all', searchTerm: '' }); setIsMobileFiltersOpen(false); }} className="w-full text-center p-2 border rounded-lg">Limpar Filtros</button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Date Start */}
-        <div className="relative">
-          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-          <Calendar className="absolute left-3 top-9 h-5 w-5 text-gray-400" />
-          <input
-            type="date"
-            id="startDate"
-            name="startDate"
-            value={filters.startDate}
-            onChange={handleInputChange}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        {/* Date End */}
-        <div className="relative">
-          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-          <Calendar className="absolute left-3 top-9 h-5 w-5 text-gray-400" />
-          <input
-            type="date"
-            id="endDate"
-            name="endDate"
-            value={filters.endDate}
-            onChange={handleInputChange}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        {/* Status */}
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status Pagamento</label>
-          <select
-            id="status"
-            name="status"
-            value={filters.status}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          >
-            {statusOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Search Term */}
-        <div className="relative lg:col-span-2">
-          <label htmlFor="searchTerm" className="block text-sm font-medium text-gray-700 mb-1">Buscar Agência</label>
-          <Search className="absolute left-3 top-9 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            id="searchTerm"
-            name="searchTerm"
-            placeholder="Nome da agência..."
-            value={filters.searchTerm}
-            onChange={handleInputChange}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-      </div>
-      <div className="mt-4 flex justify-end space-x-3">
-        <button
-          onClick={handleResetFilters}
-          className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Limpar Filtros
-        </button>
-        <button
-          onClick={onExport}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          Exportar PDF
+    <div className="mb-6">
+      {/* Mobile */}
+      <div className="md:hidden space-y-2">
+        <button onClick={() => setIsMobileFiltersOpen(true)} className="w-full flex justify-between items-center p-3 bg-white border rounded-lg shadow-sm">
+          <span className="flex items-center gap-2 text-gray-700"><Filter size={16}/> Filtros</span>
+          <ChevronDown size={20} />
         </button>
       </div>
+
+      {/* Desktop */}
+      <div className="hidden md:block bg-white p-4 rounded-lg shadow-sm border">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor="startDate-desktop" className="text-sm font-medium">Data Início</label>
+              <input type="date" id="startDate-desktop" name="startDate" value={filters.startDate} onChange={handleInputChange} className="w-full mt-1 p-2 border rounded-lg"/>
+            </div>
+            <div>
+              <label htmlFor="endDate-desktop" className="text-sm font-medium">Data Fim</label>
+              <input type="date" id="endDate-desktop" name="endDate" value={filters.endDate} onChange={handleInputChange} className="w-full mt-1 p-2 border rounded-lg"/>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="status-desktop" className="text-sm font-medium">Status</label>
+            <select id="status-desktop" name="status" value={filters.status} onChange={handleInputChange} className="w-full mt-1 p-2 border rounded-lg">
+              <option value="all">Todos</option>
+              <option value="pago">Pago</option>
+              <option value="pendente">Pendente</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="searchTerm-desktop" className="text-sm font-medium">Buscar</label>
+            <input type="text" id="searchTerm-desktop" name="searchTerm" placeholder="Nome da agência..." value={filters.searchTerm} onChange={handleInputChange} className="w-full mt-1 p-2 border rounded-lg"/>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => onFilterChange({ startDate: '', endDate: '', status: 'all', searchTerm: '' })} className="w-full p-2 border rounded-lg">Limpar</button>
+            <button onClick={onExport} className="w-full p-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2"><Download size={16}/> Exportar</button>
+          </div>
+        </div>
+      </div>
+
+      <BottomSheet isOpen={isMobileFiltersOpen} onClose={() => setIsMobileFiltersOpen(false)} title="Filtros">
+        <FiltersContent />
+      </BottomSheet>
     </div>
   );
 };

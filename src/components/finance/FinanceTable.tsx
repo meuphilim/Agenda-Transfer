@@ -1,5 +1,7 @@
-import { BadgeCheck, BadgeX, BadgeAlert, Package as PackageIcon, Wallet, Calendar, Pencil, Building, UserCheck as DriverIcon } from 'lucide-react';
+import { BadgeCheck, BadgeX, BadgeAlert, Package as PackageIcon, Pencil, MoreVertical } from 'lucide-react';
 import { PackageWithRelations } from '../../services/financeApi';
+import { cn } from '../../lib/utils';
+import { useState } from 'react';
 
 interface FinanceTableProps {
   packages: PackageWithRelations[];
@@ -9,149 +11,109 @@ interface FinanceTableProps {
 
 const getStatusStyle = (status: 'pago' | 'pendente' | 'cancelado') => {
   switch (status) {
-    case 'pago':
-      return {
-        bgColor: 'bg-green-100',
-        textColor: 'text-green-800',
-        icon: <BadgeCheck className="w-4 h-4" />,
-        text: 'Pago',
-      };
-    case 'pendente':
-      return {
-        bgColor: 'bg-yellow-100',
-        textColor: 'text-yellow-800',
-        icon: <BadgeAlert className="w-4 h-4" />,
-        text: 'Pendente',
-      };
-    case 'cancelado':
-      return {
-        bgColor: 'bg-red-100',
-        textColor: 'text-red-800',
-        icon: <BadgeX className="w-4 h-4" />,
-        text: 'Cancelado',
-      };
-    default:
-      return {
-        bgColor: 'bg-gray-100',
-        textColor: 'text-gray-800',
-        icon: null,
-        text: 'N/A',
-      };
+    case 'pago': return { text: 'Pago', color: 'bg-green-100 text-green-800', icon: <BadgeCheck /> };
+    case 'pendente': return { text: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: <BadgeAlert /> };
+    case 'cancelado': return { text: 'Cancelado', color: 'bg-red-100 text-red-800', icon: <BadgeX /> };
+    default: return { text: 'N/A', color: 'bg-gray-100 text-gray-800', icon: null };
   }
 };
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-};
+const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+const formatDate = (date: string) => new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
 export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, onEdit }) => {
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
   if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-500">Carregando pacotes...</p>
-      </div>
-    );
+    return <div className="text-center p-12">Carregando...</div>;
   }
 
   if (packages.length === 0) {
     return (
-      <div className="text-center py-12 bg-gray-50 rounded-lg">
+      <div className="text-center p-12 bg-gray-50 rounded-lg">
         <PackageIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum pacote encontrado</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Ajuste os filtros ou verifique se há pacotes cadastrados no período.
-        </p>
+        <h3 className="mt-2 font-medium">Nenhum pacote encontrado</h3>
+        <p className="mt-1 text-sm text-gray-500">Ajuste os filtros ou cadastre novos pacotes.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto shadow-md rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200 bg-white">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                <Building className="w-4 h-4 mr-2" /> Agência
-              </div>
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-               <div className="flex items-center">
-                <PackageIcon className="w-4 h-4 mr-2" /> Pacote
-              </div>
-            </th>
-             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-               <div className="flex items-center">
-                <DriverIcon className="w-4 h-4 mr-2" /> Motorista
-              </div>
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                <Wallet className="w-4 h-4 mr-2" /> Valor
-              </div>
-            </th>
-            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status Pag.
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                <Calendar className="w-4 h-4 mr-2" /> Data Início
-              </div>
-            </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Ações
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {packages.map((pkg) => {
-            const statusStyle = getStatusStyle(pkg.status_pagamento);
-            return (
-              <tr key={pkg.id} className="hover:bg-gray-50 transition-colors duration-200">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{pkg.agencies?.name ?? 'N/A'}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{pkg.title}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{pkg.drivers?.name ?? 'N/A'}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-semibold">{formatCurrency(pkg.valor_total)}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${statusStyle.bgColor} ${statusStyle.textColor}`}>
-                    {statusStyle.icon}
-                    {statusStyle.text}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">{formatDate(pkg.start_date)}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button onClick={() => onEdit(pkg)} className="text-blue-600 hover:text-blue-900 transition-colors duration-200" title="Editar Pacote">
-                        <Pencil className="h-5 w-5" />
+    <div>
+      {/* Desktop */}
+      <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden border">
+        <table className="min-w-full divide-y">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agência</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pacote</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {packages.map((pkg) => {
+              const status = getStatusStyle(pkg.status_pagamento);
+              return (
+                <tr key={pkg.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">{pkg.agencies?.name ?? 'N/A'}</td>
+                  <td className="px-6 py-4">{pkg.title}</td>
+                  <td className="px-6 py-4 font-semibold">{formatCurrency(pkg.valor_total)}</td>
+                  <td className="px-6 py-4">
+                    <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
+                      {status.icon} {status.text}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => onEdit(pkg)} className="text-blue-600"><Pencil size={16} /></button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile */}
+      <div className="md:hidden space-y-3">
+        {packages.map((pkg) => {
+          const status = getStatusStyle(pkg.status_pagamento);
+          return (
+            <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+              <div className="p-4 border-b">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{pkg.agencies?.name ?? 'N/A'}</h3>
+                    <p className="text-sm text-gray-600">{pkg.title}</p>
+                  </div>
+                  <div className="relative">
+                    <button onClick={() => setActiveMenu(pkg.id === activeMenu ? null : pkg.id)} className="p-2">
+                      <MoreVertical size={20} />
                     </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                    {activeMenu === pkg.id && (
+                      <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-10 border">
+                        <button onClick={() => onEdit(pkg)} className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-100">
+                           <Pencil size={14}/> Editar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="text-lg font-bold text-blue-600">{formatCurrency(pkg.valor_total)}</p>
+                  <p className="text-sm text-gray-500">Data: {formatDate(pkg.start_date)}</p>
+                </div>
+                <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
+                  {status.icon} {status.text}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

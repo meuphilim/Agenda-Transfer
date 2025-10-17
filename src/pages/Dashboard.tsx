@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabase';
 import { 
   CalendarDays,
   Truck,
-  User,
   ClipboardList,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Package,
+  Users,
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface DashboardStats {
   totalPackages: number;
@@ -15,6 +17,17 @@ interface DashboardStats {
   availableVehicles: number;
   busyDrivers: number;
   upcomingToday: number;
+}
+
+// Definindo um tipo mais específico para os pacotes recentes
+interface RecentPackage {
+  id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  agencies: { name: string } | null;
+  vehicles: { license_plate: string; model: string } | null;
+  drivers: { name: string } | null;
 }
 
 export const Dashboard: React.FC = () => {
@@ -25,7 +38,7 @@ export const Dashboard: React.FC = () => {
     busyDrivers: 0,
     upcomingToday: 0,
   });
-  const [recentPackages, setRecentPackages] = useState<any[]>([]);
+  const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,17 +51,20 @@ export const Dashboard: React.FC = () => {
       const today = new Date().toISOString().split('T')[0];
 
       const [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult] = await Promise.all([
-        supabase.from('packages').select('*'),
-        supabase.from('vehicles').select('status').eq('active', true),
-        supabase.from('drivers').select('status').eq('active', true),
+        supabase.from('packages').select('id, status'),
+        supabase.from('vehicles').select('status').eq('status', 'available'),
+        supabase.from('drivers').select('status').eq('status', 'busy'),
         supabase
           .from('package_attractions')
-          .select('*, packages(*), attractions(*)')
+          .select('id')
           .eq('scheduled_date', today),
         supabase
           .from('packages')
           .select(`
-            *,
+            id,
+            title,
+            status,
+            created_at,
             agencies(name),
             vehicles(license_plate, model),
             drivers(name)
@@ -58,26 +74,29 @@ export const Dashboard: React.FC = () => {
       ]);
 
       const packages = packagesResult.data ?? [];
-      const vehicles = vehiclesResult.data ?? [];
-      const drivers = driversResult.data ?? [];
-      const upcoming = upcomingResult.data ?? [];
-      const recent = recentResult.data ?? [];
 
       setStats({
         totalPackages: packages.length,
         activePackages: packages.filter(p => ['confirmed', 'in_progress'].includes(p.status)).length,
-        availableVehicles: vehicles.filter(v => v.status === 'available').length,
-        busyDrivers: drivers.filter(d => d.status === 'busy').length,
-        upcomingToday: upcoming.length,
+        availableVehicles: vehiclesResult.data?.length ?? 0,
+        busyDrivers: driversResult.data?.length ?? 0,
+        upcomingToday: upcomingResult.data?.length ?? 0,
       });
 
-      setRecentPackages(recent);
+      setRecentPackages(recentResult.data as RecentPackage[] ?? []);
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const statsCards = [
+    { label: 'Total de Pacotes', value: stats.totalPackages, icon: Package },
+    { label: 'Pacotes Ativos', value: stats.activePackages, icon: CheckCircle },
+    { label: 'Veículos Disponíveis', value: stats.availableVehicles, icon: Truck },
+    { label: 'Motoristas Ocupados', value: stats.busyDrivers, icon: Users },
+  ];
 
   const getStatusColor = (status: string) => {
     const colors = {
@@ -87,7 +106,7 @@ export const Dashboard: React.FC = () => {
       completed: 'bg-gray-100 text-gray-800',
       cancelled: 'bg-red-100 text-red-800',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[status as keyof typeof colors] || 'bg-gray-100';
   };
 
   const getStatusText = (status: string) => {
@@ -102,198 +121,138 @@ export const Dashboard: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Visão geral do sistema de gestão de turismo
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6 bg-gray-50 min-h-screen">
+
+      <div className="space-y-1">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          Dashboard
+        </h1>
+        <p className="text-sm md:text-base text-gray-500">
+          Visão geral do sistema
         </p>
       </div>
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white overflow-hidden shadow-lg rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ClipboardList className="h-8 w-8 text-blue-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statsCards.map((stat) => (
+          <div
+            key={stat.label}
+            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide">
+                  {stat.label}
+                </p>
+                <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+                  {stat.value}
+                </p>
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total de Pacotes
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.totalPackages}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow-lg rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Pacotes Ativos
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.activePackages}
-                  </dd>
-                </dl>
+              <div className="flex-shrink-0 ml-4">
+                <stat.icon className="h-8 w-8 md:h-10 md:w-10 text-blue-600" />
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow-lg rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Truck className="h-8 w-8 text-blue-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Veículos Disponíveis
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.availableVehicles}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow-lg rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <User className="h-8 w-8 text-orange-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Motoristas Ocupados
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.busyDrivers}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pacotes Recentes */}
-        <div className="bg-white shadow-lg rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <h3 className="text-base md:text-lg font-semibold">
               Pacotes Recentes
             </h3>
-            <div className="flow-root">
-              <ul className="-mb-8">
-                {recentPackages.slice(0, 5).map((pkg, index) => (
-                  <li key={pkg.id}>
-                    <div className="relative pb-8">
-                      {index !== recentPackages.length - 1 && (
-                        <span
-                          className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <div className="relative flex space-x-3">
-                        <div>
-                          <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
-                            <ClipboardList className="w-5 h-5 text-white" />
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {pkg.title}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {pkg.agencies?.name} • {pkg.vehicles?.license_plate} • {pkg.drivers?.name}
-                            </p>
-                          </div>
-                          <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(pkg.status)}`}>
-                              {getStatusText(pkg.status)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
-        </div>
 
-        {/* Alertas e Notificações */}
-        <div className="bg-white shadow-lg rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Alertas do Sistema
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <CalendarDays className="h-5 w-5 text-blue-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-gray-700">
-                    {stats.upcomingToday} atividades programadas para hoje
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <Truck className="h-5 w-5 text-green-500" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-gray-700">
-                    {stats.availableVehicles} veículos disponíveis para reserva
-                  </p>
-                </div>
-              </div>
-              
-              {stats.busyDrivers > 0 && (
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
+          <div className="divide-y divide-gray-100">
+            {recentPackages.length > 0 ? recentPackages.map((pkg) => (
+              <div key={pkg.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 pt-1">
+                    <div className={cn("h-8 w-8 rounded-full flex items-center justify-center", getStatusColor(pkg.status))}>
+                      <ClipboardList className="h-4 w-4" />
+                    </div>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-gray-700">
-                      {stats.busyDrivers} motoristas estão ocupados
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {pkg.title}
+                      </p>
+                      <span className={cn("px-2 py-1 rounded-full text-xs font-medium", getStatusColor(pkg.status))}>
+                        {getStatusText(pkg.status)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {pkg.agencies?.name} • {pkg.drivers?.name ?? 'Sem motorista'}
                     </p>
                   </div>
                 </div>
-              )}
+              </div>
+            )) : (
+              <p className="text-center text-gray-500 p-8">Nenhum pacote recente.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <h3 className="text-base md:text-lg font-semibold">
+              Alertas e Notificações
+            </h3>
+          </div>
+          <div className="p-4 md:p-6 space-y-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 pt-0.5">
+                <CalendarDays className="h-5 w-5 text-blue-500" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-800">
+                  {stats.upcomingToday} atividades
+                </p>
+                <p className="text-xs text-gray-500">
+                  Programadas para hoje
+                </p>
+              </div>
             </div>
+            {stats.busyDrivers > 0 && (
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-800">
+                    {stats.busyDrivers} motoristas
+                  </p>
+                   <p className="text-xs text-gray-500">
+                    Atualmente em atividade
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+const DashboardSkeleton: React.FC = () => (
+  <div className="p-4 md:p-6 space-y-4 md:space-y-6 animate-pulse">
+    <div className="space-y-2">
+      <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
+      ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="lg:col-span-2 h-64 bg-gray-200 rounded-lg"></div>
+      <div className="h-64 bg-gray-200 rounded-lg"></div>
+    </div>
+  </div>
+);
