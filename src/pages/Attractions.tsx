@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2, MoreVertical, Search } from 'lucide-react';
-import { MobileModal } from '../components/Common';
+import { Modal } from '../components/Common';
 import { cn } from '../lib/utils';
 import { Database } from '../types/database.types';
 
@@ -190,7 +190,7 @@ export const Attractions: React.FC = () => {
         ))}
       </div>
 
-      <MobileModal isOpen={showModal} onClose={handleModalClose} title={editingAttraction ? 'Editar Atrativo' : 'Novo Atrativo'}>
+      <Modal isOpen={showModal} onClose={handleModalClose} title={editingAttraction ? 'Editar Atrativo' : 'Novo Atrativo'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
@@ -223,7 +223,7 @@ export const Attractions: React.FC = () => {
             <button type="submit" className="w-full md:w-auto px-6 py-3 md:py-2 bg-blue-600 text-white rounded-lg">Salvar</button>
           </div>
         </form>
-      </MobileModal>
+      </Modal>
     </div>
   );
 };

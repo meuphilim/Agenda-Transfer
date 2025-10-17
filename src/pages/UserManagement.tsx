@@ -6,7 +6,7 @@ import { adminApi } from '../services/adminApi';
 import { 
   Users, CheckCircle, XCircle, Clock, Pencil, MoreVertical, Search, UserCog, UserCheck, UserX
 } from 'lucide-react';
-import { MobileModal } from '../components/Common';
+import { Modal } from '../components/Common';
 import { cn } from '../lib/utils';
 
 interface UserProfile {
@@ -227,7 +227,7 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, user, onClose, on
   if (!user) return null;
 
   return (
-    <MobileModal isOpen={isOpen} onClose={onClose} title="Editar Usuário">
+    <Modal isOpen={isOpen} onClose={onClose} title="Editar Usuário">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Nome</label>
@@ -258,6 +258,6 @@ const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, user, onClose, on
           <button type="submit" className="w-full md:w-auto px-6 py-3 md:py-2 bg-blue-600 text-white rounded-lg">Salvar Alterações</button>
         </div>
       </form>
-    </MobileModal>
+    </Modal>
   );
 }
