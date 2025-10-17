@@ -217,9 +217,9 @@ export const Agenda: React.FC = () => {
 
   const addAttraction = () => setPackageAttractions([...packageAttractions, { attraction_id: '', scheduled_date: formData.start_date, start_time: '', end_time: '', notes: '' }]);
   const removeAttraction = (index: number) => setPackageAttractions(packageAttractions.filter((_, i) => i !== index));
-  const updateAttraction = (index: number, field: keyof PackageActivity, value: any) => {
+  const updateAttraction = (index: number, field: keyof Partial<PackageActivity>, value: string | boolean) => {
     const updated = [...packageAttractions];
-    (updated[index] as any)[field] = value;
+    (updated[index] as Record<string, any>)[field] = value;
     setPackageAttractions(updated);
   };
 
@@ -228,17 +228,19 @@ export const Agenda: React.FC = () => {
     setShowConfirmSendModal(true);
   };
 
-  const handleConfirmSend = () => {
+  const handleConfirmSend = async () => {
     if (!selectedScheduleItem) return;
     const driverPhone = selectedScheduleItem.packages.drivers.phone;
     if (!driverPhone) { toast.error('Motorista sem telefone!'); return; }
-    const message = formatScheduleMessage({ driverName: selectedScheduleItem.packages.drivers.name, date: selectedScheduleItem.scheduled_date, activities: [{ clientName: selectedScheduleItem.packages.client_name, startTime: selectedScheduleItem.start_time ?? '', attractionName: selectedScheduleItem.attractions.name }] });
+    const { data: dayActivities } = await supabase.from('package_attractions').select('*, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', selectedScheduleItem.scheduled_date).eq('packages.driver_id', selectedScheduleItem.packages.drivers.id);
+    const message = formatScheduleMessage({ driverName: selectedScheduleItem.packages.drivers.name, date: selectedScheduleItem.scheduled_date, activities: (dayActivities ?? []).map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
     sendWhatsAppMessage(driverPhone, message);
     setShowConfirmSendModal(false);
   };
 
   const getStatusColor = (status: PackageStatus) => ({ 'pending': 'bg-yellow-100 text-yellow-800', 'confirmed': 'bg-green-100 text-green-800', 'in_progress': 'bg-blue-100 text-blue-800', 'completed': 'bg-gray-200 text-gray-800', 'cancelled': 'bg-red-100 text-red-800' }[status]);
-  const getStatusText = (status: PackageStatus) => ({ 'pending': 'Pendente', 'confirmed': 'Confirmado', 'in_progress': 'Em Andamento', 'completed': 'Concluído', 'cancelled': 'Cancelado' }[status]);
+  const packageStatuses = { 'pending': 'Pendente', 'confirmed': 'Confirmado', 'in_progress': 'Em Andamento', 'completed': 'Concluído', 'cancelled': 'Cancelado' };
+  const getStatusText = (status: PackageStatus | 'all') => status === 'all' ? 'Todos' : packageStatuses[status];
 
   if (loading) return <div className="p-4 md:p-6">Carregando...</div>;
 
@@ -256,8 +258,8 @@ export const Agenda: React.FC = () => {
           </div>
           <div className="mt-4 md:hidden"><button onClick={() => setShowFilters(!showFilters)} className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">Filtros e Visualização <ChevronDown className={cn(showFilters && 'rotate-180')} /></button></div>
           <div className={cn("mt-4 space-y-3 md:block", showFilters ? "block" : "hidden")}>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">{['all', ...Object.keys(getStatusText({} as any))].map(status => <button key={status} onClick={() => setStatusFilter(status as any)} className={cn("flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium", statusFilter === status ? "bg-blue-600 text-white" : "bg-gray-100")}>{getStatusText(status as any) || 'Todos'}</button>)}</div>
-            <div className="md:hidden flex items-center gap-2 border-t pt-4"><p>Ver como:</p><button onClick={() => setViewMode('list')} className={cn(viewMode === 'list' && 'bg-blue-100')}>Lista</button><button onClick={() => setViewMode('calendar')} className={cn(viewMode === 'calendar' && 'bg-blue-100')}>Calendário</button></div>
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">{(['all', ...Object.keys(packageStatuses)] as (PackageStatus | 'all')[]).map(status => <button key={status} onClick={() => setStatusFilter(status)} className={cn("flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium", statusFilter === status ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200")}>{getStatusText(status)}</button>)}</div>
+            <div className="md:hidden flex items-center gap-2 border-t pt-4"><p className="text-sm font-medium">Ver como:</p><button onClick={() => setViewMode('list')} className={cn("px-3 py-1 rounded-md text-sm", viewMode === 'list' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100')}>Lista</button><button onClick={() => setViewMode('calendar')} className={cn("px-3 py-1 rounded-md text-sm", viewMode === 'calendar' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100')}>Calendário</button></div>
           </div>
         </div>
 
@@ -269,7 +271,7 @@ export const Agenda: React.FC = () => {
                 <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
                   <div className="p-4"><div className="flex justify-between"><h3 className="font-semibold">{pkg.title}</h3><span className={cn("px-3 py-1 rounded-full text-xs", getStatusColor(pkg.status))}>{getStatusText(pkg.status)}</span></div><p className="text-sm text-gray-500">{pkg.agencies?.name}</p></div>
                   <div className="p-4 space-y-3 border-t"><div className="flex items-center text-sm"><CalendarDays size={14} className="mr-2" /> {format(parseISO(pkg.start_date), 'dd/MM/yy')} a {format(parseISO(pkg.end_date), 'dd/MM/yy')}</div><div className="flex items-center text-sm"><User size={14} className="mr-2" /> {pkg.drivers?.name ?? 'N/D'}</div><div className="flex items-center text-sm"><Truck size={14} className="mr-2" /> {pkg.vehicles?.model ?? 'N/D'}</div></div>
-                  <div className="border-t px-2 py-2 flex gap-2"><button onClick={() => handleEdit(pkg)} className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-md"><Pencil size={14} /> Editar</button><button onClick={() => handleDelete(pkg.id)} className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-md"><Trash2 size={14} /> Excluir</button></div>
+                  <div className="border-t px-2 py-2 flex gap-2"><button onClick={() => handleEdit(pkg)} className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md"><Eye size={14} /> Ver / Editar</button><button onClick={() => handleDelete(pkg.id)} className="p-2 bg-red-50 text-red-700 rounded-md"><Trash2 size={14} /></button></div>
                 </div>
               ))}
             </div>
@@ -285,25 +287,24 @@ export const Agenda: React.FC = () => {
       <MobileModal isOpen={showModal} onClose={handleModalClose} title={editingPackage ? 'Editar Reserva' : 'Nova Reserva'}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2"><label>Título</label><input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded" /></div>
-            <div className="md:col-span-2"><label>Cliente</label><input required value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} className="w-full p-2 border rounded" /></div>
-            <div><label>Agência</label><select required value={formData.agency_id} onChange={e => setFormData({...formData, agency_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-            <div><label>Participantes</label><input type="number" required value={formData.total_participants} onChange={e => setFormData({...formData, total_participants: +e.target.value})} className="w-full p-2 border rounded" /></div>
-            <div><label>Data Início</label><input type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-2 border rounded" /></div>
-            <div><label>Data Fim</label><input type="date" required value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-2 border rounded" /></div>
-            <div><label>Veículo</label><select required value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.model} ({v.license_plate})</option>)}</select></div>
-            <div><label>Motorista</label><select required value={formData.driver_id} onChange={e => setFormData({...formData, driver_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+            <div className="md:col-span-2"><label htmlFor="title">Título</label><input id="title" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded" /></div>
+            <div className="md:col-span-2"><label htmlFor="client_name">Cliente</label><input id="client_name" required value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} className="w-full p-2 border rounded" /></div>
+            <div><label htmlFor="agency_id">Agência</label><select id="agency_id" required value={formData.agency_id} onChange={e => setFormData({...formData, agency_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+            <div><label htmlFor="total_participants">Participantes</label><input id="total_participants" type="number" required value={formData.total_participants} onChange={e => setFormData({...formData, total_participants: +e.target.value})} className="w-full p-2 border rounded" /></div>
+            <div><label htmlFor="start_date">Data Início</label><input id="start_date" type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-2 border rounded" /></div>
+            <div><label htmlFor="end_date">Data Fim</label><input id="end_date" type="date" required value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-2 border rounded" /></div>
+            <div><label htmlFor="vehicle_id">Veículo</label><select id="vehicle_id" required value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.model} ({v.license_plate})</option>)}</select></div>
+            <div><label htmlFor="driver_id">Motorista</label><select id="driver_id" required value={formData.driver_id} onChange={e => setFormData({...formData, driver_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
           </div>
-          <div><label>Observações</label><textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full p-2 border rounded" /></div>
+          <div><label htmlFor="notes">Observações</label><textarea id="notes" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full p-2 border rounded" /></div>
           <div>
             <h4 className="font-bold mt-4 mb-2">Atividades do Pacote</h4>
             {packageAttractions.map((activity, index) => (
               <div key={index} className="border p-3 mb-2 rounded grid grid-cols-2 gap-2 relative">
-                 <button type="button" onClick={() => removeAttraction(index)} className="absolute top-1 right-1 text-red-500"><X size={16} /></button>
-                 <div><label>Atrativo</label><select required value={activity.attraction_id} onChange={e => updateAttraction(index, 'attraction_id', e.target.value)} className="w-full p-2 border rounded"><option value="">Selecione</option>{attractions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-                 <div><label>Data</label><input type="date" required value={activity.scheduled_date} onChange={e => updateAttraction(index, 'scheduled_date', e.target.value)} className="w-full p-2 border rounded" /></div>
-                 <div><label>Início</label><input type="time" value={activity.start_time ?? ''} onChange={e => updateAttraction(index, 'start_time', e.target.value)} className="w-full p-2 border rounded" /></div>
-                 <div><label>Fim</label><input type="time" value={activity.end_time ?? ''} onChange={e => updateAttraction(index, 'end_time', e.target.value)} className="w-full p-2 border rounded" /></div>
+                 <button type="button" onClick={() => removeAttraction(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700"><X size={16} /></button>
+                 <div className="col-span-2"><label htmlFor={`attr-${index}`}>Atrativo</label><select id={`attr-${index}`} required value={activity.attraction_id ?? ''} onChange={e => updateAttraction(index, 'attraction_id', e.target.value)} className="w-full p-2 border rounded"><option value="">Selecione</option>{attractions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+                 <div><label htmlFor={`date-${index}`}>Data</label><input id={`date-${index}`} type="date" required value={activity.scheduled_date} onChange={e => updateAttraction(index, 'scheduled_date', e.target.value)} className="w-full p-2 border rounded" /></div>
+                 <div><label htmlFor={`start-${index}`}>Início</label><input id={`start-${index}`} type="time" value={activity.start_time ?? ''} onChange={e => updateAttraction(index, 'start_time', e.target.value)} className="w-full p-2 border rounded" /></div>
               </div>
             ))}
             <button type="button" onClick={addAttraction} className="text-sm text-blue-600">+ Adicionar Atividade</button>
