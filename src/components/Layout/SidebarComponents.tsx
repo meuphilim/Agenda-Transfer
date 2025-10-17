@@ -88,11 +88,11 @@ const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        'h-screen px-4 py-4 hidden md:flex md:flex-col bg-white shadow-lg border-r border-gray-200 flex-shrink-0',
+        'h-screen p-4 hidden md:flex md:flex-col bg-white shadow-lg border-r border-gray-200 flex-shrink-0',
         className
       )}
       animate={{
-        width: animate ? (open ? '256px' : '80px') : '256px', // 256px = w-64
+        width: animate ? (open ? '256px' : '80px') : '256px',
       }}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -160,11 +160,10 @@ const MobileSidebar = ({
               )}
             >
               {/* Botão Fechar */}
-              <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-blue-600 to-blue-700">
-                <h1 className="text-xl font-bold text-white">TourManager</h1>
+              <div className="flex items-center justify-end h-16 px-4">
                 <button
                   onClick={() => setOpen(false)}
-                  className="text-white p-2 hover:bg-blue-800 rounded-md transition-colors"
+                  className="text-gray-500 p-2 hover:bg-gray-100 rounded-md transition-colors"
                   aria-label="Close menu"
                 >
                   <X className="h-6 w-6" />
@@ -172,7 +171,7 @@ const MobileSidebar = ({
               </div>
 
               {/* Conteúdo */}
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col">
                 {children}
               </div>
             </motion.div>
