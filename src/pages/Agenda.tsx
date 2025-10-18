@@ -95,19 +95,22 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void}> = ({ 
                <div className="text-center font-bold p-2 border-b border-gray-200 bg-gray-50">{format(day, 'EEE', { locale: ptBR })}<br/>{format(day, 'd')}</div>
                <div className="p-1 space-y-1 min-h-[120px]">
                   {getItemsForDate(day).map(item => (
-                     <div key={item.id} className={`p-2 rounded text-xs cursor-pointer ${getItemColor(item.packages.status)}`} onClick={() => onSend(item)} title="Enviar para WhatsApp">
+                     <div key={item.id} className={`p-2 rounded text-xs cursor-pointer ${getItemColor(item.packages.status)}`} onClick={() => void onSend(item)} title="Enviar para WhatsApp">
                         <p className="font-bold flex items-center justify-between">
                           <span>{formatTime(item.start_time)} - {item.packages.client_name}</span>
                           <Send size={12} className="opacity-50 group-hover:opacity-100"/>
                         </p>
-                        <p className="truncate">{item.attractions.name}</p>
-                        <div className="mt-1 flex items-center gap-2 text-gray-600">
-                          <User size={12} />
-                          <span className="truncate">{item.packages.drivers.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-600">
-                           <Truck size={12} />
-                           <span className="truncate">{item.packages.vehicles.model}</span>
+                        <p className="text-xs text-gray-500 truncate">{item.packages.agencies.name}</p>
+                        <p className="truncate font-medium">{item.attractions.name}</p>
+                        <div className="mt-1 flex items-center gap-4 text-gray-600">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <User size={12} />
+                            <span className="truncate">{item.packages.drivers.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 truncate">
+                             <Truck size={12} />
+                             <span className="truncate">{item.packages.vehicles.model}</span>
+                          </div>
                         </div>
                      </div>
                   ))}
@@ -137,6 +140,7 @@ export const Agenda: React.FC = () => {
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
   const [activePackageMenu, setActivePackageMenu] = useState<string | null>(null);
+  const [previewMessage, setPreviewMessage] = useState('');
 
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
@@ -261,19 +265,21 @@ export const Agenda: React.FC = () => {
     setPackageAttractions(updated);
   };
 
-  const handleSendSchedule = (item: ScheduleItem) => {
+  const handleSendSchedule = async (item: ScheduleItem) => {
     setSelectedScheduleItem(item);
+    const { data: dayActivities } = await supabase.from('package_attractions').select('*, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', item.scheduled_date).eq('packages.driver_id', item.packages.drivers.id);
+    const message = formatScheduleMessage({ driverName: item.packages.drivers.name, date: item.scheduled_date, activities: (dayActivities ?? []).map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
+    setPreviewMessage(message);
     setShowConfirmSendModal(true);
   };
 
-  const handleConfirmSend = async () => {
+  const handleConfirmSend = () => {
     if (!selectedScheduleItem) return;
     const driverPhone = selectedScheduleItem.packages.drivers.phone;
     if (!driverPhone) { toast.error('Motorista sem telefone!'); return; }
-    const { data: dayActivities } = await supabase.from('package_attractions').select('*, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', selectedScheduleItem.scheduled_date).eq('packages.driver_id', selectedScheduleItem.packages.drivers.id);
-    const message = formatScheduleMessage({ driverName: selectedScheduleItem.packages.drivers.name, date: selectedScheduleItem.scheduled_date, activities: (dayActivities ?? []).map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
-    sendWhatsAppMessage(driverPhone, message);
+    sendWhatsAppMessage(driverPhone, previewMessage);
     setShowConfirmSendModal(false);
+    setPreviewMessage('');
   };
 
   const getStatusColor = (status: PackageStatus) => {
@@ -429,8 +435,13 @@ export const Agenda: React.FC = () => {
 
       {showConfirmSendModal && selectedScheduleItem && (
         <Modal isOpen={showConfirmSendModal} onClose={() => setShowConfirmSendModal(false)} title="Confirmar Envio">
-            <p>Enviar programação para o WhatsApp de <strong>{selectedScheduleItem.packages.drivers.name}</strong>?</p>
-            <div className="flex justify-end gap-3 pt-4 border-t"><button type="button" onClick={() => setShowConfirmSendModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button onClick={handleConfirmSend} className="px-4 py-2 bg-blue-600 text-white rounded">Enviar</button></div>
+            <p className="mb-4">Enviar a seguinte programação para o WhatsApp de <strong>{selectedScheduleItem.packages.drivers.name}</strong>?</p>
+            <textarea
+              readOnly
+              className="w-full h-40 p-2 border rounded-md bg-gray-50 text-sm"
+              value={previewMessage}
+            />
+            <div className="flex justify-end gap-3 pt-4 mt-4 border-t"><button type="button" onClick={() => setShowConfirmSendModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button onClick={handleConfirmSend} className="px-4 py-2 bg-blue-600 text-white rounded">Enviar</button></div>
         </Modal>
       )}
     </>
