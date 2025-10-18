@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
 import {
-  Plus, Pencil, Trash2, X, List, Calendar, User, Truck, CalendarDays, MoreVertical, Eye, Send, Check, Play, CheckCircle
+  Plus, Pencil, Trash2, X, List, Calendar, User, Truck, CalendarDays, MoreVertical, Eye, Send, Check, Play, CheckCircle, Briefcase
 } from 'lucide-react';
-import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay, parseISO, startOfMonth, endOfMonth, getDay, isToday, endOfWeek, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Database } from '../types/database.types';
 import { cn } from '../lib/utils';
@@ -62,6 +62,143 @@ interface PackageFormData {
   client_name: string;
 }
 
+const MobileCalendarView: React.FC<{
+  onSend: (item: ScheduleItem) => void;
+  onNewPackage: (date: Date) => void;
+}> = ({ onSend, onNewPackage }) => {
+  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+
+  useEffect(() => {
+    const fetchMonthData = async () => {
+      setLoading(true);
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+
+      const { data, error } = await supabase
+        .from('package_attractions')
+        .select(`
+          *,
+          packages!inner(id, title, client_name, status, agencies(name), vehicles(id, license_plate, model), drivers(id, name, phone)),
+          attractions(name)
+        `)
+        .gte('scheduled_date', format(monthStart, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(monthEnd, 'yyyy-MM-dd'))
+        .order('scheduled_date')
+        .order('start_time');
+
+      if (error) {
+        toast.error('Erro ao carregar agenda: ' + error.message);
+        setScheduleItems([]);
+      } else {
+        setScheduleItems(data as ScheduleItem[]);
+      }
+      setLoading(false);
+    };
+
+    void fetchMonthData();
+  }, [currentMonth]);
+
+  const getDaysInMonth = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+
+    const days = [];
+    let day = startDate;
+    while (day <= endDate) {
+      days.push(day);
+      day = addDays(day, 1);
+    }
+    return days;
+  };
+
+  const getItemsForDate = (date: Date) => scheduleItems.filter(item => isSameDay(parseISO(item.scheduled_date), date));
+  const hasItemsOnDate = (date: Date) => scheduleItems.some(item => isSameDay(parseISO(item.scheduled_date), date));
+  const formatTime = (time: string | null) => time ? time.slice(0, 5) : '';
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+
+
+  if (loading) return <div className="text-center p-8">Carregando calendário...</div>;
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={previousMonth} className="p-2 rounded-md hover:bg-gray-100">&lt;</button>
+        <h2 className="font-bold text-lg capitalize">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</h2>
+        <button onClick={nextMonth} className="p-2 rounded-md hover:bg-gray-100">&gt;</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 font-medium mb-2">
+        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(day => <div key={day}>{day}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1" data-testid="mobile-calendar-grid">
+        {getDaysInMonth().map((day, i) => (
+          <div
+            key={i}
+            onClick={() => setSelectedDate(day)}
+            className={cn(
+              "aspect-square flex flex-col items-center justify-center rounded-lg cursor-pointer transition-colors",
+              day.getMonth() !== currentMonth.getMonth() ? 'text-gray-300' : 'text-gray-800',
+              isToday(day) && !selectedDate && 'bg-blue-50 border border-blue-300',
+              selectedDate && isSameDay(day, selectedDate) && 'bg-blue-100 border-2 border-blue-500 font-bold',
+              !selectedDate && !isToday(day) && 'hover:bg-gray-100',
+            )}
+          >
+            <span>{format(day, 'd')}</span>
+            {hasItemsOnDate(day) && <div className="w-1 h-1 rounded-full bg-blue-500 mt-1"></div>}
+          </div>
+        ))}
+      </div>
+      {selectedDate && (
+        <div className="mt-6">
+          <div className="flex justify-between items-center pb-2 border-b mb-3">
+            <h3 className="font-bold text-lg">{format(selectedDate, "eeee, dd 'de' MMMM", { locale: ptBR })}</h3>
+            <button onClick={() => onNewPackage(selectedDate)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Plus size={18}/></button>
+          </div>
+          <div className="space-y-3">
+            {getItemsForDate(selectedDate).length > 0 ? (
+              getItemsForDate(selectedDate).map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => { void onSend(item); }}
+                  className={cn(
+                    "p-3 rounded-lg flex gap-3 cursor-pointer border-l-4",
+                    item.packages.status === 'completed'
+                      ? 'bg-green-50 border-green-500 hover:bg-green-100'
+                      : 'bg-blue-50 border-blue-500 hover:bg-blue-100'
+                  )}
+                >
+                  <div className="w-16 text-center">
+                    <p className="font-bold text-lg">{formatTime(item.start_time)}</p>
+                    <p className="text-xs text-gray-500">{item.packages.status === 'completed' ? 'Concluído' : 'Aberto'}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-800">{item.packages.client_name}</p>
+                    <p className="text-sm text-gray-600">{item.attractions.name}</p>
+                    <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                      <span className="flex items-center gap-1"><User size={12}/> {item.packages.drivers.name}</span>
+                      <span className="flex items-center gap-1"><Truck size={12}/> {item.packages.vehicles.model}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <Send size={16} className="text-gray-400"/>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-gray-500 py-4">Nenhuma atividade agendada para este dia.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void; onNewPackage: (date: Date) => void}> = ({ onSend, onNewPackage }) => {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +246,7 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void; onNewP
                </div>
                <div className="p-1 space-y-1 min-h-[120px]">
                   {getItemsForDate(day).map(item => (
-                     <div key={item.id} className={`p-2 rounded text-xs cursor-pointer ${getItemColor(item.packages.status)}`} onClick={() => void onSend(item)} title="Enviar para WhatsApp">
+                     <div key={item.id} className={`p-2 rounded text-xs cursor-pointer ${getItemColor(item.packages.status)}`} onClick={() => { void onSend(item); }} title="Enviar para WhatsApp">
                         <p className="font-bold flex items-center justify-between">
                           <span>{formatTime(item.start_time)} - {item.packages.client_name}</span>
                           <Send size={12} className="opacity-50 group-hover:opacity-100"/>
@@ -147,6 +284,7 @@ export const Agenda: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<PackageStatus | 'all'>('all');
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
   const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '' });
@@ -444,7 +582,8 @@ export const Agenda: React.FC = () => {
         {/* Conteúdo */}
         <div className="p-4 md:p-6">
           {viewMode === 'list' ? (
-            <div className="space-y-3">
+            <div>
+              {/* Desktop Table View */}
               <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden border">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -490,18 +629,79 @@ export const Agenda: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {filteredPackages.map(pkg => (
+                  <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                    <div className="p-4 bg-gray-50/50 border-b flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-lg">{pkg.title}</h3>
+                        <p className="text-sm text-gray-600">{pkg.client_name}</p>
+                      </div>
+                      <div className="relative">
+                        <button onClick={() => setActiveMenu(activeMenu === pkg.id ? null : pkg.id)} className="p-2 text-gray-500 hover:bg-gray-200 rounded-full">
+                          <MoreVertical size={16} />
+                        </button>
+                        {activeMenu === pkg.id && (
+                          <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-10 border">
+                            <button onClick={() => { void handleEdit(pkg); setActiveMenu(null); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                              <Eye size={14} /> Ver / Editar
+                            </button>
+                            <button onClick={() => { void handleDelete(pkg.id); setActiveMenu(null); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                              <Trash2 size={14} /> Excluir
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", getStatusColor(pkg.status))}>
+                          {getStatusText(pkg.status)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div className="flex items-center gap-2"><CalendarDays size={14} className="text-gray-500" /><strong className="font-medium">Período:</strong></div>
+                        <div className="col-span-2 text-gray-700">{format(parseISO(pkg.start_date), 'dd/MM/yy')} - {format(parseISO(pkg.end_date), 'dd/MM/yy')} ({calculateDuration(pkg.start_date, pkg.end_date)})</div>
+
+                        <div className="flex items-center gap-2"><Briefcase size={14} className="text-gray-500" /><strong className="font-medium">Agência:</strong></div>
+                        <div className="text-gray-700">{pkg.agencies?.name ?? 'N/A'}</div>
+
+                        <div className="flex items-center gap-2"><User size={14} className="text-gray-500" /><strong className="font-medium">Motorista:</strong></div>
+                        <div className="text-gray-700">{pkg.drivers?.name ?? 'N/A'}</div>
+
+                        <div className="flex items-center gap-2"><Truck size={14} className="text-gray-500" /><strong className="font-medium">Veículo:</strong></div>
+                        <div className="text-gray-700">{pkg.vehicles?.model} ({pkg.vehicles?.license_plate})</div>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 border-t flex gap-2 flex-wrap">
+                      {pkg.status === 'pending' && <button onClick={() => { void handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED); }} className="flex-1 px-3 py-2 rounded-lg flex items-center justify-center gap-1 bg-green-100 text-green-800 text-sm font-bold hover:bg-green-200"><Check size={14} /> Confirmar</button>}
+                      {pkg.status === 'confirmed' && <button onClick={() => { void handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS); }} className="flex-1 px-3 py-2 rounded-lg flex items-center justify-center gap-1 bg-blue-100 text-blue-800 text-sm font-bold hover:bg-blue-200"><Play size={14} /> Iniciar</button>}
+                      {pkg.status === 'in_progress' && <button onClick={() => { void handleUpdateStatus(pkg.id, PackageStatus.COMPLETED); }} className="flex-1 px-3 py-2 rounded-lg flex items-center justify-center gap-1 bg-gray-200 text-gray-800 text-sm font-bold hover:bg-gray-300"><CheckCircle size={14} /> Concluir</button>}
+                      {['pending', 'confirmed'].includes(pkg.status) && <button onClick={() => { if (confirm('Tem certeza?')) { void handleUpdateStatus(pkg.id, PackageStatus.CANCELLED); } }} className="flex-1 px-3 py-2 rounded-lg flex items-center justify-center gap-1 bg-red-100 text-red-800 text-sm font-bold hover:bg-red-200"><X size={14} /> Cancelar</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="hidden md:block"><AgendaCalendarView onSend={handleSendSchedule} onNewPackage={handleNewPackageFromCalendar} /></div>
           )}
-          {viewMode === 'calendar' && <div className="md:hidden text-center p-8 bg-white rounded-lg"><Calendar className="mx-auto h-12 w-12 text-gray-400" /><h3 className="mt-2">Visualização de Calendário</h3><p className="mt-1 text-sm text-gray-500">Disponível apenas em telas maiores.</p></div>}
+          {viewMode === 'calendar' && (
+            <div className="md:hidden">
+              <MobileCalendarView
+                onSend={handleSendSchedule}
+                onNewPackage={handleNewPackageFromCalendar}
+              />
+            </div>
+          )}
         </div>
       </div>
 
       <FloatingActionButton icon={Plus} onClick={() => { resetForm(); setShowModal(true); }} />
 
       <Modal isOpen={showModal} onClose={handleModalClose} title={editingPackage ? 'Editar Reserva' : 'Nova Reserva'}>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><label htmlFor="title">Título</label><input id="title" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div className="md:col-span-2"><label htmlFor="client_name">Cliente</label><input id="client_name" required value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} className="w-full p-2 border rounded" /></div>
@@ -607,7 +807,7 @@ export const Agenda: React.FC = () => {
                         Duração
                       </label>
                       <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-700 text-sm">
-                        {attractionDetails?.duration || '-'}
+                        {attractionDetails?.duration ?? '-'}
                       </div>
                     </div>
                   </div>
@@ -619,7 +819,7 @@ export const Agenda: React.FC = () => {
                         <input
                           type="checkbox"
                           id={`valor-net-${index}`}
-                          checked={activity.considerar_valor_net ?? false}
+                          checked={activity.considerar_valor_net}
                           onChange={(e) => updateAttraction(index, 'considerar_valor_net', e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
@@ -658,7 +858,7 @@ export const Agenda: React.FC = () => {
               className="w-full h-40 p-2 border rounded-md bg-gray-50 text-sm"
               value={previewMessage}
             />
-            <div className="flex justify-end gap-3 pt-4 mt-4 border-t"><button type="button" onClick={() => setShowConfirmSendModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button onClick={handleConfirmSend} className="px-4 py-2 bg-blue-600 text-white rounded">Enviar</button></div>
+            <div className="flex justify-end gap-3 pt-4 mt-4 border-t"><button type="button" onClick={() => setShowConfirmSendModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button onClick={() => { void handleConfirmSend(); }} className="px-4 py-2 bg-blue-600 text-white rounded">Enviar</button></div>
         </Modal>
       )}
     </>
