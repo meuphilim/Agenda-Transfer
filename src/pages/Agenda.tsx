@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
 import {
-  Plus, Pencil, Trash2, X, List, Calendar, ChevronDown, User, Truck, CalendarDays, MoreVertical, Eye, Send
+  Plus, Pencil, Trash2, X, List, Calendar, User, Truck, CalendarDays, MoreVertical, Eye, Send, Check, Play, CheckCircle
 } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -139,24 +139,7 @@ export const Agenda: React.FC = () => {
   const [packageAttractions, setPackageAttractions] = useState<Partial<PackageActivity>[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
-  const [activePackageMenu, setActivePackageMenu] = useState<string | null>(null);
   const [previewMessage, setPreviewMessage] = useState('');
-
-  useEffect(() => {
-    const handleDocumentClick = (event: MouseEvent) => {
-      if (activePackageMenu) {
-        const menuElement = document.getElementById(`package-menu-${activePackageMenu}`);
-        if (menuElement && !menuElement.contains(event.target as Node)) {
-          setActivePackageMenu(null);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleDocumentClick);
-    return () => {
-      document.removeEventListener('mousedown', handleDocumentClick);
-    };
-  }, [activePackageMenu]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -337,7 +320,7 @@ export const Agenda: React.FC = () => {
               <button onClick={() => setViewMode('calendar')} className={cn("px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2", viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100')}><Calendar size={16} /> Calendário</button>
             </div>
           </div>
-          <div className="mt-4 md:hidden"><button onClick={() => setShowFilters(!showFilters)} className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">Filtros e Visualização <ChevronDown className={cn(showFilters && 'rotate-180')} /></button></div>
+          <div className="mt-4 md:hidden"><button onClick={() => setShowFilters(!showFilters)} className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">Filtros e Visualização</button></div>
           <div className={cn("mt-4 space-y-3 md:block", showFilters ? "block" : "hidden")}>
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">{(['all', ...Object.values(PackageStatus)] as (PackageStatus | 'all')[]).map(status => <button key={status} onClick={() => setStatusFilter(status)} className={cn("flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium", statusFilter === status ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200")}>{getStatusText(status)}</button>)}</div>
             <div className="md:hidden flex items-center gap-2 border-t pt-4"><p className="text-sm font-medium">Ver como:</p><button onClick={() => setViewMode('list')} className={cn("px-3 py-1 rounded-md text-sm", viewMode === 'list' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100')}>Lista</button><button onClick={() => setViewMode('calendar')} className={cn("px-3 py-1 rounded-md text-sm", viewMode === 'calendar' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100')}>Calendário</button></div>
@@ -349,39 +332,105 @@ export const Agenda: React.FC = () => {
           {viewMode === 'list' ? (
             <div className="space-y-3">
               {filteredPackages.map(pkg => (
-                <div key={pkg.id} className="bg-white rounded-lg shadow-sm border relative">
-                  <div className="overflow-hidden rounded-lg">
-                    <div className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 pr-4">
-                          <h3 className="font-semibold truncate">{pkg.title}</h3>
-                          <p className="text-sm text-gray-500">{pkg.agencies?.name}</p>
-                        </div>
-                        <div id={`package-menu-${pkg.id}`} className="relative z-10">
-                          <button onClick={() => setActivePackageMenu(activePackageMenu === pkg.id ? null : pkg.id)} className={cn("px-3 py-1 rounded-full text-xs flex items-center gap-1", getStatusColor(pkg.status))}>
-                            {getStatusText(pkg.status)} <ChevronDown size={14} />
-                          </button>
-                          {activePackageMenu === pkg.id && (
-                            <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg z-20 border">
-                              {Object.values(PackageStatus).map(status => (
-                                <button
-                                  key={status}
-                                  onClick={() => {
-                                    void handleUpdateStatus(pkg.id, status);
-                                    setActivePackageMenu(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  {getStatusText(status)}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+
+                  {/* Header do Card */}
+                  <div className="p-4">
+                    <div className="flex justify-between items-start gap-3">
+                      {/* Info Principal */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate">{pkg.title}</h3>
+                        <p className="text-sm text-gray-500 truncate">{pkg.agencies?.name}</p>
+                      </div>
+
+                      {/* Status com Ações (NOVO SISTEMA) */}
+                      <div className="flex-shrink-0">
+                        <div className="flex flex-col gap-2 items-end">
+                          {/* Badge de Status */}
+                          <span className={cn(
+                            "inline-flex px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap",
+                            getStatusColor(pkg.status)
+                          )}>
+                            {getStatusText(pkg.status)}
+                          </span>
+
+                          {/* Botões de Ação */}
+                          <div className="flex gap-1">
+                            {pkg.status === 'pending' && (
+                              <button
+                                onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED)}
+                                className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors flex items-center gap-1"
+                              >
+                                <Check size={12} /> Confirmar
+                              </button>
+                            )}
+
+                            {pkg.status === 'confirmed' && (
+                              <button
+                                onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS)}
+                                className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"
+                              >
+                                <Play size={12} /> Iniciar
+                              </button>
+                            )}
+
+                            {pkg.status === 'in_progress' && (
+                              <button
+                                onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.COMPLETED)}
+                                className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
+                              >
+                                <CheckCircle size={12} /> Concluir
+                              </button>
+                            )}
+
+                            {['pending', 'confirmed'].includes(pkg.status) && (
+                              <button
+                                onClick={() => {
+                                  if (confirm('Tem certeza que deseja cancelar este pacote?')) {
+                                    void handleUpdateStatus(pkg.id, PackageStatus.CANCELLED);
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors flex items-center gap-1"
+                              >
+                                <X size={12} /> Cancelar
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="p-4 space-y-3 border-t"><div className="flex items-center text-sm"><CalendarDays size={14} className="mr-2" /> {format(parseISO(pkg.start_date), 'dd/MM/yy')} a {format(parseISO(pkg.end_date), 'dd/MM/yy')}</div><div className="flex items-center text-sm"><User size={14} className="mr-2" /> {pkg.drivers?.name ?? 'N/D'}</div><div className="flex items-center text-sm"><Truck size={14} className="mr-2" /> {pkg.vehicles?.model ?? 'N/D'}</div></div>
-                    <div className="border-t px-2 py-2 flex gap-2"><button onClick={() => handleEdit(pkg)} className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md"><Eye size={14} /> Ver / Editar</button><button onClick={() => handleDelete(pkg.id)} className="p-2 bg-red-50 text-red-700 rounded-md"><Trash2 size={14} /></button></div>
+                  </div>
+
+                  {/* Body do Card (mantém como está) */}
+                  <div className="p-4 space-y-3 border-t">
+                    <div className="flex items-center text-sm">
+                      <CalendarDays size={14} className="mr-2" />
+                      {format(parseISO(pkg.start_date), 'dd/MM/yy')} a {format(parseISO(pkg.end_date), 'dd/MM/yy')}
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <User size={14} className="mr-2" />
+                      {pkg.drivers?.name ?? 'N/D'}
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Truck size={14} className="mr-2" />
+                      {pkg.vehicles?.model ?? 'N/D'}
+                    </div>
+                  </div>
+
+                  {/* Footer do Card (mantém como está) */}
+                  <div className="border-t px-2 py-2 flex gap-2">
+                    <button
+                      onClick={() => handleEdit(pkg)}
+                      className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md"
+                    >
+                      <Eye size={14} /> Ver / Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(pkg.id)}
+                      className="p-2 bg-red-50 text-red-700 rounded-md"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               ))}
