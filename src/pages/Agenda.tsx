@@ -158,19 +158,31 @@ export const Agenda: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [pkgs, ags, vhs, drs, atts] = await Promise.all([
-        supabase.from('packages').select(`*, agencies(name), vehicles(license_plate, model), drivers(name), package_attractions(count)`).order('start_date', { ascending: false }),
-        supabase.from('agencies').select('*').eq('active', true),
-        supabase.from('vehicles').select('*').eq('active', true),
-        supabase.from('drivers').select('*').eq('active', true),
-        supabase.from('attractions').select('*').eq('active', true),
-      ]);
-      if (pkgs.error) throw pkgs.error;
-      setPackages(pkgs.data as PackageWithRelations[]);
-      setAgencies(ags.data ?? []);
-      setVehicles(vhs.data ?? []);
-      setDrivers(drs.data ?? []);
-      setAttractions(atts.data ?? []);
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('packages')
+        .select('*, agencies(name), vehicles(license_plate, model), drivers(name), package_attractions(count)')
+        .order('start_date', { ascending: false });
+
+      if (packagesError) throw packagesError;
+
+      const { data: agenciesData, error: agenciesError } = await supabase.from('agencies').select('*');
+      if (agenciesError) throw agenciesError;
+
+      const { data: vehiclesData, error: vehiclesError } = await supabase.from('vehicles').select('*');
+      if (vehiclesError) throw vehiclesError;
+
+      const { data: driversData, error: driversError } = await supabase.from('drivers').select('*');
+      if (driversError) throw driversError;
+
+      const { data: attractionsData, error: attractionsError } = await supabase.from('attractions').select('*');
+      if (attractionsError) throw attractionsError;
+
+      setPackages(packagesData as PackageWithRelations[]);
+      setAgencies(agenciesData);
+      setVehicles(vehiclesData);
+      setDrivers(driversData);
+      setAttractions(attractionsData);
+
     } catch (error) {
       if (error instanceof Error) {
         toast.error('Erro ao carregar dados: ' + error.message);
@@ -319,9 +331,9 @@ export const Agenda: React.FC = () => {
 
     return {
       name: attraction.name,
-      duration: attraction.duration || '1 hora',
+      duration: attraction.duration ?? '1 hora',
       valor_net: attraction.valor_net ?? 0,
-      has_valor_net: attraction.valor_net !== null && attraction.valor_net > 0
+      has_valor_net: (attraction.valor_net ?? 0) > 0
     };
   };
 
@@ -462,16 +474,16 @@ export const Agenda: React.FC = () => {
                               {getStatusText(pkg.status)}
                             </span>
                             <div className="flex gap-1">
-                              {pkg.status === 'pending' && <button onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED)} className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors flex items-center gap-1"><Check size={12} /> Confirmar</button>}
-                              {pkg.status === 'confirmed' && <button onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS)} className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"><Play size={12} /> Iniciar</button>}
-                              {pkg.status === 'in_progress' && <button onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.COMPLETED)} className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"><CheckCircle size={12} /> Concluir</button>}
-                              {['pending', 'confirmed'].includes(pkg.status) && <button onClick={() => { if (confirm('Tem certeza?')) { void handleUpdateStatus(pkg.id, PackageStatus.CANCELLED) }}} className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors flex items-center gap-1"><X size={12} /> Cancelar</button>}
+                              {pkg.status === 'pending' && <button onClick={() => { void handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED); }} className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors flex items-center gap-1"><Check size={12} /> Confirmar</button>}
+                              {pkg.status === 'confirmed' && <button onClick={() => { void handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS); }} className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"><Play size={12} /> Iniciar</button>}
+                              {pkg.status === 'in_progress' && <button onClick={() => { void handleUpdateStatus(pkg.id, PackageStatus.COMPLETED); }} className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"><CheckCircle size={12} /> Concluir</button>}
+                              {['pending', 'confirmed'].includes(pkg.status) && <button onClick={() => { if (confirm('Tem certeza?')) { void handleUpdateStatus(pkg.id, PackageStatus.CANCELLED); } }} className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors flex items-center gap-1"><X size={12} /> Cancelar</button>}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button onClick={() => handleEdit(pkg)} className="p-2 text-gray-500 hover:text-blue-600"><Eye size={16} /></button>
-                          <button onClick={() => handleDelete(pkg.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={16} /></button>
+                          <button onClick={() => { void handleEdit(pkg); }} className="p-2 text-gray-500 hover:text-blue-600"><Eye size={16} /></button>
+                          <button onClick={() => { void handleDelete(pkg.id); }} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={16} /></button>
                         </td>
                       </tr>
                     ))}
