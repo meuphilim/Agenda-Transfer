@@ -18,7 +18,17 @@ type Agency = Database['public']['Tables']['agencies']['Row'];
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Driver = Database['public']['Tables']['drivers']['Row'];
 type Attraction = Database['public']['Tables']['attractions']['Row'];
-type PackageActivity = Database['public']['Tables']['package_attractions']['Row'];
+type PackageActivity = Database['public']['Tables']['package_attractions']['Row'] & {
+  considerar_valor_net: boolean;
+};
+
+type PackageActivityForm = Partial<PackageActivity> & {
+  attraction_id: string;
+  scheduled_date: string;
+  start_time: string;
+  considerar_valor_net: boolean;
+};
+
 type PackageWithRelations = Database['public']['Tables']['packages']['Row'] & {
   agencies?: Pick<Agency, 'name'>;
   vehicles?: Pick<Vehicle, 'license_plate' | 'model'>;
@@ -140,7 +150,7 @@ export const Agenda: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
   const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '' });
-  const [packageAttractions, setPackageAttractions] = useState<Partial<PackageActivity>[]>([]);
+  const [packageAttractions, setPackageAttractions] = useState<PackageActivityForm[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
   const [previewMessage, setPreviewMessage] = useState('');
@@ -192,9 +202,37 @@ export const Agenda: React.FC = () => {
 
   const handleEdit = async (pkg: PackageWithRelations) => {
     setEditingPackage(pkg);
-    setFormData({ title: pkg.title, agency_id: pkg.agency_id, vehicle_id: pkg.vehicle_id, driver_id: pkg.driver_id, start_date: pkg.start_date, end_date: pkg.end_date, total_participants: pkg.total_participants, notes: pkg.notes ?? '', client_name: pkg.client_name ?? '' });
-    const { data } = await supabase.from('package_attractions').select('*').eq('package_id', pkg.id);
-    setPackageAttractions(data ?? []);
+    setFormData({
+      title: pkg.title,
+      agency_id: pkg.agency_id,
+      vehicle_id: pkg.vehicle_id,
+      driver_id: pkg.driver_id,
+      start_date: pkg.start_date,
+      end_date: pkg.end_date,
+      total_participants: pkg.total_participants,
+      notes: pkg.notes ?? '',
+      client_name: pkg.client_name ?? ''
+    });
+
+    // Carregar atividades do pacote
+    const { data, error } = await supabase
+      .from('package_attractions')
+      .select('*')
+      .eq('package_id', pkg.id);
+
+    if (error) {
+      console.error('Erro ao carregar atividades:', error);
+      toast.error('Erro ao carregar atividades do pacote');
+    } else {
+      // Garantir que considerar_valor_net tenha valor padrão se não existir
+      const activitiesWithDefaults = (data ?? []).map(act => ({
+        ...act,
+        considerar_valor_net: act.considerar_valor_net ?? false
+      }));
+
+      setPackageAttractions(activitiesWithDefaults as PackageActivityForm[]);
+    }
+
     setShowModal(true);
   };
 
@@ -221,9 +259,24 @@ export const Agenda: React.FC = () => {
 
       // Insere as novas atividades se houver alguma
       if (packageAttractions.length > 0) {
-        const activitiesToInsert = packageAttractions.map(attr => ({ ...attr, package_id: packageId, id: undefined }));
-        const { error: attractionsError } = await supabase.from('package_attractions').insert(activitiesToInsert);
-        if (attractionsError) throw attractionsError;
+        const activitiesToInsert = packageAttractions.map(attr => ({
+          package_id: packageId,
+          attraction_id: attr.attraction_id,
+          scheduled_date: attr.scheduled_date,
+          start_time: attr.start_time ?? null,
+          end_time: attr.end_time ?? null,
+          notes: attr.notes ?? null,
+          considerar_valor_net: attr.considerar_valor_net ?? false,
+        }));
+
+        const { error: attractionsError } = await supabase
+          .from('package_attractions')
+          .insert(activitiesToInsert);
+
+        if (attractionsError) {
+          console.error('Erro ao salvar atividades:', attractionsError);
+          throw attractionsError;
+        }
       }
 
       handleModalClose();
@@ -243,13 +296,40 @@ export const Agenda: React.FC = () => {
     void fetchData();
   };
 
-  const addAttraction = () => setPackageAttractions([...packageAttractions, { attraction_id: '', scheduled_date: formData.start_date, start_time: '', end_time: '', notes: '' }]);
+  const addAttraction = () => setPackageAttractions([...packageAttractions, {
+    attraction_id: '',
+    scheduled_date: formData.start_date,
+    start_time: '',
+    notes: '',
+    considerar_valor_net: false,
+  }]);
   const removeAttraction = (index: number) => setPackageAttractions(packageAttractions.filter((_, i) => i !== index));
-  const updateAttraction = (index: number, field: keyof Partial<PackageActivity>, value: string | boolean) => {
+  const updateAttraction = (index: number, field: keyof PackageActivityForm, value: string | boolean) => {
     const updated = packageAttractions.map((item, i) =>
       i === index ? { ...item, [field]: value } : item
     );
     setPackageAttractions(updated);
+  };
+
+  const getAttractionDetails = (attractionId: string) => {
+    if (!attractionId) return null;
+
+    const attraction = attractions.find(a => a.id === attractionId);
+    if (!attraction) return null;
+
+    return {
+      name: attraction.name,
+      duration: attraction.duration ?? 'Não informado',
+      valor_net: attraction.valor_net ?? 0,
+      has_valor_net: attraction.valor_net !== null && attraction.valor_net > 0
+    };
+  };
+
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   const handleSendSchedule = async (item: ScheduleItem) => {
@@ -423,14 +503,154 @@ export const Agenda: React.FC = () => {
           <div><label htmlFor="notes">Observações</label><textarea id="notes" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full p-2 border rounded" /></div>
           <div>
             <h4 className="font-bold mt-4 mb-2">Atividades do Pacote</h4>
-            {packageAttractions.map((activity, index) => (
-              <div key={index} className="border p-3 mb-2 rounded grid grid-cols-2 gap-2 relative">
-                 <button type="button" onClick={() => removeAttraction(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700"><X size={16} /></button>
-                 <div className="col-span-2"><label htmlFor={`attr-${index}`}>Atrativo</label><select id={`attr-${index}`} required value={activity.attraction_id ?? ''} onChange={e => updateAttraction(index, 'attraction_id', e.target.value)} className="w-full p-2 border rounded"><option value="">Selecione</option>{attractions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-                 <div><label htmlFor={`date-${index}`}>Data</label><input id={`date-${index}`} type="date" required value={activity.scheduled_date} onChange={e => updateAttraction(index, 'scheduled_date', e.target.value)} className="w-full p-2 border rounded" /></div>
-                 <div><label htmlFor={`start-${index}`}>Início</label><input id={`start-${index}`} type="time" value={activity.start_time ?? ''} onChange={e => updateAttraction(index, 'start_time', e.target.value)} className="w-full p-2 border rounded" /></div>
-              </div>
-            ))}
+            {packageAttractions.map((activity, index) => {
+              // Obter detalhes do atrativo selecionado
+              const attractionDetails = getAttractionDetails(activity.attraction_id);
+
+              return (
+                <div key={index} className="border border-gray-300 p-4 mb-3 rounded-lg bg-gray-50 relative">
+
+                  {/* Botão Remover */}
+                  <button
+                    type="button"
+                    onClick={() => removeAttraction(index)}
+                    className="absolute top-3 right-3 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-full transition-colors"
+                    title="Remover atividade"
+                  >
+                    <X size={18} />
+                  </button>
+
+                  {/* Título da Atividade */}
+                  <div className="mb-3 pr-8">
+                    <h5 className="text-sm font-semibold text-gray-700">
+                      Atividade {index + 1}
+                    </h5>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+
+                    {/* Atrativo */}
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label
+                        htmlFor={`attraction-${index}`}
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Atrativo / Passeio *
+                      </label>
+                      <select
+                        id={`attraction-${index}`}
+                        required
+                        value={activity.attraction_id}
+                        onChange={(e) => updateAttraction(index, 'attraction_id', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Selecione um atrativo</option>
+                        {attractions.map((attr) => (
+                          <option key={attr.id} value={attr.id}>
+                            {attr.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Data */}
+                    <div>
+                      <label
+                        htmlFor={`date-${index}`}
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Data *
+                      </label>
+                      <input
+                        id={`date-${index}`}
+                        type="date"
+                        required
+                        value={activity.scheduled_date}
+                        onChange={(e) => updateAttraction(index, 'scheduled_date', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Horário de Início */}
+                    <div>
+                      <label
+                        htmlFor={`start-time-${index}`}
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Horário de Início *
+                      </label>
+                      <input
+                        id={`start-time-${index}`}
+                        type="time"
+                        required
+                        value={activity.start_time ?? ''}
+                        onChange={(e) => updateAttraction(index, 'start_time', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Duração (Read-only, vem do cadastro do atrativo) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Duração
+                      </label>
+                      <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-700 text-sm">
+                        {attractionDetails?.duration || '-'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Checkbox Valor NET */}
+                  {attractionDetails?.has_valor_net && (
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          id={`valor-net-${index}`}
+                          checked={activity.considerar_valor_net ?? false}
+                          onChange={(e) => updateAttraction(index, 'considerar_valor_net', e.target.checked)}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <label
+                            htmlFor={`valor-net-${index}`}
+                            className="text-sm font-medium text-gray-900 cursor-pointer"
+                          >
+                            Considerar valor NET no fechamento
+                          </label>
+                          {activity.considerar_valor_net && (
+                            <p className="mt-1 text-sm text-blue-700 font-semibold">
+                              Valor: {formatCurrency(attractionDetails.valor_net ?? 0)}
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-gray-600">
+                            Este valor será incluído no cálculo financeiro do pacote
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Observações (opcional) */}
+                  <div className="mt-3">
+                    <label
+                      htmlFor={`notes-${index}`}
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Observações
+                    </label>
+                    <textarea
+                      id={`notes-${index}`}
+                      rows={2}
+                      value={activity.notes ?? ''}
+                      onChange={(e) => updateAttraction(index, 'notes', e.target.value)}
+                      placeholder="Informações adicionais sobre esta atividade..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                  </div>
+                </div>
+              );
+            })}
             {/* Desktop Button */}
             <button type="button" onClick={addAttraction} className="hidden md:flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium py-2">
               <Plus size={16} /> Adicionar Atividade
