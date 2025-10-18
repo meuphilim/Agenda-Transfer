@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Briefcase } from 'lucide-react';
 
+// ... (interfaces e funções auxiliares permanecem as mesmas)
 interface FormData {
   email: string;
   password: string;
@@ -17,13 +18,9 @@ interface FormErrors {
   phone?: string;
 }
 
+
 export const Login: React.FC = () => {
-  const [formData, setFormData] = useState<FormData>({
-    email: '',
-    password: '',
-    fullName: '',
-    phone: '',
-  });
+  const [formData, setFormData] = useState<FormData>({ email: '', password: '', fullName: '', phone: '' });
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -33,28 +30,22 @@ export const Login: React.FC = () => {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Email validation
     if (!formData.email) {
       newErrors.email = 'Email é obrigatório';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email inválido';
     }
 
-    // Password validation
     if (!formData.password) {
       newErrors.password = 'Senha é obrigatória';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
     }
 
-    // Sign up specific validations
     if (isSignUp) {
       if (!formData.fullName.trim()) {
         newErrors.fullName = 'Nome completo é obrigatório';
-      } else if (formData.fullName.trim().length < 2) {
-        newErrors.fullName = 'Nome deve ter pelo menos 2 caracteres';
       }
-
       if (!formData.phone.trim()) {
         newErrors.phone = 'Telefone é obrigatório';
       } else if (!/^\(\d{2}\)\s\d{4,5}-\d{4}$/.test(formData.phone)) {
@@ -85,13 +76,8 @@ export const Login: React.FC = () => {
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    if (field === 'phone') {
-      value = formatPhone(value);
-    }
-    
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
+    const finalValue = field === 'phone' ? formatPhone(value) : value;
+    setFormData(prev => ({ ...prev, [field]: finalValue }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -99,33 +85,18 @@ export const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
     setLoading(true);
-
     try {
       if (isSignUp) {
         await signUp(formData.email, formData.password, formData.fullName, formData.phone);
-        toast.success('Conta criada com sucesso! Aguarde a aprovação do administrador.');
-        // Não resetar o formulário nem mudar para login - o usuário será redirecionado automaticamente
+        toast.success('Conta criada! Aguarde a aprovação.');
       } else {
         await signIn(formData.email, formData.password);
         toast.success('Login realizado com sucesso!');
       }
     } catch (error: any) {
-      if (error.message?.includes('email_not_confirmed')) {
-        toast.error('Verifique seu email para confirmar a conta');
-      } else if (error.message?.includes('invalid_credentials')) {
-        toast.error('Email ou senha incorretos');
-      } else if (error.message?.includes('User already registered')) {
-        toast.error('Este email já está cadastrado. Tente fazer login.');
-        setIsSignUp(false);
-      } else {
-        toast.error(error.message || (isSignUp ? 'Erro ao criar conta' : 'Erro ao fazer login'));
-      }
+      toast.error(error.message ?? 'Ocorreu um erro.');
     } finally {
       setLoading(false);
     }
@@ -138,148 +109,67 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {isSignUp ? 'Criar Conta' : 'Entrar no Sistema'}
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sistema de Gestão de Turismo
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Briefcase className="mx-auto h-12 w-12 text-blue-600" />
+          <h1 className="mt-4 text-3xl font-bold text-gray-900">TourManager</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            {isSignUp ? 'Crie sua conta para começar' : 'Acesse sua conta para continuar'}
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+
+        <div className="bg-white p-6 md:p-8 rounded-xl shadow-md">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {isSignUp && (
               <>
                 <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-                    Nome Completo
-                  </label>
-                  <input
-                    id="fullName"
-                    name="fullName"
-                    type="text"
-                    required
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                      errors.fullName ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                    placeholder="Nome Completo"
-                    value={formData.fullName}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  />
-                  {errors.fullName && <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>}
+                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">Nome Completo</label>
+                  <input id="fullName" name="fullName" type="text" required className="mt-1 block w-full px-4 py-3 border rounded-lg focus:ring-blue-500" value={formData.fullName} onChange={(e) => handleInputChange('fullName', e.target.value)} />
+                  {errors.fullName && <p className="text-sm text-red-600 mt-1">{errors.fullName}</p>}
                 </div>
-                
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                    Telefone
-                  </label>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    maxLength={15}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                      errors.phone ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                    placeholder="(00) 00000-0000"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                  />
-                  {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Telefone</label>
+                  <input id="phone" name="phone" type="tel" required className="mt-1 block w-full px-4 py-3 border rounded-lg" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} />
+                  {errors.phone && <p className="text-sm text-red-600 mt-1">{errors.phone}</p>}
                 </div>
               </>
             )}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                  errors.email ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-              />
-              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <input id="email" name="email" type="email" required autoComplete="email" className="mt-1 block w-full px-4 py-3 border rounded-lg" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} />
+              {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
             </div>
             
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Senha
-              </label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Senha</label>
               <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                  required
-                  className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
-                    errors.password ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                  }`}
-                  placeholder="Senha"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
+                <input id="password" name="password" type={showPassword ? 'text' : 'password'} required className="mt-1 block w-full px-4 py-3 pr-10 border rounded-lg" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value)} />
+                <button type="button" className="absolute inset-y-0 right-0 pr-3 flex items-center" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+              {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password}</p>}
             </div>
-          </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processando...
-                </div>
-              ) : (
-                isSignUp ? 'Criar Conta' : 'Entrar'
-              )}
+            <div>
+              <button type="submit" disabled={loading} className="w-full flex justify-center py-3 px-4 border border-transparent font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700">
+                {loading ? 'Processando...' : (isSignUp ? 'Criar Conta' : 'Entrar')}
+              </button>
+            </div>
+          </form>
+
+          <div className="text-center mt-6">
+            <button type="button" onClick={toggleMode} className="text-sm text-blue-600 hover:underline">
+              {isSignUp ? 'Já tem uma conta? Faça login' : 'Não tem conta? Cadastre-se'}
             </button>
           </div>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="text-blue-600 hover:text-blue-500 text-sm font-medium transition-colors duration-200"
-            >
-              {isSignUp ? 'Já tem conta? Entre aqui' : 'Não tem conta? Cadastre-se'}
-            </button>
-          </div>
-        </form>
+        </div>
         
         {isSignUp && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400">
             <p className="text-sm text-blue-800">
-              <strong>Importante:</strong> Após criar sua conta, ela ficará pendente de aprovação por um administrador. 
-              Você receberá acesso assim que sua conta for aprovada.
+              <strong>Aviso:</strong> Sua conta precisará ser aprovada por um administrador antes que você possa fazer login.
             </p>
           </div>
         )}

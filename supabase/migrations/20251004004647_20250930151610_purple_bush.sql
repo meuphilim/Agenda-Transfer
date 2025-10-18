@@ -100,6 +100,8 @@ CREATE TABLE packages (
 );
 
 -- Create package_attractions junction table
+-- Create package_activities junction table
+-- Create package_attractions junction table
 CREATE TABLE package_attractions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   package_id uuid NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
@@ -184,6 +186,8 @@ CREATE POLICY "Authenticated users can update packages"
 CREATE POLICY "Authenticated users can delete packages"
   ON packages FOR DELETE TO authenticated USING (true);
 
+-- Create policies for package_attractions
+-- Create policies for package_activities
 -- Create policies for package_attractions
 CREATE POLICY "Authenticated users can read package_attractions"
   ON package_attractions FOR SELECT TO authenticated USING (true);

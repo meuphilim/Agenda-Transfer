@@ -67,9 +67,9 @@ export function useSupabaseData<T extends { id: string }>({
 
       // The consumer of this hook is responsible for ensuring that the `select`
       // query matches the provided type `T`.
-      setData((result as unknown as T[]) || []);
+      setData((result as unknown as T[]) ?? []);
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao carregar dados';
+      const errorMessage = err.message ?? 'Erro ao carregar dados';
       setError(errorMessage);
       console.error(`Erro ao buscar dados de ${table}:`, err);
       toast.error(errorMessage);
@@ -93,7 +93,7 @@ export function useSupabaseData<T extends { id: string }>({
 
       return result;
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao criar item';
+      const errorMessage = err.message ?? 'Erro ao criar item';
       toast.error(errorMessage);
       return null;
     }
@@ -115,7 +115,7 @@ export function useSupabaseData<T extends { id: string }>({
 
       return result;
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao atualizar item';
+      const errorMessage = err.message ?? 'Erro ao atualizar item';
       toast.error(errorMessage);
       return null;
     }
@@ -135,7 +135,7 @@ export function useSupabaseData<T extends { id: string }>({
 
       return true;
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao excluir item';
+      const errorMessage = err.message ?? 'Erro ao excluir item';
       toast.error(errorMessage);
       return false;
     }

@@ -46,6 +46,7 @@ export interface Database {
           estimated_duration: number;
           location: string | null;
           active: boolean;
+          valor_net: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -56,6 +57,7 @@ export interface Database {
           estimated_duration?: number;
           location?: string;
           active?: boolean;
+          valor_net?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -66,6 +68,7 @@ export interface Database {
           estimated_duration?: number;
           location?: string;
           active?: boolean;
+          valor_net?: number | null;
           updated_at?: string;
         };
       };
@@ -115,6 +118,7 @@ export interface Database {
           category: string;
           ear: boolean;
           active: boolean;
+          valor_diaria: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -129,6 +133,7 @@ export interface Database {
           category?: string;
           ear?: boolean;
           active?: boolean;
+          valor_diaria?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -143,6 +148,7 @@ export interface Database {
           category?: string;
           ear?: boolean;
           active?: boolean;
+          valor_diaria?: number | null;
           updated_at?: string;
         };
       };
@@ -159,6 +165,7 @@ export interface Database {
           total_participants: number;
           status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
           notes: string | null;
+          considerar_diaria_motorista: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -174,6 +181,7 @@ export interface Database {
           total_participants?: number;
           status?: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
           notes?: string;
+          considerar_diaria_motorista?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -189,6 +197,7 @@ export interface Database {
           total_participants?: number;
           status?: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
           notes?: string;
+          considerar_diaria_motorista?: boolean;
           updated_at?: string;
         };
       };
@@ -201,6 +210,7 @@ export interface Database {
           start_time: string | null;
           end_time: string | null;
           notes: string | null;
+          considerar_valor_net: boolean;
           created_at: string;
         };
         Insert: {
@@ -211,6 +221,7 @@ export interface Database {
           start_time?: string;
           end_time?: string;
           notes?: string;
+          considerar_valor_net?: boolean;
           created_at?: string;
         };
         Update: {
@@ -221,6 +232,7 @@ export interface Database {
           start_time?: string;
           end_time?: string;
           notes?: string;
+          considerar_valor_net?: boolean;
         };
       };
       profiles: {

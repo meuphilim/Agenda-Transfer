@@ -6,10 +6,10 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Schedule } from './pages/Schedule';
-import { Packages } from './pages/Packages';
+import { Agenda } from './pages/Agenda';
 import { Settings } from './pages/Settings';
 import { UserManagement } from './pages/UserManagement';
+import { FinanceManagement } from './pages/FinanceManagement';
 
 function App() {
   return (
@@ -23,10 +23,10 @@ function App() {
                 <Layout>
                   <Routes>
                     <Route index element={<Dashboard />} />
-                    <Route path="agenda" element={<Schedule />} />
-                    <Route path="reservas" element={<Packages />} />
+                    <Route path="agenda" element={<Agenda />} />
                     <Route path="cadastros" element={<Settings />} />
                     <Route path="usuarios" element={<UserManagement />} />
+                    <Route path="financeiro" element={<FinanceManagement />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
