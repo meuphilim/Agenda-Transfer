@@ -100,7 +100,15 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void}> = ({ 
                           <span>{formatTime(item.start_time)} - {item.packages.client_name}</span>
                           <Send size={12} className="opacity-50 group-hover:opacity-100"/>
                         </p>
-                        <p>{item.attractions.name}</p>
+                        <p className="truncate">{item.attractions.name}</p>
+                        <div className="mt-1 flex items-center gap-2 text-gray-600">
+                          <User size={12} />
+                          <span className="truncate">{item.packages.drivers.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-600">
+                           <Truck size={12} />
+                           <span className="truncate">{item.packages.vehicles.model}</span>
+                        </div>
                      </div>
                   ))}
                </div>
@@ -162,8 +170,10 @@ export const Agenda: React.FC = () => {
       setVehicles(vhs.data ?? []);
       setDrivers(drs.data ?? []);
       setAttractions(atts.data ?? []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar dados: ' + error.message);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error('Erro ao carregar dados: ' + error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -212,16 +222,25 @@ export const Agenda: React.FC = () => {
         packageId = data.id;
         toast.success('Pacote cadastrado!');
       }
+
+      // Se estiver editando, sempre apague as atividades antigas primeiro
+      if (editingPackage) {
+        await supabase.from('package_attractions').delete().eq('package_id', packageId);
+      }
+
+      // Insere as novas atividades se houver alguma
       if (packageAttractions.length > 0) {
-        if (editingPackage) await supabase.from('package_attractions').delete().eq('package_id', packageId);
         const activitiesToInsert = packageAttractions.map(attr => ({ ...attr, package_id: packageId, id: undefined }));
         const { error: attractionsError } = await supabase.from('package_attractions').insert(activitiesToInsert);
         if (attractionsError) throw attractionsError;
       }
+
       handleModalClose();
       void fetchData();
-    } catch (error: any) {
-      toast.error('Erro ao salvar pacote: ' + error.message);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error('Erro ao salvar pacote: ' + error.message);
+      }
     }
   };
 
@@ -291,8 +310,10 @@ export const Agenda: React.FC = () => {
 
       toast.success('Status atualizado com sucesso!');
       void fetchData();
-    } catch (error: any) {
-      toast.error('Erro ao atualizar status: ' + error.message);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error('Erro ao atualizar status: ' + error.message);
+      }
     }
   };
 
@@ -391,7 +412,16 @@ export const Agenda: React.FC = () => {
                  <div><label htmlFor={`start-${index}`}>Início</label><input id={`start-${index}`} type="time" value={activity.start_time ?? ''} onChange={e => updateAttraction(index, 'start_time', e.target.value)} className="w-full p-2 border rounded" /></div>
               </div>
             ))}
-            <button type="button" onClick={addAttraction} className="text-sm text-blue-600">+ Adicionar Atividade</button>
+            {/* Desktop Button */}
+            <button type="button" onClick={addAttraction} className="hidden md:flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium py-2">
+              <Plus size={16} /> Adicionar Atividade
+            </button>
+          </div>
+           {/* Mobile FAB */}
+          <div className="md:hidden sticky bottom-4 flex justify-end">
+             <button type="button" onClick={addAttraction} className="bg-blue-600 text-white rounded-full h-12 w-12 flex items-center justify-center shadow-lg hover:bg-blue-700">
+                <Plus size={24} />
+             </button>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t"><button type="button" onClick={handleModalClose} className="px-4 py-2 border rounded">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Salvar</button></div>
         </form>
