@@ -319,7 +319,7 @@ export const Agenda: React.FC = () => {
 
     return {
       name: attraction.name,
-      duration: attraction.duration ?? 'Não informado',
+      duration: attraction.duration || '1 hora',
       valor_net: attraction.valor_net ?? 0,
       has_valor_net: attraction.valor_net !== null && attraction.valor_net > 0
     };
@@ -602,52 +602,24 @@ export const Agenda: React.FC = () => {
 
                   {/* Checkbox Valor NET */}
                   {attractionDetails?.has_valor_net && (
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-start space-x-3">
+                    <div className="mt-4">
+                      <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id={`valor-net-${index}`}
                           checked={activity.considerar_valor_net ?? false}
                           onChange={(e) => updateAttraction(index, 'considerar_valor_net', e.target.checked)}
-                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <div className="flex-1">
-                          <label
-                            htmlFor={`valor-net-${index}`}
-                            className="text-sm font-medium text-gray-900 cursor-pointer"
-                          >
-                            Considerar valor NET no fechamento
-                          </label>
-                          {activity.considerar_valor_net && (
-                            <p className="mt-1 text-sm text-blue-700 font-semibold">
-                              Valor: {formatCurrency(attractionDetails.valor_net ?? 0)}
-                            </p>
-                          )}
-                          <p className="mt-1 text-xs text-gray-600">
-                            Este valor será incluído no cálculo financeiro do pacote
-                          </p>
-                        </div>
+                        <label
+                          htmlFor={`valor-net-${index}`}
+                          className="text-sm font-medium text-gray-900 cursor-pointer"
+                        >
+                          Considerar valor NET no fechamento
+                        </label>
                       </div>
                     </div>
                   )}
-
-                  {/* Observações (opcional) */}
-                  <div className="mt-3">
-                    <label
-                      htmlFor={`notes-${index}`}
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Observações
-                    </label>
-                    <textarea
-                      id={`notes-${index}`}
-                      rows={2}
-                      value={activity.notes ?? ''}
-                      onChange={(e) => updateAttraction(index, 'notes', e.target.value)}
-                      placeholder="Informações adicionais sobre esta atividade..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    />
-                  </div>
                 </div>
               );
             })}
