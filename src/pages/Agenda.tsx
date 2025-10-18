@@ -23,6 +23,7 @@ type PackageWithRelations = Database['public']['Tables']['packages']['Row'] & {
   agencies?: Pick<Agency, 'name'>;
   vehicles?: Pick<Vehicle, 'license_plate' | 'model'>;
   drivers?: Pick<Driver, 'name'>;
+  package_attractions: { count: number }[];
 };
 
 type ScheduleItem = PackageActivity & {
@@ -51,7 +52,7 @@ interface PackageFormData {
   client_name: string;
 }
 
-const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void}> = ({ onSend }) => {
+const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void; onNewPackage: (date: Date) => void}> = ({ onSend, onNewPackage }) => {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -92,7 +93,10 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void}> = ({ 
        <div className="grid grid-cols-7 border border-gray-200 rounded-lg overflow-hidden">
           {getWeekDays().map(day => (
             <div key={day.toString()} className="border-r border-gray-200 last:border-r-0">
-               <div className="text-center font-bold p-2 border-b border-gray-200 bg-gray-50">{format(day, 'EEE', { locale: ptBR })}<br/>{format(day, 'd')}</div>
+               <div className="text-center font-bold p-2 border-b border-gray-200 bg-gray-50 flex justify-center items-center gap-2">
+                <span>{format(day, 'EEE', { locale: ptBR })}<br/>{format(day, 'd')}</span>
+                <button onClick={() => onNewPackage(day)} className="text-gray-400 hover:text-blue-600"><Plus size={14} /></button>
+               </div>
                <div className="p-1 space-y-1 min-h-[120px]">
                   {getItemsForDate(day).map(item => (
                      <div key={item.id} className={`p-2 rounded text-xs cursor-pointer ${getItemColor(item.packages.status)}`} onClick={() => void onSend(item)} title="Enviar para WhatsApp">
@@ -145,7 +149,7 @@ export const Agenda: React.FC = () => {
     setLoading(true);
     try {
       const [pkgs, ags, vhs, drs, atts] = await Promise.all([
-        supabase.from('packages').select(`*, agencies(name), vehicles(license_plate, model), drivers(name)`).order('start_date', { ascending: false }),
+        supabase.from('packages').select(`*, agencies(name), vehicles(license_plate, model), drivers(name), package_attractions(count)`).order('start_date', { ascending: false }),
         supabase.from('agencies').select('*').eq('active', true),
         supabase.from('vehicles').select('*').eq('active', true),
         supabase.from('drivers').select('*').eq('active', true),
@@ -256,6 +260,12 @@ export const Agenda: React.FC = () => {
     setShowConfirmSendModal(true);
   };
 
+  const handleNewPackageFromCalendar = (date: Date) => {
+    resetForm();
+    setFormData(prev => ({ ...prev, start_date: format(date, 'yyyy-MM-dd'), end_date: format(date, 'yyyy-MM-dd') }));
+    setShowModal(true);
+  };
+
   const handleConfirmSend = () => {
     if (!selectedScheduleItem) return;
     const driverPhone = selectedScheduleItem.packages.drivers.phone;
@@ -288,6 +298,13 @@ export const Agenda: React.FC = () => {
     return statusText[status];
   };
 
+  const calculateDuration = (startDate: string, endDate: string) => {
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+    const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return duration > 1 ? `${duration} dias` : `${duration} dia`;
+  };
+
   const handleUpdateStatus = async (packageId: string, newStatus: PackageStatus) => {
     try {
       const { error } = await supabase
@@ -315,9 +332,14 @@ export const Agenda: React.FC = () => {
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10 p-4 md:p-6">
           <div className="md:flex md:items-center md:justify-between">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Agenda</h1>
-            <div className="hidden md:flex items-center gap-2">
-              <button onClick={() => setViewMode('list')} className={cn("px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2", viewMode === 'list' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100')}><List size={16} /> Lista</button>
-              <button onClick={() => setViewMode('calendar')} className={cn("px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2", viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100')}><Calendar size={16} /> Calendário</button>
+            <div className="flex items-center gap-2 mt-4 md:mt-0">
+              <div className="hidden md:flex items-center gap-2">
+                <button onClick={() => setViewMode('list')} className={cn("px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2", viewMode === 'list' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100')}><List size={16} /> Lista</button>
+                <button onClick={() => setViewMode('calendar')} className={cn("px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2", viewMode === 'calendar' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100')}><Calendar size={16} /> Calendário</button>
+              </div>
+              <button onClick={() => { resetForm(); setShowModal(true); }} className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <Plus size={16} /> Nova Reserva
+              </button>
             </div>
           </div>
           <div className="mt-4 md:hidden"><button onClick={() => setShowFilters(!showFilters)} className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">Filtros e Visualização</button></div>
@@ -331,112 +353,54 @@ export const Agenda: React.FC = () => {
         <div className="p-4 md:p-6">
           {viewMode === 'list' ? (
             <div className="space-y-3">
-              {filteredPackages.map(pkg => (
-                <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
-
-                  {/* Header do Card */}
-                  <div className="p-4">
-                    <div className="flex justify-between items-start gap-3">
-                      {/* Info Principal */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">{pkg.title}</h3>
-                        <p className="text-sm text-gray-500 truncate">{pkg.agencies?.name}</p>
-                      </div>
-
-                      {/* Status com Ações (NOVO SISTEMA) */}
-                      <div className="flex-shrink-0">
-                        <div className="flex flex-col gap-2 items-end">
-                          {/* Badge de Status */}
-                          <span className={cn(
-                            "inline-flex px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap",
-                            getStatusColor(pkg.status)
-                          )}>
-                            {getStatusText(pkg.status)}
-                          </span>
-
-                          {/* Botões de Ação */}
-                          <div className="flex gap-1">
-                            {pkg.status === 'pending' && (
-                              <button
-                                onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED)}
-                                className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors flex items-center gap-1"
-                              >
-                                <Check size={12} /> Confirmar
-                              </button>
-                            )}
-
-                            {pkg.status === 'confirmed' && (
-                              <button
-                                onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS)}
-                                className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"
-                              >
-                                <Play size={12} /> Iniciar
-                              </button>
-                            )}
-
-                            {pkg.status === 'in_progress' && (
-                              <button
-                                onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.COMPLETED)}
-                                className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
-                              >
-                                <CheckCircle size={12} /> Concluir
-                              </button>
-                            )}
-
-                            {['pending', 'confirmed'].includes(pkg.status) && (
-                              <button
-                                onClick={() => {
-                                  if (confirm('Tem certeza que deseja cancelar este pacote?')) {
-                                    void handleUpdateStatus(pkg.id, PackageStatus.CANCELLED);
-                                  }
-                                }}
-                                className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors flex items-center gap-1"
-                              >
-                                <X size={12} /> Cancelar
-                              </button>
-                            )}
+              <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden border">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pacote / Cliente</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agência</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Período</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredPackages.map(pkg => (
+                      <tr key={pkg.id}>
+                        <td className="px-6 py-4">
+                          <div className="font-semibold">{pkg.title}</div>
+                          <div className="text-sm text-gray-500">{pkg.client_name}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm">{pkg.agencies?.name ?? 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <div>{format(parseISO(pkg.start_date), 'dd/MM/yy')} - {format(parseISO(pkg.end_date), 'dd/MM/yy')}</div>
+                          <div className="text-xs text-gray-500">{calculateDuration(pkg.start_date, pkg.end_date)} | {pkg.package_attractions[0].count} atividades</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-2 items-start">
+                            <span className={cn("inline-flex px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap", getStatusColor(pkg.status))}>
+                              {getStatusText(pkg.status)}
+                            </span>
+                            <div className="flex gap-1">
+                              {pkg.status === 'pending' && <button onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.CONFIRMED)} className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 transition-colors flex items-center gap-1"><Check size={12} /> Confirmar</button>}
+                              {pkg.status === 'confirmed' && <button onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.IN_PROGRESS)} className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"><Play size={12} /> Iniciar</button>}
+                              {pkg.status === 'in_progress' && <button onClick={() => void handleUpdateStatus(pkg.id, PackageStatus.COMPLETED)} className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"><CheckCircle size={12} /> Concluir</button>}
+                              {['pending', 'confirmed'].includes(pkg.status) && <button onClick={() => { if (confirm('Tem certeza?')) { void handleUpdateStatus(pkg.id, PackageStatus.CANCELLED) }}} className="text-xs px-2 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors flex items-center gap-1"><X size={12} /> Cancelar</button>}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Body do Card (mantém como está) */}
-                  <div className="p-4 space-y-3 border-t">
-                    <div className="flex items-center text-sm">
-                      <CalendarDays size={14} className="mr-2" />
-                      {format(parseISO(pkg.start_date), 'dd/MM/yy')} a {format(parseISO(pkg.end_date), 'dd/MM/yy')}
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <User size={14} className="mr-2" />
-                      {pkg.drivers?.name ?? 'N/D'}
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <Truck size={14} className="mr-2" />
-                      {pkg.vehicles?.model ?? 'N/D'}
-                    </div>
-                  </div>
-
-                  {/* Footer do Card (mantém como está) */}
-                  <div className="border-t px-2 py-2 flex gap-2">
-                    <button
-                      onClick={() => handleEdit(pkg)}
-                      className="flex-1 text-sm flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md"
-                    >
-                      <Eye size={14} /> Ver / Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(pkg.id)}
-                      className="p-2 bg-red-50 text-red-700 rounded-md"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={() => handleEdit(pkg)} className="p-2 text-gray-500 hover:text-blue-600"><Eye size={16} /></button>
+                          <button onClick={() => handleDelete(pkg.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
-            <div className="hidden md:block"><AgendaCalendarView onSend={handleSendSchedule} /></div>
+            <div className="hidden md:block"><AgendaCalendarView onSend={handleSendSchedule} onNewPackage={handleNewPackageFromCalendar} /></div>
           )}
           {viewMode === 'calendar' && <div className="md:hidden text-center p-8 bg-white rounded-lg"><Calendar className="mx-auto h-12 w-12 text-gray-400" /><h3 className="mt-2">Visualização de Calendário</h3><p className="mt-1 text-sm text-gray-500">Disponível apenas em telas maiores.</p></div>}
         </div>
