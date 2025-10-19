@@ -20,6 +20,7 @@
 - [🚀 Instalação e Execução](#-instalação-e-execução)
 - [📜 Scripts Disponíveis](#-scripts-disponíveis)
 - [📁 Estrutura do Projeto](#-estrutura-do-projeto)
+- [📊 Status do Projeto](#-status-do-projeto)
 - [📄 Licença](#-licença)
 
 ---
@@ -158,6 +159,15 @@ TourManager/
 
 ---
 
+## 📊 Status do Projeto
+
+![Build Status](https://img.shields.io/github/actions/workflow/status/meuphilim/Agenda-Transfer/ci.yml?branch=main)
+![Last Commit](https://img.shields.io/github/last-commit/meuphilim/Agenda-Transfer)
+![Issues](https://img.shields.io/github/issues/meuphilim/Agenda-Transfer)
+![Pull Requests](https://img.shields.io/github/issues-pr/meuphilim/Agenda-Transfer)
+
 ## 📄 Licença
+
+---
 
 Este projeto está licenciado sob a **Licença MIT**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
