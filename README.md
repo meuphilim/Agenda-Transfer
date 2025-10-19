@@ -42,8 +42,9 @@ O **TourManager** foi desenvolvido para resolver os desafios logísticos de agê
 
 ### Gestão
 - **CRUD Completo:** Gerenciamento de Agências, Motoristas, Veículos, Atrações e Pacotes Turísticos.
-- **Agenda Inteligente:** Visualização de agendamentos em formato de lista ou calendário (semanal/mensal).
-- **Dashboard Central:** Painel com informações rápidas sobre as operações.
+- **Agenda Inteligente:** Visualização de agendamentos em formato de lista ou calendário (semanal/mensal), com validação de conflitos para evitar agendamentos sobrepostos.
+- **Dashboard Central:** Painel com métricas em tempo real, incluindo uma lista detalhada das atividades do dia com status dinâmico (A iniciar, Em andamento, Concluída) calculado com precisão de fuso horário.
+- **Gestão de Disponibilidade Dinâmica:** O status de veículos e motoristas é calculado automaticamente com base nos agendamentos de pacotes confirmados, garantindo uma visão precisa da ocupação dos recursos.
 
 ### Segurança
 - **Autenticação e Autorização:** Sistema de login seguro com perfis de usuário (Administrador e Usuário).
@@ -131,6 +132,7 @@ A aplicação estará disponível em **http://localhost:5173**.
 - `npm run lint`: Executa o ESLint para identificar problemas de formatação e estilo.
 - `npm run typecheck`: Realiza a verificação de tipos do TypeScript em todo o projeto.
 - `npm run check`: Executa os scripts `lint` e `typecheck` em sequência.
+- `npm test`: Executa os testes unitários com Vitest.
 - `npm run preview`: Inicia um servidor local para visualizar a build de produção.
 
 ---
