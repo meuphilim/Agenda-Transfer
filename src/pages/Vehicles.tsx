@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
-import { Plus, Pencil, Trash2, MoreVertical, Search, Truck } from 'lucide-react';
+import { Plus, Pencil, Trash2, MoreVertical, Search } from 'lucide-react';
 import { Modal } from '../components/Common';
 import { cn } from '../lib/utils';
+import { getVehicleOccupiedDates } from '../services/availabilityService';
 
 interface Vehicle {
   id: string;
@@ -29,7 +30,25 @@ export const Vehicles: React.FC = () => {
     table: 'vehicles',
     orderBy: { column: 'license_plate' },
   });
+  const [occupiedDatesMap, setOccupiedDatesMap] = useState<Map<string, string[]>>(new Map());
   
+  useEffect(() => {
+    const fetchOccupiedDates = async () => {
+      const map = new Map<string, string[]>();
+
+      for (const vehicle of vehicles) {
+        const dates = await getVehicleOccupiedDates(vehicle.id);
+        map.set(vehicle.id, dates);
+      }
+
+      setOccupiedDatesMap(map);
+    };
+
+    if (vehicles.length > 0) {
+      void fetchOccupiedDates();
+    }
+  }, [vehicles]);
+
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState<VehicleFormData>({
@@ -145,24 +164,51 @@ export const Vehicles: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredVehicles.map((vehicle) => (
-              <tr key={vehicle.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-800">{vehicle.license_plate}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{vehicle.brand} {vehicle.model}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">{vehicle.capacity} passageiros</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={cn('inline-flex px-2 py-1 text-xs font-semibold rounded-full', getStatusInfo(vehicle.status).color)}>
-                    {getStatusInfo(vehicle.status).text}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button onClick={() => handleEdit(vehicle)} className="text-blue-600 hover:text-blue-900 mr-3"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete(vehicle.id, vehicle.license_plate)} className="text-red-600 hover:text-red-900"><Trash2 size={16} /></button>
-                </td>
-              </tr>
-            ))}
+            {filteredVehicles.map((vehicle) => {
+              const occupiedDates = occupiedDatesMap.get(vehicle.id) ?? [];
+              const today = new Date().toISOString().split('T')[0];
+              const isBusyToday = occupiedDates.includes(today);
+              const actualStatus = isBusyToday ? 'in_use' : vehicle.status;
+
+              return (
+                <tr key={vehicle.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-800">
+                    {vehicle.license_plate}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {vehicle.brand} {vehicle.model}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {vehicle.capacity} passageiros
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col gap-1">
+                      <span className={cn(
+                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                        getStatusInfo(actualStatus).color
+                      )}>
+                        {getStatusInfo(actualStatus).text}
+                      </span>
+                      {occupiedDates.length > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {occupiedDates.length} dia(s) ocupado(s)
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onClick={() => handleEdit(vehicle)} className="text-blue-600 hover:text-blue-900 mr-3">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(vehicle.id, vehicle.license_plate)} className="text-red-600 hover:text-red-900">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

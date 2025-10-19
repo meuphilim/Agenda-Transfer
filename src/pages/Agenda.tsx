@@ -12,6 +12,7 @@ import { FloatingActionButton, Modal } from '../components/Common';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
 import { PackageStatus } from '../types/enums';
+import { validatePackageAvailability } from '../services/availabilityService';
 
 // Tipos
 type Agency = Database['public']['Tables']['agencies']['Row'];
@@ -388,6 +389,36 @@ export const Agenda: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Extrair datas das atividades para validação
+    const activityDates = packageAttractions.map(a => new Date(a.scheduled_date));
+
+    // Validar disponibilidade
+    const validation = await validatePackageAvailability(
+      formData.vehicle_id,
+      formData.driver_id,
+      activityDates,
+      editingPackage?.id
+    );
+
+    if (!validation.isValid) {
+      const errors = [
+        ...validation.vehicleConflicts.map(c => `🚗 Veículo: ${c}`),
+        ...validation.driverConflicts.map(c => `👤 Motorista: ${c}`)
+      ];
+
+      toast.error(
+        <div>
+          <p className="font-bold mb-2">Conflito de disponibilidade:</p>
+          <ul className="list-disc pl-4 space-y-1">
+            {errors.map((error, i) => <li key={i} className="text-sm">{error}</li>)}
+          </ul>
+        </div>,
+        { autoClose: 8000 }
+      );
+      return;
+    }
+
     try {
       let packageId;
       if (editingPackage) {

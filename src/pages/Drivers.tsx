@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2, MoreVertical, Search } from 'lucide-react';
 import { Modal } from '../components/Common';
 import { cn } from '../lib/utils';
 import { Database } from '../types/database.types';
+import { getDriverOccupiedDates } from '../services/availabilityService';
 
 type Driver = Database['public']['Tables']['drivers']['Row'];
 
@@ -26,6 +27,24 @@ export const Drivers: React.FC = () => {
     table: 'drivers',
     orderBy: { column: 'name' },
   });
+  const [occupiedDatesMap, setOccupiedDatesMap] = useState<Map<string, string[]>>(new Map());
+
+  useEffect(() => {
+    const fetchOccupiedDates = async () => {
+      const map = new Map<string, string[]>();
+
+      for (const driver of drivers) {
+        const dates = await getDriverOccupiedDates(driver.id);
+        map.set(driver.id, dates);
+      }
+
+      setOccupiedDatesMap(map);
+    };
+
+    if (drivers.length > 0) {
+      void fetchOccupiedDates();
+    }
+  }, [drivers]);
   
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -146,27 +165,44 @@ export const Drivers: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredDrivers.map((driver) => (
-              <tr key={driver.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900">{driver.name}</div>
-                  <div className="text-sm text-gray-500">{driver.phone}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">{driver.license_number} ({driver.category})</div>
-                  <div className="text-sm text-gray-500">Vence: {driver.license_expiry ? new Date(driver.license_expiry).toLocaleDateString('pt-BR') : 'N/A'}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={cn('inline-flex px-2 py-1 text-xs font-semibold rounded-full', getStatusInfo(driver.status).color)}>
-                    {getStatusInfo(driver.status).text}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => handleEdit(driver)} className="text-blue-600 hover:text-blue-900 mr-3"><Pencil size={16} /></button>
-                  <button onClick={() => handleDelete(driver.id, driver.name)} className="text-red-600 hover:text-red-900"><Trash2 size={16} /></button>
-                </td>
-              </tr>
-            ))}
+            {filteredDrivers.map((driver) => {
+              const occupiedDates = occupiedDatesMap.get(driver.id) ?? [];
+              const today = new Date().toISOString().split('T')[0];
+              const isBusyToday = occupiedDates.includes(today);
+              const actualStatus = isBusyToday ? 'busy' : driver.status;
+
+              return (
+                <tr key={driver.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-900">{driver.name}</div>
+                    <div className="text-sm text-gray-500">{driver.phone}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">{driver.license_number} ({driver.category})</div>
+                    <div className="text-sm text-gray-500">Vence: {driver.license_expiry ? new Date(driver.license_expiry).toLocaleDateString('pt-BR') : 'N/A'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      <span className={cn(
+                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                        getStatusInfo(actualStatus).color
+                      )}>
+                        {getStatusInfo(actualStatus).text}
+                      </span>
+                      {occupiedDates.length > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {occupiedDates.length} dia(s) ocupado(s)
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => handleEdit(driver)} className="text-blue-600 hover:text-blue-900 mr-3"><Pencil size={16} /></button>
+                    <button onClick={() => handleDelete(driver.id, driver.name)} className="text-red-600 hover:text-red-900"><Trash2 size={16} /></button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
