@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-toastify';
 import {
-  Plus, Pencil, Trash2, X, List, Calendar, User, Truck, CalendarDays, MoreVertical, Eye, Send, Check, Play, CheckCircle, Briefcase
+  Plus, X, List, Calendar, User, Truck, CalendarDays, MoreVertical, Eye, Send, Check, Play, CheckCircle, Briefcase
 } from 'lucide-react';
-import { format, startOfWeek, addDays, isSameDay, parseISO, startOfMonth, endOfMonth, getDay, isToday, endOfWeek, addMonths, subMonths } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay, parseISO, startOfMonth, endOfMonth, isToday, endOfWeek, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Database } from '../types/database.types';
 import { cn } from '../lib/utils';
@@ -49,6 +49,16 @@ type ScheduleItem = PackageActivity & {
   attractions: { name: string };
 };
 
+type ScheduleDayActivity = {
+  start_time: string | null;
+  packages: {
+    client_name: string;
+  };
+  attractions: {
+    name: string;
+  };
+};
+
 // Formulário
 interface PackageFormData {
   title: string;
@@ -70,24 +80,29 @@ const MobileCalendarView: React.FC<{
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week'); // Padrão: semanal
 
   useEffect(() => {
-    const fetchMonthData = async () => {
+    const fetchScheduleData = async () => {
       setLoading(true);
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
+
+      let startDate: Date;
+      let endDate: Date;
+
+      if (viewMode === 'week') {
+        startDate = startOfWeek(currentMonth, { weekStartsOn: 0 });
+        endDate = addDays(startDate, 6);
+      } else {
+        startDate = startOfMonth(currentMonth);
+        endDate = endOfMonth(currentMonth);
+      }
 
       const { data, error } = await supabase
         .from('package_attractions')
-        .select(`
-          *,
-          packages!inner(id, title, client_name, status, agencies(name), vehicles(id, license_plate, model), drivers(id, name, phone)),
-          attractions(name)
-        `)
-        .gte('scheduled_date', format(monthStart, 'yyyy-MM-dd'))
-        .lte('scheduled_date', format(monthEnd, 'yyyy-MM-dd'))
-        .order('scheduled_date')
-        .order('start_time');
+        .select(`*, packages!inner(id, title, client_name, status, agencies(name), vehicles(id, license_plate, model), drivers(id, name, phone)), attractions(name)`)
+        .gte('scheduled_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(endDate, 'yyyy-MM-dd'))
+        .order('scheduled_date').order('start_time');
 
       if (error) {
         toast.error('Erro ao carregar agenda: ' + error.message);
@@ -97,9 +112,8 @@ const MobileCalendarView: React.FC<{
       }
       setLoading(false);
     };
-
-    void fetchMonthData();
-  }, [currentMonth]);
+    void fetchScheduleData();
+  }, [currentMonth, viewMode]);
 
   const getDaysInMonth = () => {
     const monthStart = startOfMonth(currentMonth);
@@ -116,45 +130,118 @@ const MobileCalendarView: React.FC<{
     return days;
   };
 
+  const getWeekDays = () => {
+    const weekStart = startOfWeek(currentMonth, { weekStartsOn: 0 });
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  };
+
   const getItemsForDate = (date: Date) => scheduleItems.filter(item => isSameDay(parseISO(item.scheduled_date), date));
   const hasItemsOnDate = (date: Date) => scheduleItems.some(item => isSameDay(parseISO(item.scheduled_date), date));
   const formatTime = (time: string | null) => time ? time.slice(0, 5) : '';
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
-
   if (loading) return <div className="text-center p-8">Carregando calendário...</div>;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={previousMonth} className="p-2 rounded-md hover:bg-gray-100">&lt;</button>
-        <h2 className="font-bold text-lg capitalize">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</h2>
-        <button onClick={nextMonth} className="p-2 rounded-md hover:bg-gray-100">&gt;</button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 font-medium mb-2">
-        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(day => <div key={day}>{day}</div>)}
-      </div>
-      <div className="grid grid-cols-7 gap-1" data-testid="mobile-calendar-grid">
-        {getDaysInMonth().map((day, i) => (
-          <div
-            key={i}
-            onClick={() => setSelectedDate(day)}
-            className={cn(
-              "aspect-square flex flex-col items-center justify-center rounded-lg cursor-pointer transition-colors",
-              day.getMonth() !== currentMonth.getMonth() ? 'text-gray-300' : 'text-gray-800',
-              isToday(day) && !selectedDate && 'bg-blue-50 border border-blue-300',
-              selectedDate && isSameDay(day, selectedDate) && 'bg-blue-100 border-2 border-blue-500 font-bold',
-              !selectedDate && !isToday(day) && 'hover:bg-gray-100',
-            )}
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-4 border-b bg-gray-50">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={viewMode === 'week' ? () => setCurrentMonth(addDays(currentMonth, -7)) : previousMonth}
+            className="p-2 hover:bg-gray-200 rounded-full"
           >
-            <span>{format(day, 'd')}</span>
-            {hasItemsOnDate(day) && <div className="w-1 h-1 rounded-full bg-blue-500 mt-1"></div>}
-          </div>
-        ))}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <h2 className="text-lg font-bold text-gray-900 text-center">
+            {viewMode === 'week'
+              ? `${format(startOfWeek(currentMonth, { weekStartsOn: 0 }), 'd')} - ${format(addDays(startOfWeek(currentMonth, { weekStartsOn: 0 }), 6), "d 'de' MMMM", { locale: ptBR })}`
+              : format(currentMonth, "MMMM yyyy", { locale: ptBR })
+            }
+          </h2>
+
+          <button
+            onClick={viewMode === 'week' ? () => setCurrentMonth(addDays(currentMonth, 7)) : nextMonth}
+            className="p-2 hover:bg-gray-200 rounded-full"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex justify-center">
+          <button
+            onClick={() => setViewMode(viewMode === 'week' ? 'month' : 'week')}
+            className="px-4 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors flex items-center gap-1.5"
+          >
+            {viewMode === 'week' ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                Expandir mês
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                Recolher semana
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      <div className="p-4">
+        <div className="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 font-medium mb-2">
+          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => <div key={i}>{day}</div>)}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {(viewMode === 'week' ? getWeekDays() : getDaysInMonth()).map((day) => {
+            const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+            const hasItems = hasItemsOnDate(day);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isTodayDate = isToday(day);
+
+            return (
+              <button
+                key={day.toString()}
+                onClick={() => setSelectedDate(isSelected ? null : day)}
+                className={cn(
+                  "aspect-square p-1 rounded-lg flex flex-col items-center justify-center relative transition-colors",
+                  viewMode === 'month' && !isCurrentMonth && 'text-gray-300',
+                  isSelected && "bg-blue-100 border-2 border-blue-500",
+                  !isSelected && isTodayDate && "bg-blue-50 border border-blue-300",
+                  !isSelected && !isTodayDate && "hover:bg-gray-100"
+                )}
+              >
+                <span className={cn(
+                  "text-sm font-medium",
+                  isSelected && "text-blue-700",
+                  !isSelected && isTodayDate && "text-blue-600",
+                  !isSelected && !isTodayDate && "text-gray-700",
+                   viewMode === 'month' && !isCurrentMonth && 'text-gray-300'
+                )}>
+                  {format(day, 'd')}
+                </span>
+                {hasItems && isCurrentMonth && (
+                  <div className="flex gap-0.5 mt-0.5">
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      isSelected ? "bg-blue-600" : "bg-blue-500"
+                    )} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {selectedDate && (
-        <div className="mt-6">
+        <div className="p-4 pt-0">
           <div className="flex justify-between items-center pb-2 border-b mb-3">
             <h3 className="font-bold text-lg">{format(selectedDate, "eeee, dd 'de' MMMM", { locale: ptBR })}</h3>
             <button onClick={() => onNewPackage(selectedDate)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Plus size={18}/></button>
@@ -484,17 +571,11 @@ export const Agenda: React.FC = () => {
     };
   };
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
   const handleSendSchedule = async (item: ScheduleItem) => {
     setSelectedScheduleItem(item);
-    const { data: dayActivities } = await supabase.from('package_attractions').select('*, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', item.scheduled_date).eq('packages.driver_id', item.packages.drivers.id);
-    const message = formatScheduleMessage({ driverName: item.packages.drivers.name, date: item.scheduled_date, activities: (dayActivities ?? []).map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
+    const { data } = await supabase.from('package_attractions').select('start_time, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', item.scheduled_date).eq('packages.driver_id', item.packages.drivers.id);
+    const dayActivities: ScheduleDayActivity[] = data ?? [];
+    const message = formatScheduleMessage({ driverName: item.packages.drivers.name, date: item.scheduled_date, activities: dayActivities.map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
     setPreviewMessage(message);
     setShowConfirmSendModal(true);
   };
