@@ -10,7 +10,6 @@ import {
   Truck,
   ClipboardList,
   CheckCircle,
-  AlertTriangle,
   Package,
   Users,
   AlertCircle,
@@ -37,6 +36,17 @@ interface RecentPackage {
   drivers: { name: string } | null;
 }
 
+// Interface para as atividades do dia
+interface TodayActivity {
+  scheduled_date: string;
+  attractions: { name: string } | null;
+  packages: {
+    status: string;
+    drivers: { name: string } | null;
+    vehicles: { license_plate: string; model: string } | null;
+  } | null;
+}
+
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalPackages: 0,
@@ -46,6 +56,7 @@ export const Dashboard: React.FC = () => {
     upcomingToday: 0,
   });
   const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
+  const [todayActivities, setTodayActivities] = useState<TodayActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,9 +82,18 @@ export const Dashboard: React.FC = () => {
         supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'busy'),
         supabase
           .from('package_attractions')
-          .select('id', { count: 'exact' })
+          .select(`
+            scheduled_date,
+            attractions(name),
+            packages(
+              status,
+              drivers(name),
+              vehicles(license_plate, model)
+            )
+          `)
           .gte('scheduled_date', today.toISOString())
-          .lt('scheduled_date', tomorrow.toISOString()),
+          .lt('scheduled_date', tomorrow.toISOString())
+          .order('scheduled_date', { ascending: true }),
         supabase
           .from('packages')
           .select(`
@@ -108,10 +128,10 @@ export const Dashboard: React.FC = () => {
         activePackages: activePackages,
         availableVehicles: vehiclesResult.count ?? 0,
         busyDrivers: driversResult.count ?? 0,
-        upcomingToday: upcomingResult.count ?? 0,
+        upcomingToday: upcomingResult.data?.length ?? 0,
       });
 
-      // Atribuição direta e segura, sem 'as'
+      setTodayActivities(upcomingResult.data ?? []);
       setRecentPackages(recentResult.data ?? []);
     } catch (err) {
       console.error('Erro inesperado ao buscar dados do dashboard:', err);
@@ -148,6 +168,24 @@ export const Dashboard: React.FC = () => {
       [PackageStatus.CANCELLED]: 'Cancelado',
     };
     return statusText[status as PackageStatus] || status;
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getActivityStatus = (activity: TodayActivity): [string, string] => {
+    const now = new Date();
+    const scheduledTime = new Date(activity.scheduled_date);
+
+    if (activity.packages?.status === PackageStatus.COMPLETED) {
+      return ['Concluída', 'bg-gray-100 text-gray-800'];
+    }
+    if (now > scheduledTime) {
+      return ['Em andamento', 'bg-blue-100 text-blue-800'];
+    }
+    return ['A iniciar', 'bg-green-100 text-green-800'];
   };
 
   if (loading) {
@@ -250,39 +288,43 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 md:p-6 border-b border-gray-200">
+          <div className="p-4 md:p-6 border-b border-gray-200 flex justify-between items-center">
             <h3 className="text-base md:text-lg font-semibold">
-              Alertas e Notificações
+              Atividades de Hoje
             </h3>
+            <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+              {todayActivities.length}
+            </span>
           </div>
-          <div className="p-4 md:p-6 space-y-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <CalendarDays className="h-5 w-5 text-blue-500" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-800">
-                  {stats.upcomingToday} atividades
-                </p>
-                <p className="text-xs text-gray-500">
-                  Programadas para hoje
-                </p>
-              </div>
-            </div>
-            {stats.busyDrivers > 0 && (
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+          <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+            {todayActivities.length > 0 ? todayActivities.map((activity, index) => {
+              const [statusText, statusColor] = getActivityStatus(activity);
+              return (
+                <div key={index} className="p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <CalendarDays className="h-4 w-4 text-gray-500" />
+                      <p className="font-mono text-sm text-gray-800">{formatTime(activity.scheduled_date)}</p>
+                    </div>
+                    <span className={cn("px-2 py-1 rounded-full text-xs font-medium", statusColor)}>
+                      {statusText}
+                    </span>
+                  </div>
+                  <p className="font-semibold text-gray-900">{activity.attractions?.name ?? 'Atividade não especificada'}</p>
+                  <div className="flex items-center text-xs text-gray-500 space-x-4">
+                    <div className="flex items-center space-x-1">
+                      <Users className="h-3 w-3" />
+                      <span>{activity.packages?.drivers?.name ?? 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Truck className="h-3 w-3" />
+                      <span>{activity.packages?.vehicles?.license_plate ?? 'N/A'}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-800">
-                    {stats.busyDrivers} motoristas
-                  </p>
-                   <p className="text-xs text-gray-500">
-                    Atualmente em atividade
-                  </p>
-                </div>
-              </div>
+              );
+            }) : (
+              <p className="text-center text-gray-500 p-8">Nenhuma atividade agendada para hoje.</p>
             )}
           </div>
         </div>
