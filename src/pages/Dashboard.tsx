@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PackageStatus } from '../types/enums';
 import { cn } from '../lib/utils';
+import { getNowInMS, createDateInMS, addMinutes } from '../utils/timezone';
 
 interface DashboardStats {
   totalPackages: number;
@@ -195,24 +196,44 @@ export const Dashboard: React.FC = () => {
     return statusText[status as PackageStatus] || status;
   };
 
-  const getActivityStatus = (activity: TodayActivity): [string, string] => {
-    const now = new Date();
+const getActivityStatus = (activity: TodayActivity): [string, string] => {
+  // Obter horário atual em GMT-4
+  const now = getNowInMS();
 
-    if (!activity.scheduled_date || !activity.start_time) {
-      return ['A iniciar', 'bg-green-100 text-green-800'];
+  // Se atividade já foi marcada como concluída no sistema
+  if (activity.packages?.status === 'completed') {
+    return ['Concluída', 'bg-gray-100 text-gray-800'];
+  }
+
+  // Validar dados necessários
+  if (!activity.scheduled_date || !activity.start_time) {
+    console.warn('Atividade sem data ou horário:', activity);
+    return ['A iniciar', 'bg-green-100 text-green-800'];
+  }
+
+  try {
+    // Criar data/hora de início no fuso GMT-4
+    const startDateTime = createDateInMS(
+      activity.scheduled_date,
+      activity.start_time
+    );
+
+    // Calcular horário de término
+    const durationMinutes = activity.attractions?.estimated_duration ?? 60;
+    const endDateTime = addMinutes(startDateTime, durationMinutes);
+
+    // Log para debug (remover em produção se necessário)
+    if (import.meta.env.DEV) {
+      console.log('Status Check:', {
+        activity: activity.attractions?.name,
+        now: now.toLocaleString('pt-BR', { timeZone: 'America/Campo_Grande' }),
+        start: startDateTime.toLocaleString('pt-BR', { timeZone: 'America/Campo_Grande' }),
+        end: endDateTime.toLocaleString('pt-BR', { timeZone: 'America/Campo_Grande' }),
+      });
     }
 
-    // Combinar data e hora corretamente no fuso local
-    const [hour, minute] = activity.start_time.split(':').map(Number);
-    const startDateTime = new Date(activity.scheduled_date);
-    startDateTime.setHours(hour, minute, 0, 0);
-
-    // Calcular hora de término
-    const durationMinutes = activity.attractions?.estimated_duration ?? 0;
-    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
-
-    // Determinar status baseado no horário local
-    if (activity.packages?.status === 'completed' || now >= endDateTime) {
+    // Determinar status baseado em comparação temporal
+    if (now >= endDateTime) {
       return ['Concluída', 'bg-gray-100 text-gray-800'];
     }
 
@@ -221,7 +242,12 @@ export const Dashboard: React.FC = () => {
     }
 
     return ['A iniciar', 'bg-green-100 text-green-800'];
-  };
+
+  } catch (error) {
+    console.error('Erro ao calcular status da atividade:', error, activity);
+    return ['A iniciar', 'bg-green-100 text-green-800'];
+  }
+};
 
   if (loading) {
     return <DashboardSkeleton />;
