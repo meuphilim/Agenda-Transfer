@@ -202,16 +202,16 @@ export const Dashboard: React.FC = () => {
       return ['A iniciar', 'bg-green-100 text-green-800'];
     }
 
-    // Combina data e hora local corretamente
+    // Combinar data e hora corretamente no fuso local
     const [hour, minute] = activity.start_time.split(':').map(Number);
     const startDateTime = new Date(activity.scheduled_date);
     startDateTime.setHours(hour, minute, 0, 0);
 
-    // Duração estimada da atração
+    // Calcular hora de término
     const durationMinutes = activity.attractions?.estimated_duration ?? 0;
     const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
 
-    // Cálculo do status
+    // Determinar status baseado no horário local
     if (activity.packages?.status === 'completed' || now >= endDateTime) {
       return ['Concluída', 'bg-gray-100 text-gray-800'];
     }
@@ -340,7 +340,7 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <CalendarDays className="h-4 w-4 text-gray-500" />
                       <p className="font-mono text-sm text-gray-800">
-                        {activity.start_time ? `${activity.start_time}` : '—'}
+                        {activity.start_time ? activity.start_time.slice(0, 5) : '—'}
                       </p>
                     </div>
                     <span className={cn("px-2 py-1 rounded-full text-xs font-medium", statusColor)}>
