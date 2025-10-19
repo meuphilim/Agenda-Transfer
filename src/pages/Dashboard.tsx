@@ -39,7 +39,7 @@ interface RecentPackage {
 // Interface para as atividades do dia
 interface TodayActivity {
   scheduled_date: string;
-  attractions: { name: string; stimated_duration: number } | null;
+  attractions: { name: string; estimated_duration: number } | null;
   packages: {
     status: string;
     drivers: { name: string } | null;
@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
           .from('package_attractions')
           .select(`
             scheduled_date,
-            attractions!inner(name, stimated_duration),
+            attractions!inner(name, estimated_duration),
             packages(
               status,
               drivers(name),
@@ -178,7 +178,7 @@ export const Dashboard: React.FC = () => {
   const getActivityStatus = (activity: TodayActivity): [string, string] => {
     const now = new Date();
     const startTime = new Date(activity.scheduled_date);
-    const durationInMinutes = activity.attractions?.stimated_duration ?? 0;
+    const durationInMinutes = activity.attractions?.estimated_duration ?? 0;
     const endTime = new Date(startTime.getTime() + durationInMinutes * 60000);
 
     if (activity.packages?.status === PackageStatus.COMPLETED || now > endTime) {
