@@ -467,9 +467,18 @@ export const Agenda: React.FC = () => {
     const attraction = attractions.find(a => a.id === attractionId);
     if (!attraction) return null;
 
+    // Formatar duração de minutos para formato legível
+    const formatDuration = (minutes: number): string => {
+      if (minutes < 60) return `${minutes} min`;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (mins === 0) return `${hours}h`;
+      return `${hours}h ${mins}min`;
+    };
+
     return {
       name: attraction.name,
-      duration: attraction.duration ?? '1 hora',
+      duration: formatDuration(attraction.estimated_duration),
       valor_net: attraction.valor_net ?? 0,
       has_valor_net: (attraction.valor_net ?? 0) > 0
     };
