@@ -57,7 +57,11 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const today = new Date().toISOString().split('T')[0];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
       // As queries dependem de RLS permissiva.
       // Considere migrar para funções de borda (edge functions) para maior segurança.
@@ -65,7 +69,11 @@ export const Dashboard: React.FC = () => {
         supabase.from('packages').select('id, status', { count: 'exact' }),
         supabase.from('vehicles').select('status', { count: 'exact' }).eq('status', 'available'),
         supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'busy'),
-        supabase.from('package_attractions').select('id', { count: 'exact' }).eq('scheduled_date', today),
+        supabase
+          .from('package_attractions')
+          .select('id', { count: 'exact' })
+          .gte('scheduled_date', today.toISOString())
+          .lt('scheduled_date', tomorrow.toISOString()),
         supabase
           .from('packages')
           .select(`
