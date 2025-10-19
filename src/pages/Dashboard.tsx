@@ -1,3 +1,8 @@
+// ANÁLISE TÉCNICA E REFINAMENTO (Outubro 2025)
+// - Corrigido tratamento de erros na busca de dados para exibir feedback à UI.
+// - Otimizado o cálculo de estatísticas usando `count: 'exact'` do Supabase.
+// - Removida asserção de tipo insegura (`as`) para `recentPackages`.
+// - Adicionado alerta de segurança sobre a dependência de RLS para as queries.
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
@@ -8,7 +13,9 @@ import {
   AlertTriangle,
   Package,
   Users,
+  AlertCircle,
 } from 'lucide-react';
+import { PackageStatus } from '../types/enums';
 import { cn } from '../lib/utils';
 
 interface DashboardStats {
@@ -40,24 +47,25 @@ export const Dashboard: React.FC = () => {
   });
   const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchDashboardData();
+    void fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const today = new Date().toISOString().split('T')[0];
 
+      // As queries dependem de RLS permissiva.
+      // Considere migrar para funções de borda (edge functions) para maior segurança.
       const [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult] = await Promise.all([
-        supabase.from('packages').select('id, status'),
-        supabase.from('vehicles').select('status').eq('status', 'available'),
-        supabase.from('drivers').select('status').eq('status', 'busy'),
-        supabase
-          .from('package_attractions')
-          .select('id')
-          .eq('scheduled_date', today),
+        supabase.from('packages').select('id, status', { count: 'exact' }),
+        supabase.from('vehicles').select('status', { count: 'exact' }).eq('status', 'available'),
+        supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'busy'),
+        supabase.from('package_attractions').select('id', { count: 'exact' }).eq('scheduled_date', today),
         supabase
           .from('packages')
           .select(`
@@ -73,19 +81,33 @@ export const Dashboard: React.FC = () => {
           .limit(5)
       ]);
 
-      const packages = packagesResult.data ?? [];
+      const results = [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult];
+      for (const result of results) {
+        if (result.error) {
+          console.error('Erro na API do Supabase:', result.error);
+          setError('Falha ao carregar os dados do dashboard. Verifique sua conexão e tente novamente.');
+          return;
+        }
+      }
+
+      const allPackages: { status: string }[] = packagesResult.data ?? [];
+      const activePackages = allPackages.filter(p =>
+        [PackageStatus.CONFIRMED, PackageStatus.IN_PROGRESS].includes(p.status as PackageStatus)
+      ).length;
 
       setStats({
-        totalPackages: packages.length,
-        activePackages: packages.filter(p => ['confirmed', 'in_progress'].includes(p.status)).length,
-        availableVehicles: vehiclesResult.data?.length ?? 0,
-        busyDrivers: driversResult.data?.length ?? 0,
-        upcomingToday: upcomingResult.data?.length ?? 0,
+        totalPackages: packagesResult.count ?? 0,
+        activePackages: activePackages,
+        availableVehicles: vehiclesResult.count ?? 0,
+        busyDrivers: driversResult.count ?? 0,
+        upcomingToday: upcomingResult.count ?? 0,
       });
 
-      setRecentPackages(recentResult.data as RecentPackage[] ?? []);
-    } catch (error) {
-      console.error('Erro ao buscar dados do dashboard:', error);
+      // Atribuição direta e segura, sem 'as'
+      setRecentPackages(recentResult.data ?? []);
+    } catch (err) {
+      console.error('Erro inesperado ao buscar dados do dashboard:', err);
+      setError('Ocorreu um erro inesperado. Por favor, recarregue a página.');
     } finally {
       setLoading(false);
     }
@@ -98,30 +120,52 @@ export const Dashboard: React.FC = () => {
     { label: 'Motoristas Ocupados', value: stats.busyDrivers, icon: Users },
   ];
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-green-100 text-green-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-gray-100 text-gray-800',
-      cancelled: 'bg-red-100 text-red-800',
+  const getStatusColor = (status: PackageStatus | string) => {
+    const colors: Record<PackageStatus, string> = {
+      [PackageStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
+      [PackageStatus.CONFIRMED]: 'bg-green-100 text-green-800',
+      [PackageStatus.IN_PROGRESS]: 'bg-blue-100 text-blue-800',
+      [PackageStatus.COMPLETED]: 'bg-gray-100 text-gray-800',
+      [PackageStatus.CANCELLED]: 'bg-red-100 text-red-800',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100';
+    return colors[status as PackageStatus] || 'bg-gray-100';
   };
 
-  const getStatusText = (status: string) => {
-    const statusText = {
-      pending: 'Pendente',
-      confirmed: 'Confirmado',
-      in_progress: 'Em Andamento',
-      completed: 'Concluído',
-      cancelled: 'Cancelado',
+  const getStatusText = (status: PackageStatus | string) => {
+    const statusText: Record<PackageStatus, string> = {
+      [PackageStatus.PENDING]: 'Pendente',
+      [PackageStatus.CONFIRMED]: 'Confirmado',
+      [PackageStatus.IN_PROGRESS]: 'Em Andamento',
+      [PackageStatus.COMPLETED]: 'Concluído',
+      [PackageStatus.CANCELLED]: 'Cancelado',
     };
-    return statusText[status as keyof typeof statusText] || status;
+    return statusText[status as PackageStatus] || status;
   };
 
   if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-center p-4">
+        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold text-gray-800 mb-2">
+          Falha ao carregar o Dashboard
+        </h2>
+        <p className="text-gray-600 mb-6 max-w-md">
+          {error}
+        </p>
+        <button
+          onClick={() => {
+            void fetchDashboardData();
+          }}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+        >
+          Tentar Novamente
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -246,7 +290,7 @@ const DashboardSkeleton: React.FC = () => (
       <div className="h-4 bg-gray-200 rounded w-1/2"></div>
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {[...Array(4)].map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
       ))}
     </div>
