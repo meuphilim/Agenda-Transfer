@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
           .from('package_attractions')
           .select(`
             scheduled_date,
-            attractions(name, stimated_duration),
+            attractions!inner(name, stimated_duration),
             packages(
               status,
               drivers(name),
