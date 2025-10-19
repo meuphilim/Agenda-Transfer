@@ -1,105 +1,121 @@
-# 🚀 TourManager - Sistema de Gestão de Turismo
+# 🚀 TourManager - Sistema de Gestão para Turismo Receptivo
 
-[![React](https://img.shields.io/badge/React-18.3.1-blue.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue.svg)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.3.6-purple.svg)](https://vitejs.dev/)
-[![Supabase](https://img.shields.io/badge/Supabase-2.58.0-green.svg)](https://supabase.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.1-cyan.svg)](https://tailwindcss.com/)
+[![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.3.6-purple?logo=vite)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-2.58.0-green?logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.1-cyan?logo=tailwindcss)](https://tailwindcss.com/)
+[![Licença](https://img.shields.io/badge/Licença-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Sistema profissional de gestão para turismo receptivo, desenvolvido com React, TypeScript e Supabase. Gerencia agências, motoristas, veículos, pacotes turísticos e agendas de forma eficiente e segura.
+**TourManager** é uma aplicação web completa e robusta, projetada para otimizar a gestão de empresas de turismo receptivo. O sistema centraliza o controle de agências, motoristas, veículos e pacotes turísticos, oferecendo uma plataforma segura e eficiente para agendar e acompanhar todas as operações do dia a dia.
 
 ---
 
 ## 📋 Índice
  
-- [Sobre o Projeto](#-sobre-o-projeto)
-- [Funcionalidades Principais](#-funcionalidades-principais)
-- [Tecnologias](#-tecnologias)
-- [Pré-requisitos](#-pré-requisitos)
-- [Instalação e Execução](#-instalação-e-execução)
-- [Scripts Disponíveis](#-scripts-disponíveis)
-- [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Licença](#-licença)
+- [🎯 Sobre o Projeto](#-sobre-o-projeto)
+- [⚡ Funcionalidades Principais](#-funcionalidades-principais)
+- [🛠️ Tecnologias](#-tecnologias)
+- [📋 Pré-requisitos](#-pré-requisitos)
+- [🚀 Instalação e Execução](#-instalação-e-execução)
+- [📜 Scripts Disponíveis](#-scripts-disponíveis)
+- [📁 Estrutura do Projeto](#-estrutura-do-projeto)
+- [📄 Licença](#-licença)
 
 ---
 
 ## 🎯 Sobre o Projeto
 
-**TourManager** (anteriormente Agenda Transfer) é uma aplicação web moderna para gestão completa de operações de turismo receptivo. O sistema foi projetado para ser robusto, seguro e fácil de usar.
+O **TourManager** foi desenvolvido para resolver os desafios logísticos de agências de turismo, substituindo planilhas e processos manuais por uma solução integrada. A plataforma permite um gerenciamento claro e em tempo real de todas as atividades, desde o cadastro de um novo pacote até a conclusão de um serviço.
 
 ### 🌟 Diferenciais
 
-- ✅ **Interface Responsiva e Moderna:** Layout adaptável para desktop e mobile, com uma barra lateral animada que melhora a experiência do usuário.
-- ✅ **Backend com Supabase:** Utiliza o poder do Supabase para autenticação, banco de dados PostgreSQL e atualizações em tempo real.
-- ✅ **Segurança:** Implementa Row Level Security (RLS) e separação de responsabilidades entre frontend e backend.
-- ✅ **Qualidade de Código:** Desenvolvido com TypeScript e boas práticas, com verificações de lint e tipo.
+- **Interface Moderna e Responsiva:** Construído com React e Tailwind CSS, o sistema oferece uma experiência de usuário fluida tanto em desktops quanto em dispositivos móveis.
+- **Backend Poderoso com Supabase:** Utiliza o Supabase para autenticação, banco de dados PostgreSQL em tempo real e segurança de dados com Row Level Security (RLS).
+- **Arquitetura Segura:** As operações sensíveis (como gerenciamento de usuários) são tratadas por funções de backend (`api/`), garantindo que chaves de serviço não sejam expostas no frontend.
+- **Qualidade de Código:** Desenvolvido com TypeScript para garantir a tipagem e a robustez do código, com verificações de qualidade via ESLint.
 
 ---
 
 ## ⚡ Funcionalidades Principais
 
-- **Gestão Completa:** CRUD para Agências, Motoristas, Veículos, Atrações e Pacotes.
-- **Autenticação Segura:** Sistema de login com gerenciamento de sessão e perfis de usuário (Admin/User).
-- **Aprovação de Usuários:** Novos usuários ficam com status "pendente" até serem aprovados por um administrador.
-- **Dashboard Intuitivo:** Visão geral com as informações mais importantes do sistema.
-- **Interface Responsiva:**
-    - **Desktop:** Barra lateral expansível ao passar o mouse.
-    - **Mobile:** Menu hambúrguer com painel lateral deslizante.
+### Gestão
+- **CRUD Completo:** Gerenciamento de Agências, Motoristas, Veículos, Atrações e Pacotes Turísticos.
+- **Agenda Inteligente:** Visualização de agendamentos em formato de lista ou calendário (semanal/mensal).
+- **Dashboard Central:** Painel com informações rápidas sobre as operações.
+
+### Segurança
+- **Autenticação e Autorização:** Sistema de login seguro com perfis de usuário (Administrador e Usuário).
+- **Aprovação de Usuários:** Novos usuários cadastrados precisam ser ativados por um administrador.
+- **Rotas Protegidas:** O acesso às páginas do sistema é protegido e requer autenticação.
+
+### Experiência do Usuário (UX)
+- **Design Responsivo:** Layout adaptado para desktop e mobile, com componentes reutilizáveis.
+- **Interface Intuitiva:** Navegação clara com barra lateral animada em desktop e menu hambúrguer em mobile.
+- **Feedback ao Usuário:** Notificações (toasts) para ações como sucesso e erro.
 
 ---
 
 ## 🛠️ Tecnologias
 
-| Tecnologia | Descrição |
-|------------|-----------|
-| [React](https://react.dev/) | Biblioteca JavaScript para construção de interfaces. |
-| [TypeScript](https://www.typescriptlang.org/) | Superset de JavaScript com tipagem estática. |
-| [Vite](https://vitejs.dev/) | Ferramenta de build moderna e ultra-rápida. |
-| [React Router](https://reactrouter.com/) | Para roteamento de páginas no lado do cliente. |
-| [Tailwind CSS](https://tailwindcss.com/) | Framework CSS para estilização rápida e utilitária. |
-| [Supabase](https://supabase.com/) | Plataforma de Backend-as-a-Service com PostgreSQL. |
-| [Framer Motion](https://www.framer.com/motion/) | Biblioteca para animações complexas em React. |
-| **Lucide React** | Biblioteca de ícones SVG leve e customizável. |
-| **React Hook Form** | Gerenciamento de formulários. |
-| **ESLint** | Ferramenta de linting para manter a qualidade do código. |
+A tabela a seguir lista as principais tecnologias utilizadas no desenvolvimento do TourManager:
+
+| Tecnologia | Versão | Descrição |
+| :--- | :--- | :--- |
+| **React** | `18.3.1` | Biblioteca principal para a construção da interface de usuário. |
+| **TypeScript** | `5.5.3` | Garante a tipagem estática e a qualidade do código. |
+| **Vite** | `6.3.6` | Ferramenta de build moderna e de alta performance. |
+| **Supabase** | `2.58.0` | Plataforma de Backend-as-a-Service para banco de dados e autenticação. |
+| **React Router** | `7.9.3` | Biblioteca para gerenciamento de rotas no lado do cliente. |
+| **Tailwind CSS** | `3.4.1` | Framework CSS utilitário para estilização rápida. |
+| **Framer Motion**| `12.23.24`| Biblioteca para criação de animações fluidas. |
+| **Lucide React** | `0.344.0` | Conjunto de ícones SVG leves e customizáveis. |
 
 ---
 
 ## 📋 Pré-requisitos
 
-- **Node.js** (versão 18 ou superior)
-- **npm** (versão 9 ou superior)
-- **Git**
+Para executar o projeto localmente, você precisará ter as seguintes ferramentas instaladas:
+
+- **Node.js**: `v18.0.0` ou superior
+- **npm**: `v9.0.0` ou superior
+- **Git**: Para clonar o repositório
 
 ---
 
 ## 🚀 Instalação e Execução
 
-### 1. Clone o repositório
+Siga os passos abaixo para configurar e executar o ambiente de desenvolvimento:
+
+**1. Clone o repositório**
 ```bash
 git clone https://github.com/seu-usuario/TourManager.git
 cd TourManager
 ```
 
-### 2. Instale as dependências
-Execute o comando na raiz do projeto:
+**2. Instale as dependências**
 ```bash
 npm install
 ```
 
-### 3. Configure as Variáveis de Ambiente
-Crie um arquivo `.env` na raiz do projeto e adicione as seguintes variáveis com suas credenciais do Supabase:
+**3. Configure as Variáveis de Ambiente**
 
+Crie um arquivo `.env` na raiz do projeto, utilizando o `.env.example` como referência.
+```bash
+cp .env.example .env
+```
+Em seguida, preencha o arquivo `.env` com suas credenciais do Supabase:
 ```env
 # URL do seu projeto Supabase
-VITE_SUPABASE_URL=https://<seu-projeto>.supabase.co
+VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
 
 # Chave anônima (pública) do seu projeto Supabase
-VITE_SUPABASE_ANON_KEY=<sua-chave-anon>
+VITE_SUPABASE_ANON_KEY="sua-chave-publica-anon"
 ```
-*Estas credenciais podem ser encontradas em `Project Settings > API` no seu painel do Supabase.*
+> **Onde encontrar as credenciais?**
+> Você pode obter a `URL` e a `ANON_KEY` no painel do seu projeto Supabase, em **Project Settings > API**.
 
-### 4. Execute o projeto
+**4. Execute o projeto**
 ```bash
 npm run dev
 ```
@@ -109,43 +125,39 @@ A aplicação estará disponível em **http://localhost:5173**.
 
 ## 📜 Scripts Disponíveis
 
-- `npm run dev`: Inicia o servidor de desenvolvimento.
-- `npm run build`: Gera a build de produção na pasta `dist/`.
-- `npm run lint`: Executa o ESLint para analisar o código.
-- `npm run typecheck`: Verifica os tipos do TypeScript sem gerar build.
-- `npm run check`: Executa `lint` e `typecheck` em sequência.
+- `npm run dev`: Inicia o servidor de desenvolvimento com Hot Reload.
+- `npm run build`: Gera a build de produção otimizada na pasta `dist/`.
+- `npm run lint`: Executa o ESLint para identificar problemas de formatação e estilo.
+- `npm run typecheck`: Realiza a verificação de tipos do TypeScript em todo o projeto.
+- `npm run check`: Executa os scripts `lint` e `typecheck` em sequência.
 - `npm run preview`: Inicia um servidor local para visualizar a build de produção.
 
 ---
 
 ## 📁 Estrutura do Projeto
 
-A estrutura de pastas principal é organizada da seguinte forma:
+A estrutura de diretórios foi organizada para separar responsabilidades e facilitar a manutenção:
 
 ```
-/
-├── api/                  # Funções serverless (backend)
-├── public/               # Arquivos estáticos
+TourManager/
+├── api/                # Funções serverless (backend) para operações seguras
+├── public/             # Arquivos estáticos (ícones, imagens)
 ├── src/
-│   ├── components/       # Componentes reutilizáveis
-│   │   └── Layout/
-│   │       ├── Sidebar.tsx
-│   │       └── SidebarComponents.tsx  # Lógica da sidebar animada
-│   ├── contexts/         # Contextos React (ex: AuthContext)
-│   ├── hooks/            # Hooks customizados
-│   ├── lib/              # Funções utilitárias e configuração de clientes
-│   ├── pages/            # Componentes de página (rotas)
-│   ├── services/         # Lógica de comunicação com APIs
-│   └── types/            # Definições de tipos do TypeScript
-├── .env.example          # Exemplo de variáveis de ambiente
-├── eslint.config.js      # Configuração do ESLint
-├── package.json          # Dependências e scripts
-├── tailwind.config.js    # Configuração do Tailwind CSS
-└── tsconfig.json         # Configuração do TypeScript
+│   ├── components/     # Componentes React reutilizáveis (Common/, Layout/)
+│   ├── contexts/       # Contextos da aplicação (ex: AuthContext)
+│   ├── hooks/          # Hooks customizados (ex: useAuth)
+│   ├── lib/            # Configuração de clientes (Supabase) e utilitários
+│   ├── pages/          # Componentes que representam as páginas da aplicação
+│   ├── services/       # Lógica de comunicação com a API (ex: adminApi)
+│   └── types/          # Definições de tipos TypeScript (enums.ts, database.types.ts)
+├── .env.example        # Arquivo de exemplo para variáveis de ambiente
+├── eslint.config.js    # Configurações do ESLint
+├── package.json        # Dependências e scripts do projeto
+└── vite.config.ts      # Configurações do Vite
 ```
 
 ---
 
 ## 📄 Licença
 
-Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está licenciado sob a **Licença MIT**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.

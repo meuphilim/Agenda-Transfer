@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import {
   Plus, Pencil, Trash2, X, List, Calendar, User, Truck, CalendarDays, MoreVertical, Eye, Send, Check, Play, CheckCircle, Briefcase
 } from 'lucide-react';
-import { format, startOfWeek, addDays, isSameDay, parseISO, startOfMonth, endOfMonth, isToday, endOfWeek, addMonths, subMonths } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay, parseISO, startOfMonth, endOfMonth, getDay, isToday, endOfWeek, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Database } from '../types/database.types';
 import { cn } from '../lib/utils';
@@ -49,16 +49,6 @@ type ScheduleItem = PackageActivity & {
   attractions: { name: string };
 };
 
-type ScheduleDayActivity = {
-  start_time: string | null;
-  packages: {
-    client_name: string;
-  };
-  attractions: {
-    name: string;
-  };
-};
-
 // Formulário
 interface PackageFormData {
   title: string;
@@ -78,208 +68,93 @@ const MobileCalendarView: React.FC<{
 }> = ({ onSend, onNewPackage }) => {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week'); // Padrão: semanal
 
   useEffect(() => {
-    const fetchScheduleData = async () => {
+    const fetchMonthData = async () => {
       setLoading(true);
-
-      // Definir range baseado no modo de visualização
-      let startDate: Date;
-      let endDate: Date;
-
-      if (viewMode === 'week') {
-        startDate = startOfWeek(currentDate, { weekStartsOn: 0 }); // Domingo
-        endDate = addDays(startDate, 6); // 7 dias
-      } else {
-        startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      }
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
 
       const { data, error } = await supabase
         .from('package_attractions')
-        .select(`*, packages!inner(id, title, client_name, status, agencies(name), vehicles(id, license_plate, model), drivers(id, name, phone)), attractions(name)`)
-        .gte('scheduled_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('scheduled_date', format(endDate, 'yyyy-MM-dd'))
-        .order('scheduled_date').order('start_time');
+        .select(`
+          *,
+          packages!inner(id, title, client_name, status, agencies(name), vehicles(id, license_plate, model), drivers(id, name, phone)),
+          attractions(name)
+        `)
+        .gte('scheduled_date', format(monthStart, 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(monthEnd, 'yyyy-MM-dd'))
+        .order('scheduled_date')
+        .order('start_time');
 
-      if (error) toast.error('Erro ao carregar agenda: ' + error.message);
-      else setScheduleItems(data as ScheduleItem[]);
+      if (error) {
+        toast.error('Erro ao carregar agenda: ' + error.message);
+        setScheduleItems([]);
+      } else {
+        setScheduleItems(data as ScheduleItem[]);
+      }
       setLoading(false);
     };
-    void fetchScheduleData();
-  }, [currentDate, viewMode]);
 
-  const getWeekDays = () => {
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Domingo
-    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  };
+    void fetchMonthData();
+  }, [currentMonth]);
 
   const getDaysInMonth = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
 
-    const days: (Date | null)[] = [];
-
-    // Adiciona dias vazios no início
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
+    const days = [];
+    let day = startDate;
+    while (day <= endDate) {
+      days.push(day);
+      day = addDays(day, 1);
     }
-
-    // Adiciona os dias do mês
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day));
-    }
-
     return days;
-  };
-
-  const navigatePrevious = () => {
-    if (viewMode === 'week') {
-      setCurrentDate(addDays(currentDate, -7));
-    } else {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-    }
-  };
-
-  const navigateNext = () => {
-    if (viewMode === 'week') {
-      setCurrentDate(addDays(currentDate, 7));
-    } else {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-    }
-  };
-
-  const getHeaderTitle = () => {
-    if (viewMode === 'week') {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-      const weekEnd = addDays(weekStart, 6);
-
-      if (weekStart.getMonth() === weekEnd.getMonth()) {
-        return `${format(weekStart, 'd')} - ${format(weekEnd, "d 'de' MMMM", { locale: ptBR })}`;
-      }
-      return `${format(weekStart, "d 'de' MMM", { locale: ptBR })} - ${format(weekEnd, "d 'de' MMM", { locale: ptBR })}`;
-    }
-    return format(currentDate, "MMMM yyyy", { locale: ptBR });
   };
 
   const getItemsForDate = (date: Date) => scheduleItems.filter(item => isSameDay(parseISO(item.scheduled_date), date));
   const hasItemsOnDate = (date: Date) => scheduleItems.some(item => isSameDay(parseISO(item.scheduled_date), date));
   const formatTime = (time: string | null) => time ? time.slice(0, 5) : '';
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+
 
   if (loading) return <div className="text-center p-8">Carregando calendário...</div>;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-4 border-b bg-gray-50">
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={navigatePrevious}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-            aria-label={viewMode === 'week' ? 'Semana anterior' : 'Mês anterior'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          <h2 className="text-lg font-bold text-gray-900">
-            {getHeaderTitle()}
-          </h2>
-
-          <button
-            onClick={navigateNext}
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-            aria-label={viewMode === 'week' ? 'Próxima semana' : 'Próximo mês'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex justify-center">
-          <button
-            onClick={() => setViewMode(viewMode === 'week' ? 'month' : 'week')}
-            className="px-4 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors flex items-center gap-1.5"
-            aria-label={viewMode === 'week' ? 'Expandir para visualização mensal' : 'Recolher para visualização semanal'}
-          >
-            {viewMode === 'week' ? (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                Expandir mês
-              </>
-            ) : (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                </svg>
-                Recolher semana
-              </>
+    <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={previousMonth} className="p-2 rounded-md hover:bg-gray-100">&lt;</button>
+        <h2 className="font-bold text-lg capitalize">{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</h2>
+        <button onClick={nextMonth} className="p-2 rounded-md hover:bg-gray-100">&gt;</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 font-medium mb-2">
+        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(day => <div key={day}>{day}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1" data-testid="mobile-calendar-grid">
+        {getDaysInMonth().map((day, i) => (
+          <div
+            key={i}
+            onClick={() => setSelectedDate(day)}
+            className={cn(
+              "aspect-square flex flex-col items-center justify-center rounded-lg cursor-pointer transition-colors",
+              day.getMonth() !== currentMonth.getMonth() ? 'text-gray-300' : 'text-gray-800',
+              isToday(day) && !selectedDate && 'bg-blue-50 border border-blue-300',
+              selectedDate && isSameDay(day, selectedDate) && 'bg-blue-100 border-2 border-blue-500 font-bold',
+              !selectedDate && !isToday(day) && 'hover:bg-gray-100',
             )}
-          </button>
-        </div>
+          >
+            <span>{format(day, 'd')}</span>
+            {hasItemsOnDate(day) && <div className="w-1 h-1 rounded-full bg-blue-500 mt-1"></div>}
+          </div>
+        ))}
       </div>
-
-      <div className="p-4">
-        <div className="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 font-medium mb-2">
-          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => <div key={i}>{day}</div>)}
-        </div>
-
-        <div className="grid grid-cols-7 gap-1">
-          {(viewMode === 'week' ? getWeekDays() : getDaysInMonth()).map((day, index) => {
-            if (!day) {
-              return <div key={`empty-${index}`} className="aspect-square" />;
-            }
-
-            const hasItems = hasItemsOnDate(day);
-            const isSelected = selectedDate && isSameDay(day, selectedDate);
-            const isTodayDate = isToday(day);
-
-            return (
-              <button
-                key={day.toString()}
-                onClick={() => setSelectedDate(isSelected ? null : day)}
-                className={cn(
-                  "aspect-square p-1 rounded-lg flex flex-col items-center justify-center relative transition-colors",
-                  isSelected && "bg-blue-100 border-2 border-blue-500",
-                  !isSelected && isTodayDate && "bg-blue-50 border border-blue-300",
-                  !isSelected && !isTodayDate && "hover:bg-gray-100"
-                )}
-                aria-label={`${format(day, "d 'de' MMMM", { locale: ptBR })}${hasItems ? ' - Com atividades' : ''}`}
-              >
-                <span className={cn(
-                  "text-sm font-medium",
-                  isSelected && "text-blue-700",
-                  !isSelected && isTodayDate && "text-blue-600",
-                  !isSelected && !isTodayDate && "text-gray-700"
-                )}>
-                  {format(day, 'd')}
-                </span>
-                {hasItems && (
-                  <div className="flex gap-0.5 mt-0.5">
-                    <div className={cn(
-                      "w-1 h-1 rounded-full",
-                      isSelected ? "bg-blue-600" : "bg-blue-500"
-                    )} />
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {selectedDate && (
-        <div className="p-4 pt-0">
+        <div className="mt-6">
           <div className="flex justify-between items-center pb-2 border-b mb-3">
             <h3 className="font-bold text-lg">{format(selectedDate, "eeee, dd 'de' MMMM", { locale: ptBR })}</h3>
             <button onClick={() => onNewPackage(selectedDate)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Plus size={18}/></button>
@@ -609,11 +484,17 @@ export const Agenda: React.FC = () => {
     };
   };
 
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   const handleSendSchedule = async (item: ScheduleItem) => {
     setSelectedScheduleItem(item);
-    const { data } = await supabase.from('package_attractions').select('start_time, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', item.scheduled_date).eq('packages.driver_id', item.packages.drivers.id);
-    const dayActivities: ScheduleDayActivity[] = data ?? [];
-    const message = formatScheduleMessage({ driverName: item.packages.drivers.name, date: item.scheduled_date, activities: dayActivities.map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
+    const { data: dayActivities } = await supabase.from('package_attractions').select('*, packages!inner(client_name), attractions!inner(name)').eq('scheduled_date', item.scheduled_date).eq('packages.driver_id', item.packages.drivers.id);
+    const message = formatScheduleMessage({ driverName: item.packages.drivers.name, date: item.scheduled_date, activities: (dayActivities ?? []).map(act => ({ clientName: act.packages.client_name, startTime: act.start_time ?? '', attractionName: act.attractions.name })) });
     setPreviewMessage(message);
     setShowConfirmSendModal(true);
   };
