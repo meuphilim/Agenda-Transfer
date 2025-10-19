@@ -836,7 +836,7 @@ export const Agenda: React.FC = () => {
                           htmlFor={`valor-net-${index}`}
                           className="text-sm font-medium text-gray-900 cursor-pointer"
                         >
-                          Considerar valor NET no fechamento
+                          Considerar valor NET
                         </label>
                       </div>
                     </div>
