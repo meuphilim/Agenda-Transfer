@@ -62,6 +62,28 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     void fetchDashboardData();
+
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'packages' },
+        () => {
+          void fetchDashboardData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'package_attractions' },
+        () => {
+          void fetchDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchDashboardData = async () => {
