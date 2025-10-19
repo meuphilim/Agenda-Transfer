@@ -164,6 +164,7 @@ const MobileCalendarView: React.FC<{
 
   const getItemsForDate = (date: Date) => scheduleItems.filter(item => isSameDay(parseISO(item.scheduled_date), date));
   const hasItemsOnDate = (date: Date) => scheduleItems.some(item => isSameDay(parseISO(item.scheduled_date), date));
+  const formatTime = (time: string | null) => time ? time.slice(0, 5) : '';
 
 
   if (loading) return <div className="text-center p-8">Carregando calendário...</div>;
