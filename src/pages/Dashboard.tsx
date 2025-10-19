@@ -39,6 +39,7 @@ interface RecentPackage {
 // Interface para as atividades do dia
 interface TodayActivity {
   scheduled_date: string;
+  start_time: string | null;
   attractions: { name: string; estimated_duration: number } | null;
   packages: {
     status: string;
@@ -106,6 +107,7 @@ export const Dashboard: React.FC = () => {
           .from('package_attractions')
           .select(`
             scheduled_date,
+            start_time,
             attractions!inner(name, estimated_duration),
             packages(
               status,
@@ -192,21 +194,22 @@ export const Dashboard: React.FC = () => {
     return statusText[status as PackageStatus] || status;
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  };
-
   const getActivityStatus = (activity: TodayActivity): [string, string] => {
     const now = new Date();
-    const startTime = new Date(activity.scheduled_date);
-    const durationInMinutes = activity.attractions?.estimated_duration ?? 0;
-    const endTime = new Date(startTime.getTime() + durationInMinutes * 60000);
 
-    if (activity.packages?.status === PackageStatus.COMPLETED || now > endTime) {
+    // Combinar scheduled_date + start_time em um objeto Date
+    const startDateStr = activity.scheduled_date;
+    const startTimeStr = activity.start_time;
+    if (!startTimeStr) return ['A iniciar', 'bg-green-100 text-green-800'];
+
+    const startDateTime = new Date(`${startDateStr}T${startTimeStr}:00`);
+    const durationMinutes = activity.attractions?.estimated_duration ?? 0;
+    const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
+
+    if (activity.packages?.status === 'completed' || now > endDateTime) {
       return ['Concluída', 'bg-gray-100 text-gray-800'];
     }
-    if (now >= startTime && now <= endTime) {
+    if (now >= startDateTime && now <= endDateTime) {
       return ['Em andamento', 'bg-blue-100 text-blue-800'];
     }
     return ['A iniciar', 'bg-green-100 text-green-800'];
@@ -328,7 +331,9 @@ export const Dashboard: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                       <CalendarDays className="h-4 w-4 text-gray-500" />
-                      <p className="font-mono text-sm text-gray-800">{formatTime(activity.scheduled_date)}</p>
+                      <p className="font-mono text-sm text-gray-800">
+                        {activity.start_time ? `${activity.start_time}` : '—'}
+                      </p>
                     </div>
                     <span className={cn("px-2 py-1 rounded-full text-xs font-medium", statusColor)}>
                       {statusText}
