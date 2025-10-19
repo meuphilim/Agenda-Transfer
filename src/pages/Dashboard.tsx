@@ -117,7 +117,8 @@ export const Dashboard: React.FC = () => {
           `)
           .gte('scheduled_date', today.toISOString())
           .lt('scheduled_date', tomorrow.toISOString())
-          .order('scheduled_date', { ascending: true }),
+          .order('scheduled_date', { ascending: true })
+          .order('start_time', { ascending: true }),
         supabase
           .from('packages')
           .select(`
@@ -197,21 +198,28 @@ export const Dashboard: React.FC = () => {
   const getActivityStatus = (activity: TodayActivity): [string, string] => {
     const now = new Date();
 
-    // Combinar scheduled_date + start_time em um objeto Date
-    const startDateStr = activity.scheduled_date;
-    const startTimeStr = activity.start_time;
-    if (!startTimeStr) return ['A iniciar', 'bg-green-100 text-green-800'];
+    if (!activity.scheduled_date || !activity.start_time) {
+      return ['A iniciar', 'bg-green-100 text-green-800'];
+    }
 
-    const startDateTime = new Date(`${startDateStr}T${startTimeStr}:00`);
+    // Combina data e hora local corretamente
+    const [hour, minute] = activity.start_time.split(':').map(Number);
+    const startDateTime = new Date(activity.scheduled_date);
+    startDateTime.setHours(hour, minute, 0, 0);
+
+    // Duração estimada da atração
     const durationMinutes = activity.attractions?.estimated_duration ?? 0;
     const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60000);
 
-    if (activity.packages?.status === 'completed' || now > endDateTime) {
+    // Cálculo do status
+    if (activity.packages?.status === 'completed' || now >= endDateTime) {
       return ['Concluída', 'bg-gray-100 text-gray-800'];
     }
-    if (now >= startDateTime && now <= endDateTime) {
+
+    if (now >= startDateTime && now < endDateTime) {
       return ['Em andamento', 'bg-blue-100 text-blue-800'];
     }
+
     return ['A iniciar', 'bg-green-100 text-green-800'];
   };
 
