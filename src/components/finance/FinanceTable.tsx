@@ -11,15 +11,27 @@ interface FinanceTableProps {
 
 const getStatusStyle = (status: 'pago' | 'pendente' | 'cancelado') => {
   switch (status) {
-    case 'pago': return { text: 'Pago', color: 'bg-green-100 text-green-800', icon: <BadgeCheck /> };
-    case 'pendente': return { text: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: <BadgeAlert /> };
-    case 'cancelado': return { text: 'Cancelado', color: 'bg-red-100 text-red-800', icon: <BadgeX /> };
+    case 'pago': return { text: 'Pago', color: 'bg-green-100 text-green-800', icon: <BadgeCheck size={14} /> };
+    case 'pendente': return { text: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: <BadgeAlert size={14} /> };
+    case 'cancelado': return { text: 'Cancelado', color: 'bg-red-100 text-red-800', icon: <BadgeX size={14} /> };
     default: return { text: 'N/A', color: 'bg-gray-100 text-gray-800', icon: null };
   }
 };
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-const formatDate = (date: string) => new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+
+const MarginBadge: React.FC<{ margin: number; percentage: number }> = ({ margin, percentage }) => {
+  const isPositive = margin >= 0;
+  const bgColor = isPositive ? 'bg-green-100' : 'bg-red-100';
+  const textColor = isPositive ? 'text-green-800' : 'text-red-800';
+
+  return (
+    <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${bgColor} ${textColor}`}>
+      {isPositive ? '📈' : '📉'}
+      <span className="ml-1.5">{formatCurrency(margin)} ({percentage.toFixed(1)}%)</span>
+    </div>
+  );
+};
 
 export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, onEdit }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -38,6 +50,15 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
     );
   }
 
+  const columns = [
+    { header: 'Pacote / Cliente', key: 'pacote' },
+    { header: 'Receita Total', key: 'receita', className: 'text-green-600 font-semibold' },
+    { header: 'Custos Totais', key: 'custos', className: 'text-red-600 font-semibold' },
+    { header: 'Margem Bruta', key: 'margem' },
+    { header: 'Status', key: 'status' },
+    { header: 'Ações', key: 'acoes', className: 'text-right' },
+  ];
+
   return (
     <div>
       {/* Desktop */}
@@ -45,11 +66,11 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
         <table className="min-w-full divide-y">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agência</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pacote</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+              {columns.map(col => (
+                <th key={col.key} className={cn("px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase", col.className)}>
+                  {col.header}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -57,16 +78,32 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
               const status = getStatusStyle(pkg.status_pagamento);
               return (
                 <tr key={pkg.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">{pkg.agencies?.name ?? 'N/A'}</td>
-                  <td className="px-6 py-4">{pkg.title}</td>
-                  <td className="px-6 py-4 font-semibold">{formatCurrency(pkg.valor_total)}</td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold">{pkg.title}</p>
+                    <p className="text-sm text-gray-500">{pkg.client_name}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold text-green-600">{formatCurrency(pkg.valor_receita_total)}</p>
+                    <p className="text-xs text-gray-500">Diárias: {formatCurrency(pkg.valor_diaria_servico_calculado)}</p>
+                    <p className="text-xs text-gray-500">NET: {formatCurrency(pkg.valor_net_receita)}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold text-red-600">{formatCurrency(pkg.valor_custo_total)}</p>
+                    <p className="text-xs text-gray-500">Motorista: {formatCurrency(pkg.valor_diaria_motorista_calculado)}</p>
+                    <p className="text-xs text-gray-500">Veículo: {formatCurrency(pkg.valor_despesas_veiculo)}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <MarginBadge margin={pkg.valor_margem_bruta} percentage={pkg.percentual_margem} />
+                  </td>
                   <td className="px-6 py-4">
                     <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
                       {status.icon} {status.text}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => onEdit(pkg)} className="text-blue-600"><Pencil size={16} /></button>
+                    <button onClick={() => onEdit(pkg)} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-gray-100">
+                      <Pencil size={16} />
+                    </button>
                   </td>
                 </tr>
               );
@@ -84,16 +121,16 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
               <div className="p-4 border-b">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h3 className="font-semibold">{pkg.agencies?.name ?? 'N/A'}</h3>
-                    <p className="text-sm text-gray-600">{pkg.title}</p>
+                    <h3 className="font-semibold">{pkg.title}</h3>
+                    <p className="text-sm text-gray-600">{pkg.client_name}</p>
                   </div>
                   <div className="relative">
-                    <button onClick={() => setActiveMenu(pkg.id === activeMenu ? null : pkg.id)} className="p-2">
+                    <button onClick={() => setActiveMenu(pkg.id === activeMenu ? null : pkg.id)} className="p-2 text-gray-500">
                       <MoreVertical size={20} />
                     </button>
                     {activeMenu === pkg.id && (
                       <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-10 border">
-                        <button onClick={() => onEdit(pkg)} className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-100">
+                        <button onClick={() => { onEdit(pkg); setActiveMenu(null); }} className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-100">
                            <Pencil size={14}/> Editar
                         </button>
                       </div>
@@ -101,15 +138,26 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
                   </div>
                 </div>
               </div>
-              <div className="p-4 flex justify-between items-center">
+              <div className="p-4 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-lg font-bold text-blue-600">{formatCurrency(pkg.valor_total)}</p>
-                  <p className="text-sm text-gray-500">Data: {formatDate(pkg.start_date)}</p>
+                  <p className="text-sm font-medium text-green-700">Receita</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(pkg.valor_receita_total)}</p>
                 </div>
-                <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
-                  {status.icon} {status.text}
-                </span>
+                <div>
+                  <p className="text-sm font-medium text-red-700">Custo</p>
+                  <p className="text-lg font-bold text-red-600">{formatCurrency(pkg.valor_custo_total)}</p>
+                </div>
+                <div className="col-span-2">
+                   <p className="text-sm font-medium text-purple-700">Margem</p>
+                   <MarginBadge margin={pkg.valor_margem_bruta} percentage={pkg.percentual_margem} />
+                </div>
               </div>
+               <div className="p-3 bg-gray-50 border-t flex justify-between items-center">
+                 <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
+                  {status.icon} {status.text}
+                 </span>
+                 <p className="text-xs text-gray-500">{new Date(pkg.start_date).toLocaleDateString('pt-BR')}</p>
+               </div>
             </div>
           );
         })}
