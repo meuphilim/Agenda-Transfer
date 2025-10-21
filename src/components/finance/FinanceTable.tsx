@@ -2,6 +2,7 @@ import { BadgeCheck, BadgeX, BadgeAlert, Package as PackageIcon, Pencil, MoreVer
 import { PackageWithRelations } from '../../services/financeApi';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface FinanceTableProps {
   packages: PackageWithRelations[];
@@ -33,9 +34,59 @@ const MarginBadge: React.FC<{ margin: number; percentage: number }> = ({ margin,
   );
 };
 
-export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, onEdit }) => {
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+const MobileTableRow: React.FC<{ pkg: PackageWithRelations; onEdit: (pkg: PackageWithRelations) => void }> = ({ pkg, onEdit }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useClickOutside<HTMLDivElement>(() => setIsMenuOpen(false));
+  const status = getStatusStyle(pkg.status_pagamento);
 
+  return (
+    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="p-4 border-b">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <h3 className="font-semibold">{pkg.title}</h3>
+            <p className="text-sm text-gray-600">{pkg.client_name}</p>
+          </div>
+          <div className="relative" ref={menuRef}>
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-500">
+              <MoreVertical size={20} />
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-10 border">
+                <button data-testid={`edit-button-mobile-${pkg.id}`} onClick={() => { onEdit(pkg); setIsMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-100">
+                   <Pencil size={14}/> Editar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="p-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-sm font-medium text-green-700">Receita</p>
+          <p className="text-lg font-bold text-green-600">{formatCurrency(pkg.valor_receita_total)}</p>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-red-700">Custo</p>
+          <p className="text-lg font-bold text-red-600">{formatCurrency(pkg.valor_custo_total)}</p>
+        </div>
+        <div className="col-span-2">
+           <p className="text-sm font-medium text-purple-700">Margem</p>
+           <MarginBadge margin={pkg.valor_margem_bruta} percentage={pkg.percentual_margem} />
+        </div>
+      </div>
+       <div className="p-3 bg-gray-50 border-t flex justify-between items-center">
+         <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
+          {status.icon} {status.text}
+         </span>
+         <p className="text-xs text-gray-500">{new Date(pkg.start_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</p>
+       </div>
+    </div>
+  );
+};
+
+
+export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, onEdit }) => {
   if (loading) {
     return <div className="text-center p-12">Carregando...</div>;
   }
@@ -101,7 +152,12 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => onEdit(pkg)} className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-gray-100">
+                    <button
+                      onClick={() => onEdit(pkg)}
+                      data-testid={`edit-button-${pkg.id}`}
+                      aria-label={`Editar pacote ${pkg.title}`}
+                      className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-gray-100 transition-colors"
+                    >
                       <Pencil size={16} />
                     </button>
                   </td>
@@ -114,53 +170,9 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
 
       {/* Mobile */}
       <div className="md:hidden space-y-3">
-        {packages.map((pkg) => {
-          const status = getStatusStyle(pkg.status_pagamento);
-          return (
-            <div key={pkg.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
-              <div className="p-4 border-b">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{pkg.title}</h3>
-                    <p className="text-sm text-gray-600">{pkg.client_name}</p>
-                  </div>
-                  <div className="relative">
-                    <button onClick={() => setActiveMenu(pkg.id === activeMenu ? null : pkg.id)} className="p-2 text-gray-500">
-                      <MoreVertical size={20} />
-                    </button>
-                    {activeMenu === pkg.id && (
-                      <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg z-10 border">
-                        <button onClick={() => { onEdit(pkg); setActiveMenu(null); }} className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-100">
-                           <Pencil size={14}/> Editar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-green-700">Receita</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(pkg.valor_receita_total)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-red-700">Custo</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(pkg.valor_custo_total)}</p>
-                </div>
-                <div className="col-span-2">
-                   <p className="text-sm font-medium text-purple-700">Margem</p>
-                   <MarginBadge margin={pkg.valor_margem_bruta} percentage={pkg.percentual_margem} />
-                </div>
-              </div>
-               <div className="p-3 bg-gray-50 border-t flex justify-between items-center">
-                 <span className={cn('inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs', status.color)}>
-                  {status.icon} {status.text}
-                 </span>
-                 <p className="text-xs text-gray-500">{new Date(pkg.start_date).toLocaleDateString('pt-BR')}</p>
-               </div>
-            </div>
-          );
-        })}
+        {packages.map((pkg) => (
+          <MobileTableRow key={pkg.id} pkg={pkg} onEdit={onEdit} />
+        ))}
       </div>
     </div>
   );

@@ -57,14 +57,24 @@ export const calculatePackageFinancials = async (
     .eq('id', packageId)
     .single<PackageData>();
 
-  if (pkgError || !pkg) throw new Error('Pacote não encontrado');
+  if (pkgError) {
+    console.error(`Erro ao buscar pacote ${packageId}:`, pkgError.message);
+    throw new Error(`Falha ao buscar dados do pacote (ID: ${packageId}).`);
+  }
+  if (!pkg) {
+    throw new Error(`Pacote com ID ${packageId} não encontrado.`);
+  }
 
-  const { data: vehicleExpenses } = await supabase
+  const { data: vehicleExpenses, error: expensesError } = await supabase
     .from('vehicle_expenses')
     .select('*')
     .eq('vehicle_id', pkg.vehicle_id ?? '')
     .gte('date', startDate ?? pkg.start_date)
     .lte('date', endDate ?? pkg.end_date);
+
+  if (expensesError) {
+    console.error(`Erro ao buscar despesas para o veículo do pacote ${packageId}:`, expensesError.message);
+  }
 
   const dailyServiceRate = pkg.valor_diaria_servico ?? 0;
   const considerDriverCost = pkg.considerar_diaria_motorista ?? true;
