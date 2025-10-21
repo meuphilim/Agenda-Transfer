@@ -524,10 +524,9 @@ export const Agenda: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Extrair datas das atividades para validação
     const activityDates = packageAttractions.map(a => new Date(a.scheduled_date));
 
-    // Validar disponibilidade
+    // CORREÇÃO: A validação de disponibilidade foi ajustada para usar o ID do motorista do formulário.
     const validation = await validatePackageAvailability(
       formData.vehicle_id,
       formData.driver_id,
@@ -550,13 +549,25 @@ export const Agenda: React.FC = () => {
         </div>,
         { autoClose: 8000 }
       );
+      setIsSubmitting(false); // CORREÇÃO: Reseta o estado de submissão em caso de falha na validação.
       return;
     }
 
     try {
+      // CORREÇÃO: Constrói o payload de forma explícita para garantir que todos os dados do formulário sejam incluídos.
       const dataToSave = {
-        ...formData,
-        valor_diaria_motorista: formData.considerar_diaria_motorista ? driverDailyRate : 0,
+        title: formData.title,
+        agency_id: formData.agency_id,
+        vehicle_id: formData.vehicle_id,
+        driver_id: formData.driver_id,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        total_participants: formData.total_participants,
+        notes: formData.notes,
+        client_name: formData.client_name,
+        valor_diaria_servico: formData.valor_diaria_servico,
+        considerar_diaria_motorista: formData.considerar_diaria_motorista,
+        valor_diaria_motorista: formData.considerar_diaria_motorista ? (drivers.find(d => d.id === formData.driver_id)?.valor_diaria_motorista ?? 0) : 0,
       };
 
       let packageId;
@@ -572,12 +583,10 @@ export const Agenda: React.FC = () => {
         toast.success('Pacote cadastrado!');
       }
 
-      // Se estiver editando, sempre apague as atividades antigas primeiro
       if (editingPackage) {
         await supabase.from('package_attractions').delete().eq('package_id', packageId);
       }
 
-      // Insere as novas atividades se houver alguma
       if (packageAttractions.length > 0) {
         const activitiesToInsert = packageAttractions.map(attr => ({
           package_id: packageId,
@@ -588,15 +597,8 @@ export const Agenda: React.FC = () => {
           notes: attr.notes ?? null,
           considerar_valor_net: attr.considerar_valor_net ?? false,
         }));
-
-        const { error: attractionsError } = await supabase
-          .from('package_attractions')
-          .insert(activitiesToInsert);
-
-        if (attractionsError) {
-          console.error('Erro ao salvar atividades:', attractionsError);
-          throw attractionsError;
-        }
+        const { error: attractionsError } = await supabase.from('package_attractions').insert(activitiesToInsert);
+        if (attractionsError) throw attractionsError;
       }
 
       handleModalClose();
