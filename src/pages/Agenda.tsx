@@ -15,25 +15,41 @@ import { PackageStatus } from '../types/enums';
 import { validatePackageAvailability } from '../services/availabilityService';
 
 // Função para formatar valor como moeda brasileira
-const formatCurrencyInput = (value: string): string => {
-  // Remove tudo que não é número
-  const numbers = value.replace(/\D/g, '');
-
-  // Converte para número e divide por 100 para ter centavos
-  const amount = parseFloat(numbers) / 100;
-
-  // Formata como moeda
-  return amount.toLocaleString('pt-BR', {
+const formatCurrencyInput = (value: number): string => {
+  return value.toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 };
 
-// Função para converter string formatada para número
+// Função para converter string para número (aceita vírgula ou ponto)
 const parseCurrencyInput = (value: string): number => {
-  const numbers = value.replace(/\D/g, '');
-  return parseFloat(numbers) / 100 || 0;
-};
+  if (typeof value !== 'string') return 0;
+
+  const cleaned = value.replace(/[^\d,.]/g, '');
+
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+
+  let parsableString = cleaned;
+
+  if (hasComma) {
+      // Comma is present, assume it's the decimal separator
+      // Remove all dots (thousands separators) and replace comma with dot
+      parsableString = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (hasDot) {
+      // No comma, but dot is present. Assume the last dot is the decimal separator.
+      const parts = cleaned.split('.');
+      if (parts.length > 1) {
+          const integerPart = parts.slice(0, -1).join('');
+          const decimalPart = parts.slice(-1)[0];
+          parsableString = `${integerPart}.${decimalPart}`;
+      }
+  }
+
+  const number = parseFloat(parsableString);
+  return isNaN(number) ? 0 : number;
+}
 
 // Tipos
 type Agency = Database['public']['Tables']['agencies']['Row'];
@@ -426,6 +442,7 @@ export const Agenda: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
   const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, considerar_diaria_motorista: true });
+  const [rawServiceDailyRate, setRawServiceDailyRate] = useState<string | null>(null);
   const [driverDailyRate, setDriverDailyRate] = useState<number | null>(null);
   const [packageAttractions, setPackageAttractions] = useState<PackageActivityForm[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
@@ -506,6 +523,7 @@ export const Agenda: React.FC = () => {
       valor_diaria_servico: 0, // Será validado no submit
       considerar_diaria_motorista: true
     });
+    setRawServiceDailyRate(null);
     setPackageAttractions([]);
     setEditingPackage(null);
     setDriverDailyRate(null);
@@ -518,6 +536,7 @@ export const Agenda: React.FC = () => {
 
   const handleEdit = async (pkg: PackageWithRelations) => {
     setEditingPackage(pkg);
+    const valorDiaria = pkg.valor_diaria_servico ?? 0;
     setFormData({
       title: pkg.title,
       agency_id: pkg.agency_id,
@@ -528,9 +547,10 @@ export const Agenda: React.FC = () => {
       total_participants: pkg.total_participants,
       notes: pkg.notes ?? '',
       client_name: pkg.client_name ?? '',
-      valor_diaria_servico: pkg.valor_diaria_servico ?? 0,
+      valor_diaria_servico: valorDiaria,
       considerar_diaria_motorista: pkg.considerar_diaria_motorista ?? true,
     });
+    setRawServiceDailyRate(formatCurrencyInput(valorDiaria));
 
     // Carregar atividades do pacote
     const { data, error } = await supabase
@@ -937,36 +957,36 @@ export const Agenda: React.FC = () => {
           <div className="border-t pt-4">
             <h4 className="font-bold mb-2">Configuração de Diárias</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="valor_diaria_servico" className="block text-sm font-medium mb-1">
-                  Valor da diária de serviço *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
-                  <input
-                    id="valor_diaria_servico"
-                    type="text"
-                    required
-                    value={formatCurrencyInput(formData.valor_diaria_servico.toString())}
-                    onChange={e => {
-                      const numericValue = parseCurrencyInput(e.target.value);
-                      setFormData({...formData, valor_diaria_servico: numericValue});
-                    }}
-                    onBlur={e => {
-                      // Validação: não permitir valor zero
-                      if (parseCurrencyInput(e.target.value) === 0) {
-                        toast.warning('O valor da diária deve ser maior que zero');
-                        setFormData({...formData, valor_diaria_servico: 0});
-                      }
-                    }}
-                    className="w-full pl-10 p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="0,00"
-                  />
-                </div>
-                {formData.valor_diaria_servico === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">⚠️ Informe o valor da diária</p>
-                )}
-              </div>
+<div>
+  <label htmlFor="valor_diaria_servico" className="block text-sm font-medium mb-1">
+    Valor da diária de serviço *
+  </label>
+  <div className="relative">
+    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+    <input
+      id="valor_diaria_servico"
+      type="text"
+      required
+      value={rawServiceDailyRate ?? ''}
+      onChange={e => {
+        setRawServiceDailyRate(e.target.value);
+      }}
+      onBlur={e => {
+        const numericValue = parseCurrencyInput(e.target.value);
+        if (numericValue === 0) {
+          toast.warning('O valor da diária deve ser maior que zero');
+        }
+        setFormData({...formData, valor_diaria_servico: numericValue});
+        setRawServiceDailyRate(formatCurrencyInput(numericValue));
+      }}
+      className="w-full pl-10 p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      placeholder="0,00"
+    />
+  </div>
+  {formData.valor_diaria_servico === 0 && (
+    <p className="text-xs text-amber-600 mt-1">⚠️ Informe o valor da diária</p>
+  )}
+</div>
               <div>
                 <label htmlFor="considerar_diaria_motorista" className="block text-sm font-medium mb-1">Diária do Motorista</label>
                 <div className="flex items-center gap-4 mt-2">
