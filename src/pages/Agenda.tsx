@@ -14,6 +14,27 @@ import { formatScheduleMessage } from '../utils/messageFormat';
 import { PackageStatus } from '../types/enums';
 import { validatePackageAvailability } from '../services/availabilityService';
 
+// Função para formatar valor como moeda brasileira
+const formatCurrencyInput = (value: string): string => {
+  // Remove tudo que não é número
+  const numbers = value.replace(/\D/g, '');
+
+  // Converte para número e divide por 100 para ter centavos
+  const amount = parseFloat(numbers) / 100;
+
+  // Formata como moeda
+  return amount.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// Função para converter string formatada para número
+const parseCurrencyInput = (value: string): number => {
+  const numbers = value.replace(/\D/g, '');
+  return parseFloat(numbers) / 100 || 0;
+};
+
 // Tipos
 type Agency = Database['public']['Tables']['agencies']['Row'];
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -472,9 +493,22 @@ export const Agenda: React.FC = () => {
     }), [packages, statusFilter, searchTerm]);
 
   const resetForm = () => {
-    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, considerar_diaria_motorista: true });
+    setFormData({
+      title: '',
+      agency_id: '',
+      vehicle_id: '',
+      driver_id: '',
+      start_date: '',
+      end_date: '',
+      total_participants: 1,
+      notes: '',
+      client_name: '',
+      valor_diaria_servico: 0, // Será validado no submit
+      considerar_diaria_motorista: true
+    });
     setPackageAttractions([]);
     setEditingPackage(null);
+    setDriverDailyRate(null);
   };
 
   const handleModalClose = () => {
@@ -522,11 +556,18 @@ export const Agenda: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ VALIDAÇÃO: Valor da diária obrigatório
+    if (formData.valor_diaria_servico <= 0) {
+      toast.error('O valor da diária de serviço deve ser maior que zero');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const activityDates = packageAttractions.map(a => new Date(a.scheduled_date));
 
-    // CORREÇÃO: A validação de disponibilidade foi ajustada para usar o ID do motorista do formulário.
+    // A validação de disponibilidade foi ajustada para usar o ID do motorista do formulário.
     const validation = await validatePackageAvailability(
       formData.vehicle_id,
       formData.driver_id,
@@ -549,17 +590,13 @@ export const Agenda: React.FC = () => {
         </div>,
         { autoClose: 8000 }
       );
-      setIsSubmitting(false); // CORREÇÃO: Reseta o estado de submissão em caso de falha na validação.
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      // CORREÇÃO: O payload é construído usando o spread operator para garantir que todos os campos do formulário
-      // sejam incluídos, evitando o erro 400 Bad Request. O valor_diaria_motorista é calculado e adicionado.
-      const dataToSave = {
-        ...formData,
-        valor_diaria_motorista: formData.considerar_diaria_motorista ? (driverDailyRate ?? 0) : 0,
-      };
+      // ✅ CORREÇÃO: Remover valor_diaria_motorista do payload (não existe no banco)
+      const { valor_diaria_motorista, ...dataToSave } = formData;
 
       let packageId;
       if (editingPackage) {
@@ -901,16 +938,34 @@ export const Agenda: React.FC = () => {
             <h4 className="font-bold mb-2">Configuração de Diárias</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="valor_diaria_servico">Valor da diária de serviço</label>
-                <input
-                  id="valor_diaria_servico"
-                  type="number"
-                  step="0.01"
-                  value={formData.valor_diaria_servico}
-                  onChange={e => setFormData({...formData, valor_diaria_servico: parseFloat(e.target.value) || 0})}
-                  className="w-full p-2 border rounded"
-                  placeholder="R$ 0,00"
-                />
+                <label htmlFor="valor_diaria_servico" className="block text-sm font-medium mb-1">
+                  Valor da diária de serviço *
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                  <input
+                    id="valor_diaria_servico"
+                    type="text"
+                    required
+                    value={formatCurrencyInput(formData.valor_diaria_servico.toString())}
+                    onChange={e => {
+                      const numericValue = parseCurrencyInput(e.target.value);
+                      setFormData({...formData, valor_diaria_servico: numericValue});
+                    }}
+                    onBlur={e => {
+                      // Validação: não permitir valor zero
+                      if (parseCurrencyInput(e.target.value) === 0) {
+                        toast.warning('O valor da diária deve ser maior que zero');
+                        setFormData({...formData, valor_diaria_servico: 0});
+                      }
+                    }}
+                    className="w-full pl-10 p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0,00"
+                  />
+                </div>
+                {formData.valor_diaria_servico === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">⚠️ Informe o valor da diária</p>
+                )}
               </div>
               <div>
                 <label htmlFor="considerar_diaria_motorista" className="block text-sm font-medium mb-1">Diária do Motorista</label>
