@@ -18,7 +18,7 @@ interface DriverFormData {
   status: 'available' | 'busy' | 'unavailable';
   category: string;
   ear: boolean;
-  valor_diaria: string;
+  valor_diaria_motorista: string;
   active: boolean;
 }
 
@@ -50,7 +50,7 @@ export const Drivers: React.FC = () => {
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [formData, setFormData] = useState<DriverFormData>({
     name: '', phone: '', email: '', license_number: '', license_expiry: '',
-    status: 'available', category: 'B', ear: false, valor_diaria: '', active: true
+    status: 'available', category: 'B', ear: false, valor_diaria_motorista: '', active: true
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -67,7 +67,7 @@ export const Drivers: React.FC = () => {
     e.preventDefault();
     const dataToSave = {
       ...formData,
-      valor_diaria: formData.valor_diaria ? parseFloat(formData.valor_diaria) : null,
+      valor_diaria_motorista: formData.valor_diaria_motorista ? parseFloat(formData.valor_diaria_motorista) : null,
       license_expiry: formData.license_expiry || null,
     };
     try {
@@ -95,7 +95,7 @@ export const Drivers: React.FC = () => {
       status: driver.status,
       category: driver.category,
       ear: driver.ear,
-      valor_diaria: driver.valor_diaria?.toString() ?? '',
+      valor_diaria_motorista: driver.valor_diaria_motorista?.toString() ?? '',
       active: driver.active,
     });
     setShowModal(true);
@@ -112,7 +112,7 @@ export const Drivers: React.FC = () => {
   const resetForm = () => {
     setFormData({
       name: '', phone: '', email: '', license_number: '', license_expiry: '',
-      status: 'available', category: 'B', ear: false, valor_diaria: '', active: true
+      status: 'available', category: 'B', ear: false, valor_diaria_motorista: '', active: true
     });
   };
 
@@ -275,8 +275,8 @@ export const Drivers: React.FC = () => {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label htmlFor="valor_diaria" className="block text-sm font-medium mb-1">Valor da Diária (R$)</label>
-              <input id="valor_diaria" type="number" step="0.01" className="w-full px-4 py-3 md:py-2 border rounded-lg" value={formData.valor_diaria} onChange={e => setFormData({...formData, valor_diaria: e.target.value})} />
+              <label htmlFor="valor_diaria_motorista" className="block text-sm font-medium mb-1">Valor da Diária (R$)</label>
+              <input id="valor_diaria_motorista" type="number" step="0.01" className="w-full px-4 py-3 md:py-2 border rounded-lg" value={formData.valor_diaria_motorista} onChange={e => setFormData({...formData, valor_diaria_motorista: e.target.value})} />
             </div>
             <div className="flex items-center gap-3">
               <input id="ear" type="checkbox" className="h-4 w-4 rounded" checked={formData.ear} onChange={e => setFormData({...formData, ear: e.target.checked})} />

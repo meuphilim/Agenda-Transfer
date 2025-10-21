@@ -62,7 +62,7 @@ interface PackageFormData {
   notes: string;
   client_name: string;
   valor_diaria_servico: number;
-  valor_diaria_motorista: number;
+  considerar_diaria_motorista: boolean;
 }
 
 const MobileCalendarView: React.FC<{
@@ -404,7 +404,8 @@ export const Agenda: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
-  const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, valor_diaria_motorista: 0 });
+  const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, considerar_diaria_motorista: true });
+  const [driverDailyRate, setDriverDailyRate] = useState<number | null>(null);
   const [packageAttractions, setPackageAttractions] = useState<PackageActivityForm[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
@@ -449,6 +450,19 @@ export const Agenda: React.FC = () => {
 
   useEffect(() => { void fetchData(); }, []);
 
+  useEffect(() => {
+    if (formData.driver_id) {
+      const selectedDriver = drivers.find(d => d.id === formData.driver_id);
+      if (selectedDriver) {
+        setDriverDailyRate(selectedDriver.valor_diaria_motorista);
+      } else {
+        setDriverDailyRate(null);
+      }
+    } else {
+      setDriverDailyRate(null);
+    }
+  }, [formData.driver_id, drivers]);
+
   const filteredPackages = useMemo(() => packages
     .filter(pkg => statusFilter === 'all' || pkg.status === statusFilter)
     .filter(pkg => {
@@ -457,7 +471,7 @@ export const Agenda: React.FC = () => {
     }), [packages, statusFilter, searchTerm]);
 
   const resetForm = () => {
-    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, valor_diaria_motorista: 0 });
+    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, considerar_diaria_motorista: true });
     setPackageAttractions([]);
     setEditingPackage(null);
   };
@@ -480,7 +494,7 @@ export const Agenda: React.FC = () => {
       notes: pkg.notes ?? '',
       client_name: pkg.client_name ?? '',
       valor_diaria_servico: pkg.valor_diaria_servico ?? 0,
-      valor_diaria_motorista: pkg.valor_diaria_motorista ?? 0,
+      considerar_diaria_motorista: pkg.considerar_diaria_motorista ?? true,
     });
 
     // Carregar atividades do pacote
@@ -538,14 +552,19 @@ export const Agenda: React.FC = () => {
     }
 
     try {
+      const dataToSave = {
+        ...formData,
+        valor_diaria_motorista: formData.considerar_diaria_motorista ? driverDailyRate : 0,
+      };
+
       let packageId;
       if (editingPackage) {
-        const { error } = await supabase.from('packages').update({ ...formData, updated_at: new Date().toISOString() }).eq('id', editingPackage.id);
+        const { error } = await supabase.from('packages').update({ ...dataToSave, updated_at: new Date().toISOString() }).eq('id', editingPackage.id);
         if (error) throw error;
         packageId = editingPackage.id;
         toast.success('Pacote atualizado!');
       } else {
-        const { data, error } = await supabase.from('packages').insert([formData]).select().single();
+        const { data, error } = await supabase.from('packages').insert([dataToSave]).select().single();
         if (error) throw error;
         packageId = data.id;
         toast.success('Pacote cadastrado!');
@@ -888,16 +907,24 @@ export const Agenda: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="valor_diaria_motorista">Valor da diária do motorista</label>
-                <input
-                  id="valor_diaria_motorista"
-                  type="number"
-                  step="0.01"
-                  value={formData.valor_diaria_motorista}
-                  onChange={e => setFormData({...formData, valor_diaria_motorista: parseFloat(e.target.value) || 0})}
-                  className="w-full p-2 border rounded"
-                  placeholder="R$ 0,00"
-                />
+                <label htmlFor="considerar_diaria_motorista" className="block text-sm font-medium mb-1">Diária do Motorista</label>
+                <div className="flex items-center gap-4 mt-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="considerar_diaria_motorista"
+                      type="checkbox"
+                      checked={formData.considerar_diaria_motorista}
+                      onChange={e => setFormData({...formData, considerar_diaria_motorista: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="considerar_diaria_motorista" className="text-sm text-gray-900">Considerar diária do motorista</label>
+                  </div>
+                  {driverDailyRate !== null && (
+                    <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                      {formatCurrency(driverDailyRate)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
