@@ -180,6 +180,7 @@ export const financeApi = {
           const hasNetValue = netValue > 0;
           const dailyServiceRateAmount = !hasNetValue && dayActivities.length > 0 ? pkg.valor_diaria_servico : 0;
           const dailyRevenue = hasNetValue ? netValue : dailyServiceRateAmount;
+          const hasDailyServiceRate = dailyServiceRateAmount > 0;
 
           // Custos do dia
           const hasDriverDailyCost = pkg.considerar_diaria_motorista && dayActivities.length > 0;
