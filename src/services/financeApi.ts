@@ -1,77 +1,80 @@
 import { supabase } from '../lib/supabase';
 import { FinanceFiltersState } from '../components/finance/FinanceFilters';
-import { differenceInDays, eachDayOfInterval, parseISO, format } from 'date-fns';
+import { differenceInDays, parseISO } from 'date-fns';
+
+// ... (interfaces PackageActivity, DailyBreakdown, PackageWithRelations permanecem as mesmas)
 
 export interface PackageActivity {
-  id: string;
-  scheduled_date: string;
-  start_time: string | null;
-  considerar_valor_net: boolean;
-  attractions: {
-    name: string;
-    valor_net: number;
-  };
-}
+    id: string;
+    scheduled_date: string;
+    start_time: string | null;
+    considerar_valor_net: boolean;
+    attractions: {
+      name: string;
+      valor_net: number;
+    };
+  }
 
-export interface DailyBreakdown {
-  date: string;
-  hasDailyServiceRate: boolean;
-  dailyServiceRateAmount: number;
-  netActivities: {
-    attractionName: string;
-    netValue: number;
-    startTime: string;
-  }[];
-  dailyRevenue: number;
-  hasDriverDailyCost: boolean;
-  driverDailyCostAmount: number;
-  vehicleExpenses: {
-    description: string;
-    amount: number;
-    category: string;
-  }[];
-  dailyCost: number;
-  dailyMargin: number;
-}
+  export interface DailyBreakdown {
+    date: string;
+    hasDailyServiceRate: boolean;
+    dailyServiceRateAmount: number;
+    netActivities: {
+      attractionName: string;
+      netValue: number;
+      startTime: string;
+    }[];
+    dailyRevenue: number;
+    hasDriverDailyCost: boolean;
+    driverDailyCostAmount: number;
+    vehicleExpenses: {
+      description: string;
+      amount: number;
+      category: string;
+    }[];
+    dailyCost: number;
+    dailyMargin: number;
+  }
 
-export interface PackageWithRelations {
-  id: string;
-  title: string;
-  client_name: string;
-  start_date: string;
-  end_date: string;
-  total_participants: number;
-  status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial';
-  valor_diaria_servico: number;
-  considerar_diaria_motorista: boolean;
+  export interface PackageWithRelations {
+    id: string;
+    title: string;
+    client_name: string;
+    start_date: string;
+    end_date: string;
+    total_participants: number;
+    status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial';
+    valor_diaria_servico: number;
+    considerar_diaria_motorista: boolean;
 
-  // Calculados para o período filtrado
-  dias_no_periodo: number;
-  dias_fora_periodo: number;
-  is_partial: boolean; // Se tem dias fora do período
+    // Calculados para o período filtrado
+    dias_no_periodo: number;
+    dias_fora_periodo: number;
+    is_partial: boolean; // Se tem dias fora do período
 
-  // Valores totais (período filtrado)
-  valor_total: number;
-  valor_receita_total: number;
-  valor_diaria_servico_calculado: number;
-  valor_net_receita: number;
-  valor_custo_total: number;
-  valor_diaria_motorista_calculado: number;
-  valor_despesas_veiculo: number;
-  valor_margem_bruta: number;
-  percentual_margem: number;
+    // Valores totais (período filtrado)
+    valor_total: number;
+    valor_receita_total: number;
+    valor_diaria_servico_calculado: number;
+    valor_net_receita: number;
+    valor_custo_total: number;
+    valor_diaria_motorista_calculado: number;
+    valor_despesas_veiculo: number;
+    valor_margem_bruta: number;
+    percentual_margem: number;
 
-  // Relações
-  agencies: { id: string; name: string } | null;
-  drivers: { id: string; name: string; valor_diaria_motorista: number } | null;
-  vehicles: { id: string; license_plate: string; model: string } | null;
+    // Relações
+    agencies: { id: string; name: string } | null;
+    drivers: { id: string; name: string; valor_diaria_motorista: number } | null;
+    vehicles: { id: string; license_plate: string; model: string } | null;
 
-  // Breakdown diário
-  dailyBreakdown: DailyBreakdown[];
-  package_attractions: PackageActivity[];
-}
+    // Breakdown diário
+    dailyBreakdown: DailyBreakdown[];
+    package_attractions: PackageActivity[];
+  }
 
 export const financeApi = {
+  // ... (a função list permanece a mesma)
   list: async (filters: FinanceFiltersState) => {
     try {
       const { startDate, endDate, status, agencyId, searchTerm } = filters;
@@ -261,5 +264,131 @@ export const financeApi = {
     } catch (error: any) {
       return { data: null, error };
     }
+  },
+  getAgencySettlements: async (filters: { startDate: string; endDate: string; agencyId: string }) => {
+    const { startDate, endDate, agencyId } = filters;
+
+    // Buscar pacotes com atividades no período
+    let pkgQuery = supabase
+      .from('packages')
+      .select(`
+        id, valor_diaria_servico, agency_id,
+        agencies(id, name),
+        package_attractions(id, scheduled_date, considerar_valor_net, net_payment_status, attractions(name, valor_net))
+      `)
+      .not('agency_id', 'is', null);
+    if (agencyId && agencyId !== 'all') {
+      pkgQuery = pkgQuery.eq('agency_id', agencyId);
+    }
+    const { data: packagesData, error: pkgError } = await pkgQuery;
+    if (pkgError) return { data: null, error: pkgError };
+
+    // Buscar fechamentos existentes que se sobrepõem ao período do filtro
+    const { data: settlementsData, error: stlError } = await supabase
+        .from('settlements')
+        .select('agency_id, start_date, end_date')
+        .lte('start_date', endDate)
+        .gte('end_date', startDate);
+    if (stlError) return { data: null, error: stlError };
+
+    const agencySettlements = new Map<string, {
+      agencyId: string; agencyName: string; totalValueToPay: number;
+      totalValuePaid: number; activities: any[];
+    }>();
+
+    for (const pkg of packagesData) {
+      if (!pkg.agencies) continue;
+
+      const agencyId = pkg.agencies.id;
+      if (!agencySettlements.has(agencyId)) {
+        agencySettlements.set(agencyId, {
+          agencyId, agencyName: pkg.agencies.name, totalValueToPay: 0,
+          totalValuePaid: 0, activities: [],
+        });
+      }
+      const settlement = agencySettlements.get(agencyId)!;
+
+      const activitiesInPeriod = pkg.package_attractions.filter(act => act.scheduled_date >= startDate && act.scheduled_date <= endDate);
+      const activitiesByDate = activitiesInPeriod.reduce((acc, act) => {
+        (acc[act.scheduled_date] = acc[act.scheduled_date] || []).push(act);
+        return acc;
+      }, {} as Record<string, typeof activitiesInPeriod>);
+
+      for (const date in activitiesByDate) {
+        const dayActivities = activitiesByDate[date];
+        const netValueActivities = dayActivities.filter(a => a.considerar_valor_net && a.attractions);
+        const totalNetValue = netValueActivities.reduce((sum, a) => sum + (a.attractions?.valor_net || 0), 0);
+
+        if (totalNetValue > 0) { // Dia de NET
+          for (const activity of netValueActivities) {
+            const netValue = activity.attractions?.valor_net || 0;
+            if (activity.net_payment_status === 'paid') {
+              settlement.totalValuePaid += netValue;
+            } else {
+              settlement.totalValueToPay += netValue;
+            }
+            settlement.activities.push({ ...activity, revenue: netValue });
+          }
+        } else if (dayActivities.length > 0) { // Dia de Diária
+          // Verificar se a data da diária cai dentro de um período já fechado
+          const isSettled = settlementsData.some(s =>
+            s.agency_id === agencyId && date >= s.start_date && date <= s.end_date
+          );
+
+          const dailyRevenue = pkg.valor_diaria_servico;
+          if (isSettled) {
+            settlement.totalValuePaid += dailyRevenue;
+          } else {
+            settlement.totalValueToPay += dailyRevenue;
+          }
+          settlement.activities.push({
+              id: `daily_${pkg.id}_${date}`, scheduled_date: date, revenue: dailyRevenue,
+              net_payment_status: isSettled ? 'paid' : 'pending',
+              attractions: { name: 'Diária de Serviço' }
+          });
+        }
+      }
+    }
+
+    const result = Array.from(agencySettlements.values()).map(s => {
+      let settlementStatus: 'Pago' | 'Pendente' | 'Parcial' = 'Pendente';
+      if (s.totalValueToPay === 0 && s.totalValuePaid > 0) {
+        settlementStatus = 'Pago';
+      } else if (s.totalValueToPay > 0 && s.totalValuePaid > 0) {
+        settlementStatus = 'Parcial';
+      } else if (s.totalValueToPay === 0 && s.totalValuePaid === 0) {
+        settlementStatus = 'Pago';
+      }
+      return { ...s, settlementStatus };
+    }).filter(s => s.totalValuePaid > 0 || s.totalValueToPay > 0); // Só retorna agências com valores
+
+    return { data: result, error: null };
+  },
+
+  settleAgencyPeriod: async (agencyId: string, startDate: string, endDate: string) => {
+    // 1. Marcar atividades NET pendentes como pagas
+    const { data: packages, error: pkgError } = await supabase.from('packages').select('id').eq('agency_id', agencyId);
+    if (pkgError) throw pkgError;
+    const packageIds = packages.map(p => p.id);
+
+    const { data: activitiesToUpdate, error: actError } = await supabase
+      .from('package_attractions').select('id').in('package_id', packageIds)
+      .gte('scheduled_date', startDate).lte('scheduled_date', endDate)
+      .in('net_payment_status', ['pending', 'null']).eq('considerar_valor_net', true);
+    if (actError) throw actError;
+
+    if (activitiesToUpdate.length > 0) {
+      const activityIds = activitiesToUpdate.map(a => a.id);
+      const { error: updateError } = await supabase
+        .from('package_attractions').update({ net_payment_status: 'paid' }).in('id', activityIds);
+      if (updateError) throw updateError;
+    }
+
+    // 2. Inserir registro de fechamento para cobrir as diárias
+    const { error: insertError } = await supabase
+      .from('settlements').insert({ agency_id: agencyId, start_date: startDate, end_date: endDate });
+    if (insertError) throw insertError;
+
+    return { data: { success: true }, error: null };
   },
 };
