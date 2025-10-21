@@ -10,11 +10,12 @@ interface FinanceTableProps {
   onEdit: (pkg: PackageWithRelations) => void;
 }
 
-const getStatusStyle = (status: 'pago' | 'pendente' | 'cancelado') => {
+const getStatusStyle = (status: 'pago' | 'pendente' | 'cancelado' | 'parcial') => {
   switch (status) {
     case 'pago': return { text: 'Pago', color: 'bg-green-100 text-green-800', icon: <BadgeCheck size={14} /> };
     case 'pendente': return { text: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: <BadgeAlert size={14} /> };
     case 'cancelado': return { text: 'Cancelado', color: 'bg-red-100 text-red-800', icon: <BadgeX size={14} /> };
+    case 'parcial': return { text: 'Parcial', color: 'bg-blue-100 text-blue-800', icon: <BadgeAlert size={14} /> }; // ✅ NOVO
     default: return { text: 'N/A', color: 'bg-gray-100 text-gray-800', icon: null };
   }
 };
