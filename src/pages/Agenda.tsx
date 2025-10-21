@@ -554,26 +554,21 @@ export const Agenda: React.FC = () => {
     }
 
     try {
-      // CORREÇÃO: Constrói o payload de forma explícita para garantir que todos os dados do formulário sejam incluídos.
+      // CORREÇÃO: O payload é construído usando o spread operator para garantir que todos os campos do formulário
+      // sejam incluídos, evitando o erro 400 Bad Request. O valor_diaria_motorista é calculado e adicionado.
       const dataToSave = {
-        title: formData.title,
-        agency_id: formData.agency_id,
-        vehicle_id: formData.vehicle_id,
-        driver_id: formData.driver_id,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        total_participants: formData.total_participants,
-        notes: formData.notes,
-        client_name: formData.client_name,
-        valor_diaria_servico: formData.valor_diaria_servico,
-        considerar_diaria_motorista: formData.considerar_diaria_motorista,
-        valor_diaria_motorista: formData.considerar_diaria_motorista ? (drivers.find(d => d.id === formData.driver_id)?.valor_diaria_motorista ?? 0) : 0,
+        ...formData,
+        valor_diaria_motorista: formData.considerar_diaria_motorista ? (driverDailyRate ?? 0) : 0,
       };
 
       let packageId;
       if (editingPackage) {
-        const { error } = await supabase.from('packages').update({ ...dataToSave, updated_at: new Date().toISOString() }).eq('id', editingPackage.id);
+        const { error } = await supabase
+          .from('packages')
+          .update({ ...dataToSave, updated_at: new Date().toISOString() })
+          .eq('id', editingPackage.id);
         if (error) throw error;
+
         packageId = editingPackage.id;
         toast.success('Pacote atualizado!');
       } else {
