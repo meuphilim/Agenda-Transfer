@@ -598,10 +598,15 @@ export const Agenda: React.FC = () => {
 
       handleModalClose();
       void fetchData();
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error('Erro ao salvar pacote: ' + error.message);
-      }
+    } catch (error: any) {
+      // Notificar o usuário com uma mensagem de erro aprimorada
+      console.error('❌ Erro ao salvar pacote:', error);
+
+      const errorMsg = error.details
+        ? `${error.message}: ${error.details}`
+        : error.message;
+
+      toast.error(`Erro ao salvar: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }
