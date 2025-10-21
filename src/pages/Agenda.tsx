@@ -61,6 +61,8 @@ interface PackageFormData {
   total_participants: number;
   notes: string;
   client_name: string;
+  valor_diaria_servico: number;
+  valor_diaria_motorista: number;
 }
 
 const MobileCalendarView: React.FC<{
@@ -402,7 +404,7 @@ export const Agenda: React.FC = () => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<PackageWithRelations | null>(null);
-  const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '' });
+  const [formData, setFormData] = useState<PackageFormData>({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, valor_diaria_motorista: 0 });
   const [packageAttractions, setPackageAttractions] = useState<PackageActivityForm[]>([]);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
   const [selectedScheduleItem, setSelectedScheduleItem] = useState<ScheduleItem | null>(null);
@@ -455,7 +457,7 @@ export const Agenda: React.FC = () => {
     }), [packages, statusFilter, searchTerm]);
 
   const resetForm = () => {
-    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '' });
+    setFormData({ title: '', agency_id: '', vehicle_id: '', driver_id: '', start_date: '', end_date: '', total_participants: 1, notes: '', client_name: '', valor_diaria_servico: 0, valor_diaria_motorista: 0 });
     setPackageAttractions([]);
     setEditingPackage(null);
   };
@@ -476,7 +478,9 @@ export const Agenda: React.FC = () => {
       end_date: pkg.end_date,
       total_participants: pkg.total_participants,
       notes: pkg.notes ?? '',
-      client_name: pkg.client_name ?? ''
+      client_name: pkg.client_name ?? '',
+      valor_diaria_servico: pkg.valor_diaria_servico ?? 0,
+      valor_diaria_motorista: pkg.valor_diaria_motorista ?? 0,
     });
 
     // Carregar atividades do pacote
@@ -866,6 +870,38 @@ export const Agenda: React.FC = () => {
             <div><label htmlFor="vehicle_id">Veículo</label><select id="vehicle_id" required value={formData.vehicle_id} onChange={e => setFormData({...formData, vehicle_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.model} ({v.license_plate})</option>)}</select></div>
             <div><label htmlFor="driver_id">Motorista</label><select id="driver_id" required value={formData.driver_id} onChange={e => setFormData({...formData, driver_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
           </div>
+
+          {/* Seção de Diárias */}
+          <div className="border-t pt-4">
+            <h4 className="font-bold mb-2">Configuração de Diárias</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="valor_diaria_servico">Valor da diária de serviço</label>
+                <input
+                  id="valor_diaria_servico"
+                  type="number"
+                  step="0.01"
+                  value={formData.valor_diaria_servico}
+                  onChange={e => setFormData({...formData, valor_diaria_servico: parseFloat(e.target.value) || 0})}
+                  className="w-full p-2 border rounded"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+              <div>
+                <label htmlFor="valor_diaria_motorista">Valor da diária do motorista</label>
+                <input
+                  id="valor_diaria_motorista"
+                  type="number"
+                  step="0.01"
+                  value={formData.valor_diaria_motorista}
+                  onChange={e => setFormData({...formData, valor_diaria_motorista: parseFloat(e.target.value) || 0})}
+                  className="w-full p-2 border rounded"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+            </div>
+          </div>
+
           <div><label htmlFor="notes">Observações</label><textarea id="notes" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full p-2 border rounded" /></div>
           <div>
             <h4 className="font-bold mt-4 mb-2">Atividades do Pacote</h4>
