@@ -158,19 +158,13 @@ export const financeApi = {
         const daysOutOfPeriod = totalPackageDays - daysInPeriod;
         const isPartial = daysOutOfPeriod > 0;
 
-        // Gerar lista de dias no período
-        const daysInterval = eachDayOfInterval({ start: effectiveStart, end: effectiveEnd });
+        // Obter uma lista única de todas as datas com atividades no período
+        const activeDates = [...new Set(activitiesInPeriod.map(act => act.scheduled_date))].sort();
 
-        // Calcular valores por dia
-        const dailyBreakdown: DailyBreakdown[] = daysInterval.map(day => {
-          const dateStr = format(day, 'yyyy-MM-dd');
-
+        // Calcular valores por dia, apenas para dias com atividades
+        const dailyBreakdown: DailyBreakdown[] = activeDates.map(dateStr => {
           // Atividades deste dia
           const dayActivities = activitiesInPeriod.filter(act => act.scheduled_date === dateStr);
-
-          // Receita do dia
-          const hasDailyServiceRate = dayActivities.length > 0;
-          const dailyServiceRateAmount = hasDailyServiceRate ? pkg.valor_diaria_servico : 0;
 
           const netActivities = dayActivities
             .filter(act => act.considerar_valor_net && act.attractions)
@@ -181,10 +175,14 @@ export const financeApi = {
             }));
 
           const netValue = netActivities.reduce((sum, act) => sum + act.netValue, 0);
-          const dailyRevenue = dailyServiceRateAmount + netValue;
+
+          // Lógica de receita mutuamente exclusiva: ou é NET ou é Diária
+          const hasNetValue = netValue > 0;
+          const dailyServiceRateAmount = !hasNetValue && dayActivities.length > 0 ? pkg.valor_diaria_servico : 0;
+          const dailyRevenue = hasNetValue ? netValue : dailyServiceRateAmount;
 
           // Custos do dia
-          const hasDriverDailyCost = pkg.considerar_diaria_motorista && hasDailyServiceRate;
+          const hasDriverDailyCost = pkg.considerar_diaria_motorista && dayActivities.length > 0;
           const driverDailyCostAmount = hasDriverDailyCost ? (pkg.drivers?.valor_diaria_motorista || 0) : 0;
 
           const vehicleExpenses = (expensesData || [])

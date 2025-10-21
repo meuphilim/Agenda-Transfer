@@ -89,34 +89,31 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
           </tr>
         </thead>
         <tbody>
-          {/* Diária de Serviço */}
-          {day.hasDailyServiceRate && (
+          {/* Lógica de exibição condicional: ou mostra Diária ou mostra NET */}
+          {day.dailyServiceRateAmount > 0 ? (
             <tr className="border-t">
-              <td className="px-4 py-3 text-gray-600">
-                {day.netActivities.length > 0 ? day.netActivities[0].startTime.slice(0, 5) : '-'}
-              </td>
+              <td className="px-4 py-3 text-gray-600">-</td>
               <td className="px-4 py-3">
                 <strong>PRIVATIVO - DIÁRIA DE PASSEIOS</strong>
                 <div className="text-xs text-gray-600 mt-1">
-                  Atrativos: {day.netActivities.map(a => a.attractionName).join(', ') || 'Nenhum atrativo com NET'}
+                  Atrativos: {day.netActivities.map(a => a.attractionName).join(', ') || 'N/A'}
                 </div>
               </td>
               <td className="px-4 py-3 text-center font-semibold">{pax}</td>
               <td className="px-4 py-3 text-right font-semibold text-green-700">{formatCurrency(day.dailyServiceRateAmount)}</td>
             </tr>
+          ) : (
+            day.netActivities.map((act, idx) => (
+              <tr key={idx} className="border-t bg-green-50">
+                <td className="px-4 py-2 text-gray-600">{act.startTime.slice(0, 5)}</td>
+                <td className="px-4 py-2 text-xs">
+                  <span className="font-medium">Valor NET:</span> {act.attractionName}
+                </td>
+                <td className="px-4 py-2 text-center">-</td>
+                <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(act.netValue)}</td>
+              </tr>
+            ))
           )}
-
-          {/* Valores NET */}
-          {day.netActivities.map((act, idx) => (
-            <tr key={idx} className="border-t bg-green-50">
-              <td className="px-4 py-2 text-gray-600">{act.startTime.slice(0, 5)}</td>
-              <td className="px-4 py-2 text-xs">
-                <span className="font-medium">Valor NET:</span> {act.attractionName}
-              </td>
-              <td className="px-4 py-2 text-center">-</td>
-              <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(act.netValue)}</td>
-            </tr>
-          ))}
 
           {/* Custos do Motorista */}
           {day.hasDriverDailyCost && (
