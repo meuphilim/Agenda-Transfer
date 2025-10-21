@@ -41,7 +41,6 @@ export interface PackageWithRelations {
   start_date: string;
   end_date: string;
   total_participants: number;
-  status: string;
   status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial';
   valor_diaria_servico: number;
   considerar_diaria_motorista: boolean;
@@ -88,7 +87,6 @@ export const financeApi = {
           end_date,
           total_participants,
           status,
-          status_pagamento,
           valor_diaria_servico,
           considerar_diaria_motorista,
           agency_id,
@@ -104,11 +102,16 @@ export const financeApi = {
             considerar_valor_net,
             attractions(name, valor_net)
           )
-        `)
-        .in('status', ['confirmed', 'in_progress', 'completed']);
+        `);
 
       // Aplicar filtros
-      if (status !== 'all') query = query.eq('status_pagamento', status);
+      if (status === 'pago') {
+        query = query.eq('status', 'completed');
+      } else if (status === 'pendente') {
+        query = query.in('status', ['confirmed', 'in_progress']);
+      } else if (status === 'cancelado') {
+        query = query.eq('status', 'cancelled');
+      }
       if (agencyId !== 'all') query = query.eq('agency_id', agencyId);
       if (searchTerm) {
         query = query.or(`title.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
@@ -223,14 +226,22 @@ export const financeApi = {
         const valor_margem_bruta = valor_receita_total - valor_custo_total;
         const percentual_margem = valor_receita_total > 0 ? (valor_margem_bruta / valor_receita_total) * 100 : 0;
 
-        // Ajustar status_pagamento para "parcial" se necessário
-        let adjustedStatus = pkg.status_pagamento;
-        if (isPartial && pkg.status_pagamento === 'pago') {
-          adjustedStatus = 'parcial';
+        // Converter status do BD para status de pagamento da UI
+        let status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial' = 'pendente';
+        if (pkg.status === 'completed') {
+          status_pagamento = 'pago';
+        } else if (pkg.status === 'cancelled') {
+          status_pagamento = 'cancelado';
+        }
+
+        // Ajustar para "parcial" se necessário
+        if (isPartial && status_pagamento === 'pago') {
+          status_pagamento = 'parcial';
         }
 
         return {
           ...pkg,
+          status_pagamento,
           dias_no_periodo: daysInPeriod,
           dias_fora_periodo: daysOutOfPeriod,
           is_partial: isPartial,
