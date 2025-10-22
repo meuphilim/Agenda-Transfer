@@ -1,10 +1,16 @@
 import jsPDF from 'jspdf';
 import autoTable, { HookData } from 'jspdf-autotable';
-import { AgencySettlement } from '../services/financeApi';
+import { AgencySettlement, DailyBreakdown } from '../services/financeApi';
 import { User } from '@supabase/supabase-js';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DataRow = Record<string, any>;
+// Define an interface for the jsPDF instance with the autoTable plugin property
+interface jsPDFWithLastTable extends jsPDF {
+  lastAutoTable?: {
+    finalY?: number;
+  };
+}
+
+type DataRow = Record<string, unknown>;
 
 export interface Column<T extends DataRow> {
   header: string;
@@ -32,7 +38,6 @@ export const exportToPdf = <T extends DataRow>(data: T[], columns: Column<T>[], 
           if (typeof col.accessor === 'function') {
             return col.accessor(row);
           }
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           return String(row[col.accessor] ?? '');
         })
       ),
@@ -68,7 +73,7 @@ export const generateSettlementStatementPdf = (
   endDate: string,
   user: User | null
 ) => {
-  const doc = new jsPDF('p', 'pt', 'a4');
+  const doc: jsPDFWithLastTable = new jsPDF('p', 'pt', 'a4');
   const themeColor = '#1E40AF';
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 40;
@@ -118,7 +123,7 @@ export const generateSettlementStatementPdf = (
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 } },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY;
+  const finalY = doc.lastAutoTable?.finalY ?? 0;
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(40);
@@ -140,8 +145,12 @@ export const generateSettlementStatementPdf = (
     },
   });
 
-  const tableFinalY = (doc as any).lastAutoTable.finalY;
+  const tableFinalY = doc.lastAutoTable?.finalY ?? 0;
   const totalRevenue = settlement.dailyBreakdown.reduce((sum, day) => sum + day.revenue, 0);
+
+  // Custom type for row data to ensure type safety in didDrawCell
+  type CustomRow = (string | { content: string; styles: { halign: string } } | DailyBreakdown)[];
+
 
   autoTable(doc, {
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
@@ -164,34 +173,44 @@ export const generateSettlementStatementPdf = (
     headStyles: { fillColor: themeColor, textColor: 255, fontStyle: 'bold' },
     footStyles: { fillColor: '#F3F4F6', textColor: '#111827', fontStyle: 'bold' },
     columnStyles: {
-        0: { cellWidth: 70, halign: 'center' }, // Data
+        0: { cellWidth: 65, halign: 'center' }, // Data
         1: { cellWidth: 'auto' },               // Descrição
-        2: { cellWidth: 60, halign: 'center' }, // Status
+        2: { cellWidth: 55, halign: 'center' }, // Status
         3: { cellWidth: 80, halign: 'right' },  // Valor (R$)
     },
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const dayData = (data.row.raw as any)[4]; // Access the _data object
+        const rawRow = data.row.raw as CustomRow;
+        const dayData = rawRow[4] as DailyBreakdown;
+
         if (dayData) {
-            // Prevent autoTable from drawing the placeholder text
-            data.cell.text = [];
+          // Prevent autoTable from drawing the placeholder text
+          data.cell.text = [];
 
-            const cellHeight = data.cell.height;
-            const topPadding = 10;
+          const x = data.cell.x + 5;
+          let y = data.cell.y + 10;
+          const cellWidth = data.cell.width - 10;
 
-            doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text(`Cliente: ${dayData.clientName}`, data.cell.x + 5, data.cell.y + topPadding + 5);
+          // Draw Client Name
+          doc.setFontSize(8);
+          doc.setTextColor(100);
+          doc.text(`Cliente: ${dayData.clientName}`, x, y);
+          y += 12; // Move y down for the description
 
-            doc.setFontSize(10);
-            doc.setTextColor(40);
-            doc.text(dayData.description, data.cell.x + 5, data.cell.y + topPadding + 18);
+          // Draw Description with text wrapping
+          doc.setFontSize(10);
+          doc.setTextColor(40);
+          const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
+          doc.text(descriptionLines, x, y);
         }
       }
     },
     didDrawPage: (data) => {
       addHeader();
-      addFooter(data.pageNumber, (doc.internal as any).getNumberOfPages());
+      // The type definitions for jspdf's internal properties are not complete.
+      // Using a type assertion to safely access the page count.
+      const pageCount = (doc.internal as { getNumberOfPages: () => number }).getNumberOfPages();
+      addFooter(data.pageNumber, pageCount);
     },
     margin: { top: 90, bottom: 40 },
     rowPageBreak: 'avoid',
