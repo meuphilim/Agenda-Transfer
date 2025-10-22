@@ -4,7 +4,7 @@ CREATE TABLE public.settlements (
   agency_id uuid NOT NULL,
   start_date date NOT NULL,
   end_date date NOT NULL,
-  settled_at timestamz DEFAULT now() NOT NULL,
+  settled_at timestamptz DEFAULT now() NOT NULL,
   settled_by_user_id uuid NULL,
   details jsonb NULL,
 

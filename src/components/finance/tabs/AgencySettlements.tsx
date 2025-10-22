@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../../lib/supabase';
-import { financeApi } from '../../../services/financeApi';
+import { financeApi, AgencySettlement, DailySummary } from '../../../services/financeApi';
 import { 
   Download, 
   Eye,
@@ -14,22 +14,6 @@ import {
 } from 'lucide-react';
 import { Modal, FloatingActionButton, Button } from '../../Common';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
-
-interface AgencySettlement {
-  agencyId: string;
-  agencyName: string;
-  totalValueToPay: number;
-  totalValuePaid: number;
-  settlementStatus: 'Pago' | 'Pendente' | 'Parcial';
-  settlementIds: string[];
-  activities: {
-    id: string;
-    scheduled_date: string;
-    isPaid: boolean;
-    revenue: number;
-    attraction_name: string;
-  }[];
-}
 
 export const AgencySettlements: React.FC = () => {
   const [settlements, setSettlements] = useState<AgencySettlement[]>([]);
@@ -125,7 +109,7 @@ export const AgencySettlements: React.FC = () => {
 
       const details = {
         totalPaid: selectedSettlement.totalValueToPay,
-        activitiesCount: selectedSettlement.activities.filter(a => !a.isPaid).length,
+        activitiesCount: selectedSettlement.dailyBreakdown.filter(d => !d.isPaid).length,
       };
 
       const { error } = await financeApi.settleAgencyPeriod(
@@ -315,16 +299,16 @@ export const AgencySettlements: React.FC = () => {
         {selectedSettlement && (
           <div className="max-h-96 overflow-y-auto pr-2">
             <ul className="space-y-2">
-              {selectedSettlement.activities.map((act) => (
-                <li key={act.id} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
+              {selectedSettlement.dailyBreakdown.map((day) => (
+                <li key={day.date} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
                   <div>
-                    <p className="font-medium text-sm">{act.attraction_name}</p>
-                    <p className="text-xs text-gray-500">{new Date(act.scheduled_date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                    <p className="font-medium text-sm">{day.description}</p>
+                    <p className="text-xs text-gray-500">{new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-sm">{formatCurrency(act.revenue)}</p>
-                    <span className={`text-xs ${act.isPaid ? 'text-green-600' : 'text-gray-500'}`}>
-                      {act.isPaid ? 'Pago' : 'Pendente'}
+                    <p className="font-semibold text-sm">{formatCurrency(day.revenue)}</p>
+                    <span className={`text-xs ${day.isPaid ? 'text-green-600' : 'text-gray-500'}`}>
+                      {day.isPaid ? 'Pago' : 'Pendente'}
                     </span>
                   </div>
                 </li>

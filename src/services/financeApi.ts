@@ -72,6 +72,13 @@ export interface PackageActivity {
     package_attractions: PackageActivity[];
   }
 
+  export interface DailySummary {
+    date: string;
+    description: string;
+    revenue: number;
+    isPaid: boolean;
+  }
+
   export interface AgencySettlement {
     agencyId: string;
     agencyName: string;
@@ -79,13 +86,7 @@ export interface PackageActivity {
     totalValuePaid: number;
     settlementStatus: 'Pago' | 'Pendente' | 'Parcial';
     settlementIds: string[];
-    activities: {
-      id: string;
-      scheduled_date: string;
-      isPaid: boolean;
-      revenue: number;
-      attraction_name: string;
-    }[];
+    dailyBreakdown: DailySummary[];
   }
 
 export const financeApi = {
@@ -288,7 +289,6 @@ export const financeApi = {
     try {
       const { startDate, endDate, agencyId } = filters;
 
-      // 1. Buscar pacotes com atividades no período
       let pkgQuery = supabase
         .from('packages')
         .select(`
@@ -313,7 +313,6 @@ export const financeApi = {
         )
       );
 
-      // 2. Buscar fechamentos existentes
       const { data: settlementsData, error: stlError } = await supabase
         .from('settlements')
         .select('id, agency_id, start_date, end_date')
@@ -321,7 +320,6 @@ export const financeApi = {
         .gte('end_date', startDate);
       if (stlError) throw stlError;
 
-      // 3. Processar dados
       const grouped = filteredPackages.reduce((acc, pkg) => {
         const agencyId = pkg.agencies?.id || 'sem_agencia';
         const agencyName = pkg.agencies?.name || 'Sem Agência';
@@ -329,7 +327,7 @@ export const financeApi = {
         if (!acc[agencyId]) {
           acc[agencyId] = {
             agencyId, agencyName, totalValueToPay: 0, totalValuePaid: 0,
-            settlementIds: [], activities: [], settlementStatus: 'Pendente' as const,
+            settlementIds: [], dailyBreakdown: [], settlementStatus: 'Pendente' as const,
           };
         }
 
@@ -347,15 +345,17 @@ export const financeApi = {
           const hasNetActivity = dayActivities.some(act => act.considerar_valor_net);
 
           let dailyRevenue = 0;
-          let activityDetails = [];
+          let description = '';
 
           if (hasNetActivity) {
             const netActivities = dayActivities.filter(act => act.considerar_valor_net);
             dailyRevenue = netActivities.reduce((sum, act) => sum + (act.attractions?.valor_net || 0), 0);
-            activityDetails = netActivities.map(act => ({ id: act.id, name: act.attractions?.name || 'N/A' }));
+            const attractionNames = netActivities.map(act => act.attractions?.name || 'N/A');
+            description = `Valor NET: ${attractionNames.join(' + ')}`;
           } else {
             dailyRevenue = pkg.valor_diaria_servico;
-            activityDetails.push({ id: `diaria-${pkg.id}-${date}`, name: 'Diária de Serviço' });
+            const attractionNames = dayActivities.map(act => act.attractions?.name || 'N/A');
+            description = `Diária de Serviço: ${attractionNames.join(' + ')}`;
           }
 
           const coveringSettlement = settlementsData.find(s =>
@@ -371,20 +371,19 @@ export const financeApi = {
             acc[agencyId].totalValueToPay += dailyRevenue;
           }
 
-          activityDetails.forEach(detail => {
-            acc[agencyId].activities.push({
-              id: detail.id,
-              scheduled_date: date,
-              isPaid: !!coveringSettlement,
-              revenue: dailyRevenue / activityDetails.length,
-              attraction_name: detail.name,
-            });
+          acc[agencyId].dailyBreakdown.push({
+            date,
+            description,
+            revenue: dailyRevenue,
+            isPaid: !!coveringSettlement,
           });
         }
         return acc;
       }, {} as Record<string, AgencySettlement>);
 
       const settlements = Object.values(grouped).map(settlement => {
+        settlement.dailyBreakdown.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
         if (settlement.totalValueToPay === 0 && settlement.totalValuePaid > 0) {
           settlement.settlementStatus = 'Pago';
         } else if (settlement.totalValueToPay > 0 && settlement.totalValuePaid > 0) {
