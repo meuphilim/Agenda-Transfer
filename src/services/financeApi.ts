@@ -287,7 +287,6 @@ export const financeApi = {
     try {
       const { startDate, endDate, agencyId } = filters;
 
-      // Buscar todas as atividades com valor NET no período
       let query = supabase
         .from('package_attractions')
         .select(`
@@ -297,7 +296,7 @@ export const financeApi = {
           packages!inner(
             id,
             agency_id,
-            status_pagamento,
+            status,
             agencies(id, name)
           ),
           attractions(
@@ -305,10 +304,10 @@ export const financeApi = {
             valor_net
           )
         `)
-        .eq('considerar_valor_net', true) // Apenas atividades com NET
+        .eq('considerar_valor_net', true)
         .gte('scheduled_date', startDate)
         .lte('scheduled_date', endDate)
-        .in('packages.status_pagamento', ['pago', 'pendente']); // Excluir cancelados
+        .in('packages.status', ['completed', 'confirmed', 'in_progress']);
 
       if (agencyId !== 'all') {
         query = query.eq('packages.agency_id', agencyId);
@@ -317,7 +316,6 @@ export const financeApi = {
       const { data: activitiesData, error } = await query;
       if (error) throw error;
 
-      // Agrupar por agência
       const grouped = (activitiesData || []).reduce((acc, activity) => {
         const agencyId = activity.packages.agencies?.id || 'sem_agencia';
         const agencyName = activity.packages.agencies?.name || 'Sem Agência';
@@ -334,7 +332,10 @@ export const financeApi = {
         }
 
         const revenue = activity.attractions?.valor_net || 0;
-        const isPaid = activity.packages.status_pagamento === 'pago';
+
+        // Tradução do status
+        const isPaid = activity.packages.status === 'completed';
+        const status_pagamento = isPaid ? 'pago' : 'pendente';
 
         if (isPaid) {
           acc[agencyId].totalValuePaid += revenue;
@@ -345,7 +346,7 @@ export const financeApi = {
         acc[agencyId].activities.push({
           id: activity.id,
           scheduled_date: activity.scheduled_date,
-          package_status_pagamento: activity.packages.status_pagamento,
+          package_status_pagamento: status_pagamento,
           revenue,
           attraction_name: activity.attractions?.name || 'N/A',
         });
@@ -353,7 +354,6 @@ export const financeApi = {
         return acc;
       }, {} as Record<string, AgencySettlement>);
 
-      // Determinar status de cada fechamento
       const settlements = Object.values(grouped).map(settlement => {
         if (settlement.totalValueToPay === 0 && settlement.totalValuePaid > 0) {
           settlement.settlementStatus = 'Pago';
@@ -377,7 +377,6 @@ export const financeApi = {
     endDate: string
   ) => {
     try {
-      // 1. Buscar todos os pacotes da agência no período que têm atividades com NET
       const { data: packages, error: packagesError } = await supabase
         .from('packages')
         .select(`
@@ -389,11 +388,10 @@ export const financeApi = {
           )
         `)
         .eq('agency_id', agencyId)
-        .in('status_pagamento', ['pendente']); // Só atualiza os pendentes
+        .in('status', ['confirmed', 'in_progress']);
 
       if (packagesError) throw packagesError;
 
-      // 2. Filtrar pacotes que têm atividades com NET no período
       const packageIdsToUpdate = packages
         .filter(pkg =>
           pkg.package_attractions.some(act =>
@@ -405,14 +403,13 @@ export const financeApi = {
         .map(pkg => pkg.id);
 
       if (packageIdsToUpdate.length === 0) {
-        return { error: null }; // Nada para atualizar
+        return { error: null };
       }
 
-      // 3. Atualizar status_pagamento dos pacotes para 'pago'
       const { error: updateError } = await supabase
         .from('packages')
         .update({
-          status_pagamento: 'pago',
+          status: 'completed',
           updated_at: new Date().toISOString()
         })
         .in('id', packageIdsToUpdate);
