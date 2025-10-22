@@ -21,4 +21,5 @@ ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
 
 -- Cria políticas de acesso
 CREATE POLICY "Allow read access to authenticated users" ON public.settlements FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow insert for authenticated users" ON public.settlements FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Allow full access for service_role" ON public.settlements FOR ALL TO service_role WITH CHECK (true);
