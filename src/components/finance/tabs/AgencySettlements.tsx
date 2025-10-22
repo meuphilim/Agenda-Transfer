@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { supabase } from '../../../lib/supabase';
-import { financeApi, AgencySettlement, DailySummary } from '../../../services/financeApi';
+import { financeApi, AgencySettlement } from '../../../services/financeApi';
+import { generateSettlementStatementPdf } from '../../../utils/pdfExporter';
 import { 
   Download, 
   Eye,
@@ -11,6 +12,7 @@ import {
   CircleDotDashed,
   BadgeCheck,
   Undo2,
+  FileDown,
 } from 'lucide-react';
 import { Modal, FloatingActionButton, Button } from '../../Common';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
@@ -150,6 +152,20 @@ export const AgencySettlements: React.FC = () => {
       toast.error('Erro ao cancelar fechamento: ' + error.message);
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const handleExportDetails = () => {
+    if (!selectedSettlement) {
+      toast.warn('Não há dados para exportar.');
+      return;
+    }
+    try {
+      toast.info('Gerando PDF...');
+      generateSettlementStatementPdf(selectedSettlement, startDate, endDate);
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      toast.error('Falha ao gerar o PDF.');
     }
   };
 
@@ -295,7 +311,19 @@ export const AgencySettlements: React.FC = () => {
       </div>
 
       {/* Modal de Detalhes */}
-      <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={`Detalhes - ${selectedSettlement?.agencyName}`}>
+      <Modal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        title={
+          <div className="flex justify-between items-center w-full">
+            <span>{`Detalhes - ${selectedSettlement?.agencyName}`}</span>
+            <Button variant="ghost" size="sm" onClick={handleExportDetails} className="mr-6">
+              <FileDown size={16} className="mr-2" />
+              Exportar PDF
+            </Button>
+          </div>
+        }
+      >
         {selectedSettlement && (
           <div className="max-h-96 overflow-y-auto pr-2">
             <ul className="space-y-2">
