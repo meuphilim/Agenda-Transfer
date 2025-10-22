@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { supabase } from '../../../lib/supabase';
 import { financeApi, AgencySettlement } from '../../../services/financeApi';
 import { generateSettlementStatementPdf } from '../../../utils/pdfExporter';
+import { useAuth } from '../../../contexts/AuthContext';
 import { 
   Download, 
   Eye,
@@ -18,6 +19,7 @@ import { Modal, FloatingActionButton, Button } from '../../Common';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
 
 export const AgencySettlements: React.FC = () => {
+  const { user } = useAuth();
   const [settlements, setSettlements] = useState<AgencySettlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
@@ -162,7 +164,7 @@ export const AgencySettlements: React.FC = () => {
     }
     try {
       toast.info('Gerando PDF...');
-      generateSettlementStatementPdf(selectedSettlement, startDate, endDate);
+      generateSettlementStatementPdf(selectedSettlement, startDate, endDate, user);
       toast.success('PDF gerado com sucesso!');
     } catch (error) {
       toast.error('Falha ao gerar o PDF.');

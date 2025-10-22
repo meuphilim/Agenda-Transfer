@@ -74,6 +74,7 @@ export interface PackageActivity {
 
   export interface DailySummary {
     date: string;
+    clientName: string;
     description: string;
     revenue: number;
     isPaid: boolean;
@@ -293,6 +294,7 @@ export const financeApi = {
         .from('packages')
         .select(`
           id,
+          client_name,
           valor_diaria_servico,
           agency_id,
           agencies(id, name),
@@ -373,6 +375,7 @@ export const financeApi = {
 
           acc[agencyId].dailyBreakdown.push({
             date,
+            clientName: pkg.client_name,
             description,
             revenue: dailyRevenue,
             isPaid: !!coveringSettlement,
