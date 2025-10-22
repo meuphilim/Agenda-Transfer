@@ -288,37 +288,38 @@ export const financeApi = {
       const { startDate, endDate, agencyId } = filters;
 
       let query = supabase
-        .from('package_attractions')
+        .from('packages')
         .select(`
           id,
-          scheduled_date,
-          considerar_valor_net,
-          packages!inner(
+          status,
+          valor_diaria_servico,
+          agency_id,
+          agencies(id, name),
+          package_attractions(
             id,
-            agency_id,
-            status,
-            agencies(id, name)
-          ),
-          attractions(
-            name,
-            valor_net
+            scheduled_date,
+            considerar_valor_net,
+            attractions(name, valor_net)
           )
         `)
-        .eq('considerar_valor_net', true)
-        .gte('scheduled_date', startDate)
-        .lte('scheduled_date', endDate)
-        .in('packages.status', ['completed', 'confirmed', 'in_progress']);
+        .in('status', ['completed', 'confirmed', 'in_progress']);
 
       if (agencyId !== 'all') {
-        query = query.eq('packages.agency_id', agencyId);
+        query = query.eq('agency_id', agencyId);
       }
 
-      const { data: activitiesData, error } = await query;
+      const { data: packagesData, error } = await query;
       if (error) throw error;
 
-      const grouped = (activitiesData || []).reduce((acc, activity) => {
-        const agencyId = activity.packages.agencies?.id || 'sem_agencia';
-        const agencyName = activity.packages.agencies?.name || 'Sem Agência';
+      const filteredPackages = packagesData.filter(pkg =>
+        pkg.package_attractions.some(act =>
+          act.scheduled_date >= startDate && act.scheduled_date <= endDate
+        )
+      );
+
+      const grouped = filteredPackages.reduce((acc, pkg) => {
+        const agencyId = pkg.agencies?.id || 'sem_agencia';
+        const agencyName = pkg.agencies?.name || 'Sem Agência';
 
         if (!acc[agencyId]) {
           acc[agencyId] = {
@@ -331,25 +332,53 @@ export const financeApi = {
           };
         }
 
-        const revenue = activity.attractions?.valor_net || 0;
+        const activitiesInPeriod = pkg.package_attractions.filter(act =>
+          act.scheduled_date >= startDate && act.scheduled_date <= endDate
+        );
 
-        // Tradução do status
-        const isPaid = activity.packages.status === 'completed';
+        const activitiesByDate = activitiesInPeriod.reduce((dateAcc, act) => {
+          (dateAcc[act.scheduled_date] = dateAcc[act.scheduled_date] || []).push(act);
+          return dateAcc;
+        }, {} as Record<string, typeof activitiesInPeriod>);
+
+        const isPaid = pkg.status === 'completed';
         const status_pagamento = isPaid ? 'pago' : 'pendente';
 
-        if (isPaid) {
-          acc[agencyId].totalValuePaid += revenue;
-        } else {
-          acc[agencyId].totalValueToPay += revenue;
-        }
+        for (const date in activitiesByDate) {
+          const dayActivities = activitiesByDate[date];
+          const hasNetActivity = dayActivities.some(act => act.considerar_valor_net);
 
-        acc[agencyId].activities.push({
-          id: activity.id,
-          scheduled_date: activity.scheduled_date,
-          package_status_pagamento: status_pagamento,
-          revenue,
-          attraction_name: activity.attractions?.name || 'N/A',
-        });
+          let dailyRevenue = 0;
+          let activityDetails = [];
+
+          if (hasNetActivity) {
+            const netActivities = dayActivities.filter(act => act.considerar_valor_net);
+            dailyRevenue = netActivities.reduce((sum, act) => sum + (act.attractions?.valor_net || 0), 0);
+            activityDetails = netActivities.map(act => ({
+              id: act.id,
+              name: act.attractions?.name || 'N/A'
+            }));
+          } else {
+            dailyRevenue = pkg.valor_diaria_servico;
+            activityDetails.push({ id: `diaria-${pkg.id}-${date}`, name: 'Diária de Serviço' });
+          }
+
+          if (isPaid) {
+            acc[agencyId].totalValuePaid += dailyRevenue;
+          } else {
+            acc[agencyId].totalValueToPay += dailyRevenue;
+          }
+
+          activityDetails.forEach(detail => {
+            acc[agencyId].activities.push({
+              id: detail.id,
+              scheduled_date: date,
+              package_status_pagamento: status_pagamento,
+              revenue: dailyRevenue / activityDetails.length, // Rateia se houver múltiplos NETs
+              attraction_name: detail.name,
+            });
+          });
+        }
 
         return acc;
       }, {} as Record<string, AgencySettlement>);
@@ -359,7 +388,7 @@ export const financeApi = {
           settlement.settlementStatus = 'Pago';
         } else if (settlement.totalValueToPay > 0 && settlement.totalValuePaid > 0) {
           settlement.settlementStatus = 'Parcial';
-        } else {
+        } else if (settlement.totalValueToPay > 0 && settlement.totalValuePaid === 0){
           settlement.settlementStatus = 'Pendente';
         }
         return settlement;
@@ -383,8 +412,7 @@ export const financeApi = {
           id,
           package_attractions!inner(
             id,
-            scheduled_date,
-            considerar_valor_net
+            scheduled_date
           )
         `)
         .eq('agency_id', agencyId)
@@ -395,7 +423,6 @@ export const financeApi = {
       const packageIdsToUpdate = packages
         .filter(pkg =>
           pkg.package_attractions.some(act =>
-            act.considerar_valor_net &&
             act.scheduled_date >= startDate &&
             act.scheduled_date <= endDate
           )
