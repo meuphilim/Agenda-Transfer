@@ -145,12 +145,16 @@ export const generateSettlementStatementPdf = (
 
   autoTable(doc, {
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
-    body: settlement.dailyBreakdown.map(day => [
-        new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-        day, // Pass the whole object to use in didDrawCell
-        day.isPaid ? 'Pago' : 'Pendente',
-        { content: formatCurrency(day.revenue), styles: { halign: 'right' } },
-    ]),
+    body: settlement.dailyBreakdown.map(day => {
+        const rowData = {
+            date: new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+            descriptionPlaceholder: '', // Placeholder for custom rendering
+            status: day.isPaid ? 'Pago' : 'Pendente',
+            value: { content: formatCurrency(day.revenue), styles: { halign: 'right' } },
+            _data: day, // Keep original data accessible
+        };
+        return Object.values(rowData);
+    }),
     foot: [
       [{ content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
        { content: formatCurrency(totalRevenue), styles: { halign: 'right', fontStyle: 'bold' } }]
@@ -159,17 +163,30 @@ export const generateSettlementStatementPdf = (
     theme: 'grid',
     headStyles: { fillColor: themeColor, textColor: 255, fontStyle: 'bold' },
     footStyles: { fillColor: '#F3F4F6', textColor: '#111827', fontStyle: 'bold' },
+    columnStyles: {
+        0: { cellWidth: 70, halign: 'center' }, // Data
+        1: { cellWidth: 'auto' },               // Descrição
+        2: { cellWidth: 60, halign: 'center' }, // Status
+        3: { cellWidth: 80, halign: 'right' },  // Valor (R$)
+    },
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const day = data.row.raw[1] as any; // The full DailySummary object
+        const dayData = (data.row.raw as any)[4]; // Access the _data object
+        if (dayData) {
+            // Prevent autoTable from drawing the placeholder text
+            data.cell.text = [];
 
-        doc.setFontSize(8);
-        doc.setTextColor(120);
-        doc.text(`Cliente: ${day.clientName}`, data.cell.x + 5, data.cell.y + 12);
+            const cellHeight = data.cell.height;
+            const topPadding = 10;
 
-        doc.setFontSize(10);
-        doc.setTextColor(40);
-        doc.text(day.description, data.cell.x + 5, data.cell.y + 24);
+            doc.setFontSize(8);
+            doc.setTextColor(100);
+            doc.text(`Cliente: ${dayData.clientName}`, data.cell.x + 5, data.cell.y + topPadding + 5);
+
+            doc.setFontSize(10);
+            doc.setTextColor(40);
+            doc.text(dayData.description, data.cell.x + 5, data.cell.y + topPadding + 18);
+        }
       }
     },
     didDrawPage: (data) => {
