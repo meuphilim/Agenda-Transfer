@@ -78,10 +78,11 @@ export interface PackageActivity {
     totalValueToPay: number;
     totalValuePaid: number;
     settlementStatus: 'Pago' | 'Pendente' | 'Parcial';
+    settlementIds: string[];
     activities: {
       id: string;
       scheduled_date: string;
-      package_status_pagamento: 'pago' | 'pendente' | 'cancelado';
+      isPaid: boolean;
       revenue: number;
       attraction_name: string;
     }[];
@@ -287,29 +288,24 @@ export const financeApi = {
     try {
       const { startDate, endDate, agencyId } = filters;
 
-      let query = supabase
+      // 1. Buscar pacotes com atividades no período
+      let pkgQuery = supabase
         .from('packages')
         .select(`
           id,
-          status,
           valor_diaria_servico,
           agency_id,
           agencies(id, name),
-          package_attractions(
-            id,
-            scheduled_date,
-            considerar_valor_net,
-            attractions(name, valor_net)
-          )
+          package_attractions(id, scheduled_date, considerar_valor_net, attractions(name, valor_net))
         `)
         .in('status', ['completed', 'confirmed', 'in_progress']);
 
       if (agencyId !== 'all') {
-        query = query.eq('agency_id', agencyId);
+        pkgQuery = pkgQuery.eq('agency_id', agencyId);
       }
 
-      const { data: packagesData, error } = await query;
-      if (error) throw error;
+      const { data: packagesData, error: pkgError } = await pkgQuery;
+      if (pkgError) throw pkgError;
 
       const filteredPackages = packagesData.filter(pkg =>
         pkg.package_attractions.some(act =>
@@ -317,18 +313,23 @@ export const financeApi = {
         )
       );
 
+      // 2. Buscar fechamentos existentes
+      const { data: settlementsData, error: stlError } = await supabase
+        .from('settlements')
+        .select('id, agency_id, start_date, end_date')
+        .lte('start_date', endDate)
+        .gte('end_date', startDate);
+      if (stlError) throw stlError;
+
+      // 3. Processar dados
       const grouped = filteredPackages.reduce((acc, pkg) => {
         const agencyId = pkg.agencies?.id || 'sem_agencia';
         const agencyName = pkg.agencies?.name || 'Sem Agência';
 
         if (!acc[agencyId]) {
           acc[agencyId] = {
-            agencyId,
-            agencyName,
-            totalValueToPay: 0,
-            totalValuePaid: 0,
-            settlementStatus: 'Pendente' as const,
-            activities: [],
+            agencyId, agencyName, totalValueToPay: 0, totalValuePaid: 0,
+            settlementIds: [], activities: [], settlementStatus: 'Pendente' as const,
           };
         }
 
@@ -341,9 +342,6 @@ export const financeApi = {
           return dateAcc;
         }, {} as Record<string, typeof activitiesInPeriod>);
 
-        const isPaid = pkg.status === 'completed';
-        const status_pagamento = isPaid ? 'pago' : 'pendente';
-
         for (const date in activitiesByDate) {
           const dayActivities = activitiesByDate[date];
           const hasNetActivity = dayActivities.some(act => act.considerar_valor_net);
@@ -354,17 +352,21 @@ export const financeApi = {
           if (hasNetActivity) {
             const netActivities = dayActivities.filter(act => act.considerar_valor_net);
             dailyRevenue = netActivities.reduce((sum, act) => sum + (act.attractions?.valor_net || 0), 0);
-            activityDetails = netActivities.map(act => ({
-              id: act.id,
-              name: act.attractions?.name || 'N/A'
-            }));
+            activityDetails = netActivities.map(act => ({ id: act.id, name: act.attractions?.name || 'N/A' }));
           } else {
             dailyRevenue = pkg.valor_diaria_servico;
             activityDetails.push({ id: `diaria-${pkg.id}-${date}`, name: 'Diária de Serviço' });
           }
 
-          if (isPaid) {
+          const coveringSettlement = settlementsData.find(s =>
+            s.agency_id === agencyId && date >= s.start_date && date <= s.end_date
+          );
+
+          if (coveringSettlement) {
             acc[agencyId].totalValuePaid += dailyRevenue;
+            if (!acc[agencyId].settlementIds.includes(coveringSettlement.id)) {
+              acc[agencyId].settlementIds.push(coveringSettlement.id);
+            }
           } else {
             acc[agencyId].totalValueToPay += dailyRevenue;
           }
@@ -373,13 +375,12 @@ export const financeApi = {
             acc[agencyId].activities.push({
               id: detail.id,
               scheduled_date: date,
-              package_status_pagamento: status_pagamento,
-              revenue: dailyRevenue / activityDetails.length, // Rateia se houver múltiplos NETs
+              isPaid: !!coveringSettlement,
+              revenue: dailyRevenue / activityDetails.length,
               attraction_name: detail.name,
             });
           });
         }
-
         return acc;
       }, {} as Record<string, AgencySettlement>);
 
@@ -400,49 +401,30 @@ export const financeApi = {
     }
   },
 
-  settleAgencyPeriod: async (
-    agencyId: string,
-    startDate: string,
-    endDate: string
-  ) => {
+  settleAgencyPeriod: async (agencyId: string, startDate: string, endDate: string, details: any) => {
     try {
-      const { data: packages, error: packagesError } = await supabase
-        .from('packages')
-        .select(`
-          id,
-          package_attractions!inner(
-            id,
-            scheduled_date
-          )
-        `)
-        .eq('agency_id', agencyId)
-        .in('status', ['confirmed', 'in_progress']);
+      const { error } = await supabase
+        .from('settlements')
+        .insert({
+          agency_id: agencyId,
+          start_date: startDate,
+          end_date: endDate,
+          details,
+        });
+      if (error) throw error;
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  },
 
-      if (packagesError) throw packagesError;
-
-      const packageIdsToUpdate = packages
-        .filter(pkg =>
-          pkg.package_attractions.some(act =>
-            act.scheduled_date >= startDate &&
-            act.scheduled_date <= endDate
-          )
-        )
-        .map(pkg => pkg.id);
-
-      if (packageIdsToUpdate.length === 0) {
-        return { error: null };
-      }
-
-      const { error: updateError } = await supabase
-        .from('packages')
-        .update({
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .in('id', packageIdsToUpdate);
-
-      if (updateError) throw updateError;
-
+  cancelAgencySettlement: async (settlementIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('settlements')
+        .delete()
+        .in('id', settlementIds);
+      if (error) throw error;
       return { error: null };
     } catch (error: any) {
       return { error };

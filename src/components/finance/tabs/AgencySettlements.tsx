@@ -10,21 +10,22 @@ import {
   AlertTriangle,
   CircleDotDashed,
   BadgeCheck,
+  Undo2,
 } from 'lucide-react';
 import { Modal, FloatingActionButton, Button } from '../../Common';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
 
-// INTERFACE CORRIGIDA
 interface AgencySettlement {
   agencyId: string;
   agencyName: string;
   totalValueToPay: number;
   totalValuePaid: number;
   settlementStatus: 'Pago' | 'Pendente' | 'Parcial';
+  settlementIds: string[];
   activities: {
     id: string;
     scheduled_date: string;
-    package_status_pagamento: 'pago' | 'pendente' | 'cancelado';
+    isPaid: boolean;
     revenue: number;
     attraction_name: string;
   }[];
@@ -39,8 +40,10 @@ export const AgencySettlements: React.FC = () => {
   const [agencies, setAgencies] = useState<{id: string; name: string}[]>([]);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<AgencySettlement | null>(null);
   const [isSettling, setIsSettling] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -69,7 +72,6 @@ export const AgencySettlements: React.FC = () => {
 
     setLoading(true);
     try {
-      // CHAMA MÉTODO IMPLEMENTADO
       const { data, error } = await financeApi.getAgencySettlements({
         startDate,
         endDate,
@@ -109,6 +111,11 @@ export const AgencySettlements: React.FC = () => {
     setShowConfirmModal(true);
   };
 
+  const handleCancelConfirmation = (settlement: AgencySettlement) => {
+    setSelectedSettlement(settlement);
+    setShowCancelModal(true);
+  };
+
   const handleSettlePeriod = async () => {
     if (!selectedSettlement) return;
 
@@ -116,11 +123,16 @@ export const AgencySettlements: React.FC = () => {
     try {
       toast.info('Processando fechamento...');
 
-      // CHAMA MÉTODO IMPLEMENTADO
+      const details = {
+        totalPaid: selectedSettlement.totalValueToPay,
+        activitiesCount: selectedSettlement.activities.filter(a => !a.isPaid).length,
+      };
+
       const { error } = await financeApi.settleAgencyPeriod(
         selectedSettlement.agencyId,
         startDate,
-        endDate
+        endDate,
+        details
       );
 
       if (error) throw error;
@@ -128,11 +140,32 @@ export const AgencySettlements: React.FC = () => {
       toast.success(`Fechamento da agência ${selectedSettlement.agencyName} realizado com sucesso!`);
       setShowConfirmModal(false);
       setSelectedSettlement(null);
-      await fetchSettlements(); // Recarrega os dados
+      await fetchSettlements();
     } catch (error: any) {
       toast.error('Erro ao realizar fechamento: ' + error.message);
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  const handleCancelSettlement = async () => {
+    if (!selectedSettlement || selectedSettlement.settlementIds.length === 0) return;
+
+    setIsCancelling(true);
+    try {
+      toast.info('Cancelando fechamento...');
+
+      const { error } = await financeApi.cancelAgencySettlement(selectedSettlement.settlementIds);
+      if (error) throw error;
+
+      toast.success('Fechamento cancelado com sucesso!');
+      setShowCancelModal(false);
+      setSelectedSettlement(null);
+      await fetchSettlements();
+    } catch (error: any) {
+      toast.error('Erro ao cancelar fechamento: ' + error.message);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -239,8 +272,11 @@ export const AgencySettlements: React.FC = () => {
                 <td className="px-6 py-4 text-center"><StatusBadge status={s.settlementStatus} /></td>
                 <td className="px-6 py-4 text-right flex justify-end items-center gap-2">
                   <button onClick={() => handleViewDetails(s)} className="text-gray-500 hover:text-blue-600 p-1 rounded-full hover:bg-gray-100" title="Ver Detalhes"><Eye size={18} /></button>
-                  {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && (
+                  {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
                     <button onClick={() => handleConfirmSettlement(s)} className="text-gray-500 hover:text-green-600 p-1 rounded-full hover:bg-gray-100" title="Realizar Fechamento"><BadgeCheck size={18} /></button>
+                  )}
+                  {(s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
+                    <button onClick={() => handleCancelConfirmation(s)} className="text-gray-500 hover:text-red-600 p-1 rounded-full hover:bg-gray-100" title="Cancelar Fechamento"><Undo2 size={18} /></button>
                   )}
                 </td>
               </tr>
@@ -263,8 +299,11 @@ export const AgencySettlements: React.FC = () => {
             </div>
             <div className="mt-3 pt-3 border-t flex justify-end items-center gap-2">
               <button onClick={() => handleViewDetails(s)} className="text-sm text-gray-600 hover:text-blue-700">Detalhes</button>
-              {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && (
+              {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
                 <button onClick={() => handleConfirmSettlement(s)} className="text-sm text-green-600 hover:text-green-800 font-semibold">Realizar Fechamento</button>
+              )}
+              {(s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
+                <button onClick={() => handleCancelConfirmation(s)} className="text-sm text-red-600 hover:text-red-800 font-semibold">Cancelar</button>
               )}
             </div>
           </div>
@@ -276,16 +315,16 @@ export const AgencySettlements: React.FC = () => {
         {selectedSettlement && (
           <div className="max-h-96 overflow-y-auto pr-2">
             <ul className="space-y-2">
-              {selectedSettlement.activities.map((act, index) => (
-                <li key={act.id + index} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
+              {selectedSettlement.activities.map((act) => (
+                <li key={act.id} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
                   <div>
                     <p className="font-medium text-sm">{act.attraction_name}</p>
                     <p className="text-xs text-gray-500">{new Date(act.scheduled_date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-sm">{formatCurrency(act.revenue)}</p>
-                    <span className={`text-xs ${act.package_status_pagamento === 'pago' ? 'text-green-600' : 'text-gray-500'}`}>
-                      {act.package_status_pagamento === 'pago' ? 'Pago' : 'Pendente'}
+                    <span className={`text-xs ${act.isPaid ? 'text-green-600' : 'text-gray-500'}`}>
+                      {act.isPaid ? 'Pago' : 'Pendente'}
                     </span>
                   </div>
                 </li>
@@ -299,7 +338,7 @@ export const AgencySettlements: React.FC = () => {
         )}
       </Modal>
 
-      {/* Modal de Confirmação */}
+      {/* Modal de Confirmação de Fechamento */}
       <Modal isOpen={showConfirmModal} onClose={() => setShowConfirmModal(false)} title="Confirmar Fechamento">
         {selectedSettlement && (
           <div>
@@ -310,6 +349,22 @@ export const AgencySettlements: React.FC = () => {
               <Button onClick={() => setShowConfirmModal(false)} variant="secondary" disabled={isSettling}>Cancelar</Button>
               <Button onClick={handleSettlePeriod} variant="primary" disabled={isSettling}>
                 {isSettling ? 'Processando...' : 'Confirmar Pagamento'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal de Confirmação de Cancelamento */}
+      <Modal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)} title="Confirmar Cancelamento">
+        {selectedSettlement && (
+          <div>
+            <p>Você tem certeza que deseja cancelar o fechamento para a agência <strong>{selectedSettlement.agencyName}</strong>?</p>
+            <p className="text-sm text-gray-600 mt-2">Todos os valores pagos neste período voltarão a ser marcados como pendentes. Esta ação é útil para corrigir lançamentos.</p>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button onClick={() => setShowCancelModal(false)} variant="secondary" disabled={isCancelling}>Voltar</Button>
+              <Button onClick={handleCancelSettlement} variant="danger" disabled={isCancelling}>
+                {isCancelling ? 'Cancelando...' : 'Sim, Cancelar Fechamento'}
               </Button>
             </div>
           </div>
