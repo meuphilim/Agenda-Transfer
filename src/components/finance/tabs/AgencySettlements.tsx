@@ -14,7 +14,7 @@ import {
 import { Modal, FloatingActionButton, Button } from '../../Common';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
 
-// Estrutura de dados alinhada com a nova API
+// INTERFACE CORRIGIDA
 interface AgencySettlement {
   agencyId: string;
   agencyName: string;
@@ -24,11 +24,9 @@ interface AgencySettlement {
   activities: {
     id: string;
     scheduled_date: string;
-    net_payment_status: 'paid' | 'pending' | null;
+    package_status_pagamento: 'pago' | 'pendente' | 'cancelado';
     revenue: number;
-    attractions?: {
-      name: string;
-    };
+    attraction_name: string;
   }[];
 }
 
@@ -42,6 +40,7 @@ export const AgencySettlements: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedSettlement, setSelectedSettlement] = useState<AgencySettlement | null>(null);
+  const [isSettling, setIsSettling] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -70,18 +69,23 @@ export const AgencySettlements: React.FC = () => {
 
     setLoading(true);
     try {
+      // CHAMA MÉTODO IMPLEMENTADO
       const { data, error } = await financeApi.getAgencySettlements({
         startDate,
         endDate,
         agencyId: selectedAgency,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro detalhado:', error);
+        throw new Error(`Falha ao carregar fechamentos: ${error.message}`);
+      }
+
       if (data) {
         setSettlements(data);
       }
     } catch (error: any) {
-      toast.error('Erro ao carregar fechamentos: ' + error.message);
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -108,8 +112,11 @@ export const AgencySettlements: React.FC = () => {
   const handleSettlePeriod = async () => {
     if (!selectedSettlement) return;
 
+    setIsSettling(true);
     try {
       toast.info('Processando fechamento...');
+
+      // CHAMA MÉTODO IMPLEMENTADO
       const { error } = await financeApi.settleAgencyPeriod(
         selectedSettlement.agencyId,
         startDate,
@@ -124,6 +131,8 @@ export const AgencySettlements: React.FC = () => {
       await fetchSettlements(); // Recarrega os dados
     } catch (error: any) {
       toast.error('Erro ao realizar fechamento: ' + error.message);
+    } finally {
+      setIsSettling(false);
     }
   };
 
@@ -270,13 +279,13 @@ export const AgencySettlements: React.FC = () => {
               {selectedSettlement.activities.map((act, index) => (
                 <li key={act.id + index} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
                   <div>
-                    <p className="font-medium text-sm">{act.attractions?.name || 'Diária'}</p>
+                    <p className="font-medium text-sm">{act.attraction_name}</p>
                     <p className="text-xs text-gray-500">{new Date(act.scheduled_date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-sm">{formatCurrency(act.revenue)}</p>
-                    <span className={`text-xs ${act.net_payment_status === 'paid' ? 'text-green-600' : 'text-gray-500'}`}>
-                      {act.net_payment_status === 'paid' ? 'Pago' : 'Pendente'}
+                    <span className={`text-xs ${act.package_status_pagamento === 'pago' ? 'text-green-600' : 'text-gray-500'}`}>
+                      {act.package_status_pagamento === 'pago' ? 'Pago' : 'Pendente'}
                     </span>
                   </div>
                 </li>
@@ -298,8 +307,10 @@ export const AgencySettlements: React.FC = () => {
             <p className="text-2xl font-bold text-center my-4">{formatCurrency(selectedSettlement.totalValueToPay)}</p>
             <p className="text-sm text-gray-600">Esta ação não pode ser desfeita. Deseja continuar?</p>
             <div className="flex justify-end gap-3 mt-6">
-              <Button onClick={() => setShowConfirmModal(false)} variant="secondary">Cancelar</Button>
-              <Button onClick={handleSettlePeriod} variant="primary">Confirmar Pagamento</Button>
+              <Button onClick={() => setShowConfirmModal(false)} variant="secondary" disabled={isSettling}>Cancelar</Button>
+              <Button onClick={handleSettlePeriod} variant="primary" disabled={isSettling}>
+                {isSettling ? 'Processando...' : 'Confirmar Pagamento'}
+              </Button>
             </div>
           </div>
         )}
