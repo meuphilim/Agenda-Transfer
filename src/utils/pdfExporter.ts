@@ -69,10 +69,6 @@ const formatCurrency = (value: number) =>
 
 const STYLES = {
   themeColor: '#1E40AF',
-  fonts: {
-    helvetica: 'helvetica',
-    times: 'times'
-  },
   fontSizes: {
     header: 10,
     clientName: 8,
@@ -174,45 +170,19 @@ export const generateSettlementStatementPdf = (
   const tableFinalY = doc.lastAutoTable?.finalY ?? 0;
   const totalRevenue = settlement.dailyBreakdown.reduce((sum, day) => sum + day.revenue, 0);
 
-  const drawDescriptionContent = (data: HookData, dayData: DailyBreakdown) => {
-    if (!dayData || (!dayData.clientName && !dayData.description)) {
-      return;
-    }
-
-    const { x, y, width } = data.cell;
-    let currentY = y + STYLES.padding.cell;
-
-    if (dayData.clientName) {
-      doc.setFont(STYLES.fonts.helvetica, 'normal');
-      doc.setFontSize(STYLES.fontSizes.clientName);
-      doc.setTextColor(...STYLES.colors.text.light);
-      doc.text(`Cliente: ${dayData.clientName}`, x + STYLES.padding.cell, currentY);
-      currentY += doc.getLineHeight() + STYLES.padding.section;
-    }
-
-    if (dayData.description) {
-      doc.setFont(STYLES.fonts.helvetica, 'normal');
-      doc.setFontSize(STYLES.fontSizes.description);
-      doc.setTextColor(...STYLES.colors.text.main);
-
-      const cellContentWidth = width - (STYLES.padding.cell * 2);
-      const descriptionLines = doc.splitTextToSize(dayData.description, cellContentWidth);
-
-      descriptionLines.forEach((line: string) => {
-        doc.text(line, x + STYLES.padding.cell, currentY);
-        currentY += doc.getLineHeight();
-      });
-    }
-  };
-
   autoTable(doc, {
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
+
     body: settlement.dailyBreakdown.map(day => [
       new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      day,
+      {
+        content: '',
+        _dayData: day
+      },
       day.isPaid ? 'Pago' : 'Pendente',
       { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
     ]),
+
     foot: [
       [
         { content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
@@ -246,14 +216,11 @@ export const generateSettlementStatementPdf = (
       3: { cellWidth: 80, halign: 'right' },
     },
 
-    willDrawCell: (data: HookData) => {
+    willDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const dayData = data.row.raw[1] as DailyBreakdown;
+        const dayData = (data.cell.raw as any)?._dayData as DailyBreakdown;
 
         if (dayData) {
-          doc.setFontSize(STYLES.fontSizes.description);
-          const cellContentWidth = data.cell.width - (STYLES.padding.cell * 2);
-
           let totalHeight = STYLES.padding.cell * 2;
 
           if (dayData.clientName) {
@@ -263,8 +230,9 @@ export const generateSettlementStatementPdf = (
 
           if (dayData.description) {
             doc.setFontSize(STYLES.fontSizes.description);
+            const cellContentWidth = data.cell.width - (STYLES.padding.cell * 2);
             const descriptionLines = doc.splitTextToSize(dayData.description, cellContentWidth);
-            totalHeight += (descriptionLines as string[]).length * doc.getLineHeight();
+            totalHeight += descriptionLines.length * doc.getLineHeight();
           }
 
           data.cell.minCellHeight = Math.max(totalHeight, 40);
@@ -272,10 +240,36 @@ export const generateSettlementStatementPdf = (
       }
     },
 
-    didDrawCell: (data: HookData) => {
+    didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const dayData = data.row.raw[1] as DailyBreakdown;
-        drawDescriptionContent(data, dayData);
+        const dayData = (data.cell.raw as any)?._dayData as DailyBreakdown;
+
+        if (!dayData) return;
+
+        const { x, y, width } = data.cell;
+        const startX = x + STYLES.padding.cell;
+        let currentY = y + STYLES.padding.cell;
+        const maxTextWidth = width - (STYLES.padding.cell * 2);
+
+        if (dayData.clientName) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(STYLES.fontSizes.clientName);
+          doc.setTextColor(...STYLES.colors.text.light);
+          doc.text(`Cliente: ${dayData.clientName}`, startX, currentY);
+          currentY += doc.getLineHeight() + STYLES.padding.section;
+        }
+
+        if (dayData.description) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(STYLES.fontSizes.description);
+          doc.setTextColor(...STYLES.colors.text.main);
+
+          const descriptionLines = doc.splitTextToSize(dayData.description, maxTextWidth);
+          descriptionLines.forEach((line: string) => {
+            doc.text(line, startX, currentY);
+            currentY += doc.getLineHeight();
+          });
+        }
       }
     },
 
