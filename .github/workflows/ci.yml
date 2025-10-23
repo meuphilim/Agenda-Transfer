@@ -2,9 +2,6 @@ name: CI & Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 permissions:
   contents: read
@@ -40,8 +37,6 @@ jobs:
   build-and-deploy:
     needs: verify
     runs-on: ubuntu-latest
-    # Apenas executa este job em push para a branch main
-    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
