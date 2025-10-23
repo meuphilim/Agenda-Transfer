@@ -150,16 +150,24 @@ export const generateSettlementStatementPdf = (
 
   autoTable(doc, {
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
-    body: settlement.dailyBreakdown.map(day => [
-      new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      '', // String vazia - conteúdo customizado
-      day.isPaid ? 'Pago' : 'Pendente',
-      { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
-    ]),
-    foot: [
+    body: [
+      ...settlement.dailyBreakdown.map(day => [
+        new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+        '', // String vazia - conteúdo customizado
+        day.isPaid ? 'Pago' : 'Pendente',
+        { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
+      ]),
+      // Linha de Total Geral adicionada diretamente ao corpo
       [
-        { content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-        { content: formatCurrency(totalRevenue), styles: { halign: 'right', fontStyle: 'bold' } }
+        {
+          content: 'Total Geral',
+          colSpan: 3,
+          styles: { halign: 'right', fontStyle: 'bold', fillColor: '#F3F4F6', textColor: '#111827', fontSize: 10 }
+        },
+        {
+          content: formatCurrency(totalRevenue),
+          styles: { halign: 'right', fontStyle: 'bold', fillColor: '#F3F4F6', textColor: '#111827', fontSize: 10 }
+        }
       ]
     ],
     startY: tableFinalY + 30,
