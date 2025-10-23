@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable, { HookData } from 'jspdf-autotable';
-import { AgencySettlement, DailyBreakdown } from '../services/financeApi';
+import { AgencySettlement } from '../services/financeApi';
 import { User } from '@supabase/supabase-js';
 
 // Define an interface for the jsPDF instance with the autoTable plugin property
@@ -67,29 +67,6 @@ export const exportToPdf = <T extends DataRow>(data: T[], columns: Column<T>[], 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-const STYLES = {
-  themeColor: '#1E40AF',
-  fontSizes: {
-    header: 10,
-    clientName: 8,
-    description: 10
-  },
-  colors: {
-    text: {
-      main: [40, 40, 40] as [number, number, number],
-      light: [100, 100, 100] as [number, number, number]
-    },
-    background: {
-      header: '#1E40AF',
-      footer: '#F3F4F6'
-    }
-  },
-  padding: {
-    cell: 5,
-    section: 4
-  }
-};
-
 export const generateSettlementStatementPdf = (
   settlement: AgencySettlement,
   startDate: string,
@@ -97,12 +74,13 @@ export const generateSettlementStatementPdf = (
   user: User | null
 ) => {
   const doc: jsPDFWithLastTable = new jsPDF('p', 'pt', 'a4');
+  const themeColor = '#1E40AF';
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 40;
 
   const addHeader = () => {
     doc.setFontSize(20);
-    doc.setTextColor(STYLES.themeColor);
+    doc.setTextColor(themeColor);
     doc.setFont('helvetica', 'bold');
     doc.text('TourManager', margin, 50);
 
@@ -172,17 +150,12 @@ export const generateSettlementStatementPdf = (
 
   autoTable(doc, {
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
-
     body: settlement.dailyBreakdown.map(day => [
       new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      {
-        content: '',
-        _dayData: day
-      },
+      '', // String vazia - conteúdo customizado
       day.isPaid ? 'Pago' : 'Pendente',
       { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
     ]),
-
     foot: [
       [
         { content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
@@ -192,22 +165,22 @@ export const generateSettlementStatementPdf = (
     startY: tableFinalY + 30,
     theme: 'grid',
     headStyles: {
-      fillColor: STYLES.colors.background.header,
+      fillColor: themeColor,
       textColor: 255,
       fontStyle: 'bold',
-      fontSize: STYLES.fontSizes.header
+      fontSize: 10
     },
     footStyles: {
-      fillColor: STYLES.colors.background.footer,
+      fillColor: '#F3F4F6',
       textColor: '#111827',
       fontStyle: 'bold',
-      fontSize: STYLES.fontSizes.header
+      fontSize: 10
     },
     styles: {
-      fontSize: STYLES.fontSizes.header,
-      cellPadding: STYLES.padding.cell,
+      fontSize: 10,
+      cellPadding: 5,
       overflow: 'linebreak',
-      valign: 'top'
+      valign: 'top' // CRÍTICO!
     },
     columnStyles: {
       0: { cellWidth: 65, halign: 'center' },
@@ -218,22 +191,20 @@ export const generateSettlementStatementPdf = (
 
     willDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const dayData = (data.cell.raw as any)?._dayData as DailyBreakdown;
+        const rowIndex = data.row.index;
+        const dayData = settlement.dailyBreakdown[rowIndex];
 
-        if (dayData) {
-          let totalHeight = STYLES.padding.cell * 2;
+        if (dayData && dayData.clientName && dayData.description) {
+          const cellWidth = data.cell.width - 10;
 
-          if (dayData.clientName) {
-            doc.setFontSize(STYLES.fontSizes.clientName);
-            totalHeight += doc.getLineHeight() + STYLES.padding.section;
-          }
+          doc.setFontSize(8);
 
-          if (dayData.description) {
-            doc.setFontSize(STYLES.fontSizes.description);
-            const cellContentWidth = data.cell.width - (STYLES.padding.cell * 2);
-            const descriptionLines = doc.splitTextToSize(dayData.description, cellContentWidth);
-            totalHeight += descriptionLines.length * doc.getLineHeight();
-          }
+          doc.setFontSize(10);
+          const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
+
+          const clientHeight = 10;
+          const descriptionHeight = (descriptionLines as string[]).length * 14;
+          const totalHeight = 8 + clientHeight + 4 + descriptionHeight + 8;
 
           data.cell.minCellHeight = Math.max(totalHeight, 40);
         }
@@ -242,32 +213,29 @@ export const generateSettlementStatementPdf = (
 
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const dayData = (data.cell.raw as any)?._dayData as DailyBreakdown;
+        const rowIndex = data.row.index;
+        const dayData = settlement.dailyBreakdown[rowIndex];
 
-        if (!dayData) return;
+        if (dayData && dayData.clientName && dayData.description) {
+          const x = data.cell.x + 5;
+          let y = data.cell.y + 10;
+          const cellWidth = data.cell.width - 10;
 
-        const { x, y, width } = data.cell;
-        const startX = x + STYLES.padding.cell;
-        let currentY = y + STYLES.padding.cell;
-        const maxTextWidth = width - (STYLES.padding.cell * 2);
-
-        if (dayData.clientName) {
+          // Cliente
+          doc.setFontSize(8);
+          doc.setTextColor(100, 100, 100);
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(STYLES.fontSizes.clientName);
-          doc.setTextColor(...STYLES.colors.text.light);
-          doc.text(`Cliente: ${dayData.clientName}`, startX, currentY);
-          currentY += doc.getLineHeight() + STYLES.padding.section;
-        }
+          doc.text(`Cliente: ${dayData.clientName}`, x, y);
+          y += 14;
 
-        if (dayData.description) {
+          // Descrição
+          doc.setFontSize(10);
+          doc.setTextColor(40, 40, 40);
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(STYLES.fontSizes.description);
-          doc.setTextColor(...STYLES.colors.text.main);
+          const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
 
-          const descriptionLines = doc.splitTextToSize(dayData.description, maxTextWidth);
-          descriptionLines.forEach((line: string) => {
-            doc.text(line, startX, currentY);
-            currentY += doc.getLineHeight();
+          (descriptionLines as string[]).forEach((line: string, index: number) => {
+            doc.text(line, x, y + (index * 14));
           });
         }
       }
