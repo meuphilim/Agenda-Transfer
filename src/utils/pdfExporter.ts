@@ -148,22 +148,14 @@ export const generateSettlementStatementPdf = (
   const tableFinalY = doc.lastAutoTable?.finalY ?? 0;
   const totalRevenue = settlement.dailyBreakdown.reduce((sum, day) => sum + day.revenue, 0);
 
-  // Custom type for row data to ensure type safety in didDrawCell
-  type CustomRow = (string | { content: string; styles: { halign: string } } | DailyBreakdown)[];
-
-
   autoTable(doc, {
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
-    body: settlement.dailyBreakdown.map(day => {
-        const rowData = {
-            date: new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-            descriptionPlaceholder: '', // Placeholder for custom rendering
-            status: day.isPaid ? 'Pago' : 'Pendente',
-            value: { content: formatCurrency(day.revenue), styles: { halign: 'right' } },
-            _data: day, // Keep original data accessible
-        };
-        return Object.values(rowData);
-    }),
+    body: settlement.dailyBreakdown.map(day => [
+      new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
+      day, // Pass the full object for custom rendering in didDrawCell
+      day.isPaid ? 'Pago' : 'Pendente',
+      { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
+    ]),
     foot: [
       [{ content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
        { content: formatCurrency(totalRevenue), styles: { halign: 'right', fontStyle: 'bold' } }]
@@ -180,11 +172,10 @@ export const generateSettlementStatementPdf = (
     },
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const rawRow = data.row.raw as CustomRow;
-        const dayData = rawRow[4] as DailyBreakdown;
+        const dayData = data.row.raw[1] as DailyBreakdown;
 
         if (dayData) {
-          // Prevent autoTable from drawing the placeholder text
+          // Prevent autoTable from drawing the placeholder text, which is now the object
           data.cell.text = [];
 
           const x = data.cell.x + 5;
