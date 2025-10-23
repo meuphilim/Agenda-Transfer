@@ -229,7 +229,7 @@ export const generateSettlementStatementPdf = (
           y += 14;
 
           // Descrição
-          doc.setFontSize(10);
+          doc.setFontSize(9);
           doc.setTextColor(40, 40, 40);
           doc.setFont('helvetica', 'normal');
           const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
