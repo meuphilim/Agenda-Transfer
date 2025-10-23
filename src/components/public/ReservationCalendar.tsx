@@ -3,10 +3,6 @@ import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { getPublicAvailability } from '../../services/availabilityService';
 
-interface Props {
-  publicView: boolean;
-}
-
 const getNext60Days = () => {
   const dates: Date[] = [];
   const startDate = new Date();
@@ -18,11 +14,10 @@ const getNext60Days = () => {
   return dates;
 };
 
-export const ReservationCalendar = ({ publicView }: Props) => {
+export const ReservationCalendar = () => {
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
-  const [month, setMonth] = useState(new Date().getMonth());
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
     loadAvailability();
@@ -42,17 +37,17 @@ export const ReservationCalendar = ({ publicView }: Props) => {
   };
 
   const renderCalendar = () => {
+    const month = currentMonth.getMonth();
+    const year = currentMonth.getFullYear();
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const today = new Date();
     today.setHours(0,0,0,0);
 
     let days = [];
-    // Preenche os dias vazios no início do mês
     for (let i = 0; i < firstDayOfMonth; i++) {
       days.push(<div key={`empty-${i}`} className="p-2"></div>);
     }
-    // Preenche os dias do mês
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(year, month, day);
       const dateString = currentDate.toISOString().split('T')[0];
@@ -75,6 +70,15 @@ export const ReservationCalendar = ({ publicView }: Props) => {
     return days;
   };
 
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+
   if (loading) return <div className="animate-pulse">Verificando disponibilidade...</div>;
 
   return (
@@ -85,9 +89,9 @@ export const ReservationCalendar = ({ publicView }: Props) => {
       </h2>
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
-          <button onClick={() => setMonth(month - 1)}>&larr;</button>
-          <span className="font-semibold">{new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-          <button onClick={() => setMonth(month + 1)}>&rarr;</button>
+          <button onClick={goToPreviousMonth} className="p-2 rounded-full hover:bg-gray-100">&larr;</button>
+          <span className="font-semibold">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+          <button onClick={goToNextMonth} className="p-2 rounded-full hover:bg-gray-100">&rarr;</button>
         </div>
         <div className="grid grid-cols-7 gap-1 text-xs text-center text-gray-500 mb-2">
           {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => <div key={day}>{day}</div>)}
@@ -96,11 +100,9 @@ export const ReservationCalendar = ({ publicView }: Props) => {
           {renderCalendar()}
         </div>
       </div>
-      {publicView && (
         <p className="text-xs text-center mt-4 text-gray-500">
-          Este é um calendário apenas para visualização. <a href="/login" className="text-blue-600">Faça o login</a> como agência para reservar.
+          Este é um calendário apenas para visualização. Para reservar, entre com sua conta de agência.
         </p>
-      )}
     </div>
   );
 };

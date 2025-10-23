@@ -1,5 +1,7 @@
 // src/services/reservation.service.ts
 import { supabase } from '../lib/supabase';
+
+// Supondo que você terá uma interface PackageReservation em types/custom.ts
 import { PackageReservation } from '../types/custom';
 
 export const reservationService = {
@@ -16,7 +18,6 @@ export const reservationService = {
       .from('packages')
       .insert({
         ...reservation,
-        // Valores fixos para reservas criadas por agências
         created_by_agency: true,
         status: 'pending',
         vehicle_id: null,
@@ -65,6 +66,7 @@ export const reservationService = {
       throw error;
     }
 
-    return data || [];
+    // O retorno precisa ser compatível com a interface PackageReservation
+    return (data as any[]) || [];
   },
 };
