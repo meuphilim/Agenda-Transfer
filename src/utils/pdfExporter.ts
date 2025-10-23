@@ -152,24 +152,43 @@ export const generateSettlementStatementPdf = (
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
     body: settlement.dailyBreakdown.map(day => [
       new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      '', // Placeholder for custom rendering
+      '', // String vazia - conteúdo customizado
       day.isPaid ? 'Pago' : 'Pendente',
       { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
     ]),
     foot: [
-      [{ content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-       { content: formatCurrency(totalRevenue), styles: { halign: 'right', fontStyle: 'bold' } }]
+      [
+        { content: 'Total Geral', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: formatCurrency(totalRevenue), styles: { halign: 'right', fontStyle: 'bold' } }
+      ]
     ],
     startY: tableFinalY + 30,
     theme: 'grid',
-    headStyles: { fillColor: themeColor, textColor: 255, fontStyle: 'bold' },
-    footStyles: { fillColor: '#F3F4F6', textColor: '#111827', fontStyle: 'bold' },
-    columnStyles: {
-        0: { cellWidth: 65, halign: 'center' }, // Data
-        1: { cellWidth: 'auto' }, // Descrição
-        2: { cellWidth: 55, halign: 'center' }, // Status
-        3: { cellWidth: 80, halign: 'right' },  // Valor (R$)
+    headStyles: {
+      fillColor: themeColor,
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 10
     },
+    footStyles: {
+      fillColor: '#F3F4F6',
+      textColor: '#111827',
+      fontStyle: 'bold',
+      fontSize: 10
+    },
+    styles: {
+      fontSize: 10,
+      cellPadding: 5,
+      overflow: 'linebreak',
+      valign: 'top' // CRÍTICO!
+    },
+    columnStyles: {
+      0: { cellWidth: 65, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 55, halign: 'center' },
+      3: { cellWidth: 80, halign: 'right' },
+    },
+
     willDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
         const rowIndex = data.row.index;
@@ -177,14 +196,21 @@ export const generateSettlementStatementPdf = (
 
         if (dayData && dayData.clientName && dayData.description) {
           const cellWidth = data.cell.width - 10;
-          const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth) as string[];
 
-          // Height = padding-top + client + spacing + description + padding-bottom
-          const calculatedHeight = 10 + 12 + 12 + (descriptionLines.length * 12) + 8;
-          data.cell.minCellHeight = calculatedHeight;
+          doc.setFontSize(8);
+
+          doc.setFontSize(10);
+          const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
+
+          const clientHeight = 10;
+          const descriptionHeight = (descriptionLines as string[]).length * 14;
+          const totalHeight = 8 + clientHeight + 4 + descriptionHeight + 8;
+
+          data.cell.minCellHeight = Math.max(totalHeight, 40);
         }
       }
     },
+
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
         const rowIndex = data.row.index;
@@ -192,32 +218,35 @@ export const generateSettlementStatementPdf = (
 
         if (dayData && dayData.clientName && dayData.description) {
           const x = data.cell.x + 5;
-          let y = data.cell.y + 12;
+          let y = data.cell.y + 10;
           const cellWidth = data.cell.width - 10;
 
-          // Draw Client Name
+          // Cliente
           doc.setFontSize(8);
-          doc.setTextColor(100);
+          doc.setTextColor(100, 100, 100);
           doc.setFont('helvetica', 'normal');
           doc.text(`Cliente: ${dayData.clientName}`, x, y);
-          y += 12;
+          y += 14;
 
-          // Draw Description with text wrapping
+          // Descrição
           doc.setFontSize(10);
-          doc.setTextColor(40);
+          doc.setTextColor(40, 40, 40);
           doc.setFont('helvetica', 'normal');
           const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
-          doc.text(descriptionLines, x, y);
+
+          (descriptionLines as string[]).forEach((line: string, index: number) => {
+            doc.text(line, x, y + (index * 14));
+          });
         }
       }
     },
+
     didDrawPage: (data) => {
       addHeader();
-      // The type definitions for jspdf's internal properties are not complete.
-      // Using a type assertion to safely access the page count.
       const pageCount = (doc.internal as { getNumberOfPages: () => number }).getNumberOfPages();
       addFooter(data.pageNumber, pageCount);
     },
+
     margin: { top: 90, bottom: 40 },
     rowPageBreak: 'avoid',
   });
