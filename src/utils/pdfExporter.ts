@@ -184,7 +184,7 @@ export const generateSettlementStatementPdf = (
     },
     columnStyles: {
       0: { cellWidth: 65, halign: 'center' },
-      1: { cellWidth: 'auto', minCellHeight: 40 },
+      1: { cellWidth: 'auto', minCellHeight: 45 },
       2: { cellWidth: 55, halign: 'center' },
       3: { cellWidth: 80, halign: 'right' },
     },
