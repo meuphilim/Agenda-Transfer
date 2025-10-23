@@ -10,6 +10,9 @@ import { Agenda } from './pages/Agenda';
 import { Settings } from './pages/Settings';
 import { UserManagement } from './pages/UserManagement';
 import { FinanceManagement } from './pages/FinanceManagement';
+import { Login } from './pages/Login';
+import { AgencyRegister } from './pages/AgencyRegister';
+import { AgencyPortal } from './pages/AgencyPortal';
 
 function App() {
   return (
@@ -18,6 +21,13 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/agency-register" element={<AgencyRegister />} />
+            <Route path="/agency-portal" element={
+              <ProtectedRoute>
+                <AgencyPortal />
+              </ProtectedRoute>
+            } />
             <Route path="/*" element={
               <ProtectedRoute>
                 <Layout>

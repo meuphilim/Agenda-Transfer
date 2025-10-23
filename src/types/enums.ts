@@ -5,3 +5,9 @@ export enum PackageStatus {
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
 }
+
+export enum UserRole {
+  ADMIN = 'admin',
+  STAFF = 'staff',
+  AGENCY = 'agency',
+}
