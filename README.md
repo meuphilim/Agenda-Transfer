@@ -1,605 +1,163 @@
-# 🚀 Agenda Transfer - Sistema de Gestão de Turismo
+# 🚀 TourManager - Sistema de Gestão para Turismo Receptivo
 
-[![React](https://img.shields.io/badge/React-18.3.1-blue.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue.svg)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.4.2-purple.svg)](https://vitejs.dev/)
-[![Supabase](https://img.shields.io/badge/Supabase-Latest-green.svg)](https://supabase.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.3.6-purple?logo=vite)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-2.58.0-green?logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.1-cyan?logo=tailwindcss)](https://tailwindcss.com/)
+[![Licença](https://img.shields.io/badge/Licença-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Sistema profissional de gestão para turismo receptivo, desenvolvido com React, TypeScript e Supabase. Gerencia agências, motoristas, veículos, pacotes turísticos e agendas de forma eficiente e segura.
+**TourManager** é uma aplicação web completa e robusta, projetada para otimizar a gestão de empresas de turismo receptivo. O sistema centraliza o controle de agências, motoristas, veículos e pacotes turísticos, oferecendo uma plataforma segura e eficiente para agendar e acompanhar todas as operações do dia a dia.
 
 ---
 
 ## 📋 Índice
  
-- [Sobre o Projeto](#-sobre-o-projeto)
-- [Funcionalidades](#-funcionalidades)
-- [Tecnologias](#-tecnologias)
-- [Pré-requisitos](#-pré-requisitos)
-- [Instalação](#-instalação)
-- [Configuração](#-configuração)
-- [Scripts Disponíveis](#-scripts-disponíveis)
-- [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Arquitetura](#-arquitetura)
-- [Segurança](#-segurança)
-- [Deploy](#-deploy)
-- [Troubleshooting](#-troubleshooting)
-- [Contribuindo](#-contribuindo)
-- [Licença](#-licença)
+- [🎯 Sobre o Projeto](#-sobre-o-projeto)
+- [⚡ Funcionalidades Principais](#-funcionalidades-principais)
+- [🛠️ Tecnologias](#-tecnologias)
+- [📋 Pré-requisitos](#-pré-requisitos)
+- [🚀 Instalação e Execução](#-instalação-e-execução)
+- [📜 Scripts Disponíveis](#-scripts-disponíveis)
+- [📁 Estrutura do Projeto](#-estrutura-do-projeto)
+- [📊 Status do Projeto](#-status-do-projeto)
+- [📄 Licença](#-licença)
 
 ---
 
 ## 🎯 Sobre o Projeto
 
-**Agenda Transfer** é uma aplicação web moderna para gestão completa de operações de turismo receptivo. O sistema permite controle total sobre:
-
-- 🏢 Agências de turismo
-- 🚗 Frota de veículos
-- 👨‍✈️ Motoristas e guias
-- 🎫 Pacotes e roteiros turísticos
-- 🗺️ Atrações e pontos turísticos
-- 📅 Agendamento de transfers e passeios
-- 👥 Gestão de usuários e permissões
+O **TourManager** foi desenvolvido para resolver os desafios logísticos de agências de turismo, substituindo planilhas e processos manuais por uma solução integrada. A plataforma permite um gerenciamento claro e em tempo real de todas as atividades, desde o cadastro de um novo pacote até a conclusão de um serviço.
 
 ### 🌟 Diferenciais
 
-- ✅ Interface moderna e intuitiva
-- ✅ Autenticação e autorização robustas
-- ✅ Atualização em tempo real via Supabase Realtime
-- ✅ Sistema de sessão com timeout configurável
-- ✅ Gestão de perfis e permissões (Admin/User)
-- ✅ Validação de formulários com feedback visual
-- ✅ Responsivo e otimizado para dispositivos móveis
-- ✅ Error boundaries e tratamento de erros robusto
+- **Interface Moderna e Responsiva:** Construído com React e Tailwind CSS, o sistema oferece uma experiência de usuário fluida tanto em desktops quanto em dispositivos móveis.
+- **Backend Poderoso com Supabase:** Utiliza o Supabase para autenticação, banco de dados PostgreSQL em tempo real e segurança de dados com Row Level Security (RLS).
+- **Arquitetura Segura:** As operações sensíveis (como gerenciamento de usuários) são tratadas por funções de backend (`api/`), garantindo que chaves de serviço não sejam expostas no frontend.
+- **Qualidade de Código:** Desenvolvido com TypeScript para garantir a tipagem e a robustez do código, com verificações de qualidade via ESLint.
 
 ---
 
-## ⚡ Funcionalidades
+## ⚡ Funcionalidades Principais
 
-### 🔐 Autenticação e Perfis
-- [x] Login com email/senha
-- [x] Cadastro de novos usuários
-- [x] Sistema de aprovação de contas (pending/active/inactive)
-- [x] Perfis de usuário com informações completas
-- [x] Edição de perfil com validação
-- [x] Sessão automática com timeout por inatividade
-- [x] Logout seguro com limpeza de cache
+### Gestão
+- **CRUD Completo:** Gerenciamento de Agências, Motoristas, Veículos, Atrações e Pacotes Turísticos.
+- **Agenda Inteligente:** Visualização de agendamentos em formato de lista ou calendário (semanal/mensal), com validação de conflitos para evitar agendamentos sobrepostos.
+- **Dashboard Central:** Painel com métricas em tempo real, incluindo uma lista detalhada das atividades do dia com status dinâmico (A iniciar, Em andamento, Concluída) calculado com precisão de fuso horário.
+- **Gestão de Disponibilidade Dinâmica:** O status de veículos e motoristas é calculado automaticamente com base nos agendamentos de pacotes confirmados, garantindo uma visão precisa da ocupação dos recursos.
 
-### 📊 Dashboard
-- [x] Visão geral do sistema
-- [x] Estatísticas em tempo real
-- [x] Pacotes ativos e agendamentos
-- [x] Alertas e notificações
+### Segurança
+- **Autenticação e Autorização:** Sistema de login seguro com perfis de usuário (Administrador e Usuário).
+- **Aprovação de Usuários:** Novos usuários cadastrados precisam ser ativados por um administrador.
+- **Rotas Protegidas:** O acesso às páginas do sistema é protegido e requer autenticação.
 
-### 🚗 Gestão de Veículos
-- [x] Cadastro completo (placa, marca, modelo, capacidade)
-- [x] Status (disponível, em uso, manutenção)
-- [x] Edição e exclusão
-- [x] Listagem com ordenação
-- [x] Atualização em tempo real
-
-### 👨‍✈️ Gestão de Motoristas
-- [x] Dados pessoais (nome, telefone, email)
-- [x] CNH (número, categoria, validade, EAR)
-- [x] Status (disponível, ocupado, indisponível)
-- [x] Validação de CNH expirada com alerta visual
-- [x] Formatação automática de telefone
-- [x] CRUD completo com realtime
-
-### 🏢 Gestão de Agências
-- [x] Cadastro de agências parceiras
-- [x] Informações de contato
-- [x] Status ativo/inativo
-- [x] Sistema de busca e filtros
-
-### 🎫 Gestão de Pacotes
-- [x] Criação de pacotes turísticos
-- [x] Vinculação com atrações
-- [x] Controle de datas e horários
-- [x] Gestão de reservas
-
-### 🗺️ Gestão de Atrações
-- [x] Cadastro de pontos turísticos
-- [x] Descrição e informações
-- [x] Status e disponibilidade
-
-### 📅 Agenda e Schedule
-- [x] Visualização de agendamentos
-- [x] Gestão de disponibilidade
-- [x] Conflitos de horário
-
-### 👥 Gerenciamento de Usuários (Admin)
-- [x] Aprovação/rejeição de novos usuários
-- [x] Ativação/desativação de contas
-- [x] Promoção a administrador
-- [x] Listagem com filtros de status
+### Experiência do Usuário (UX)
+- **Design Responsivo:** Layout adaptado para desktop e mobile, com componentes reutilizáveis.
+- **Interface Intuitiva:** Navegação clara com barra lateral animada em desktop e menu hambúrguer em mobile.
+- **Feedback ao Usuário:** Notificações (toasts) para ações como sucesso e erro.
 
 ---
 
 ## 🛠️ Tecnologias
 
-### Frontend
+A tabela a seguir lista as principais tecnologias utilizadas no desenvolvimento do TourManager:
+
 | Tecnologia | Versão | Descrição |
-|------------|--------|-----------|
-| [React](https://react.dev/) | 18.3.1 | Biblioteca JavaScript para UI |
-| [TypeScript](https://www.typescriptlang.org/) | 5.5.3 | Superset JavaScript com tipagem |
-| [Vite](https://vitejs.dev/) | 5.4.2 | Build tool ultra-rápida |
-| [React Router](https://reactrouter.com/) | 6.26.2 | Roteamento declarativo |
-| [Tailwind CSS](https://tailwindcss.com/) | 3.4.11 | Framework CSS utilitário |
-
-### Backend & Database
-| Tecnologia | Descrição |
-|------------|-----------|
-| [Supabase](https://supabase.com/) | Backend-as-a-Service (PostgreSQL) |
-| PostgreSQL | Banco de dados relacional |
-| Supabase Realtime | Atualizações em tempo real |
-| Row Level Security (RLS) | Segurança em nível de linha |
-
-### Bibliotecas Adicionais
-- **React Toastify** - Notificações elegantes
-- **Headless UI** - Componentes acessíveis
-- **Lucide React** - Ícones SVG
-- **React Hook Form** - Gerenciamento de formulários
-
-### DevOps & CI/CD
-- **GitHub Actions** - Automação de workflows
-- **ESLint** - Linting de código
-- **TypeScript ESLint** - Linting para TypeScript
+| :--- | :--- | :--- |
+| **React** | `18.3.1` | Biblioteca principal para a construção da interface de usuário. |
+| **TypeScript** | `5.5.3` | Garante a tipagem estática e a qualidade do código. |
+| **Vite** | `6.3.6` | Ferramenta de build moderna e de alta performance. |
+| **Supabase** | `2.58.0` | Plataforma de Backend-as-a-Service para banco de dados e autenticação. |
+| **React Router** | `7.9.3` | Biblioteca para gerenciamento de rotas no lado do cliente. |
+| **Tailwind CSS** | `3.4.1` | Framework CSS utilitário para estilização rápida. |
+| **Framer Motion**| `12.23.24`| Biblioteca para criação de animações fluidas. |
+| **Lucide React** | `0.344.0` | Conjunto de ícones SVG leves e customizáveis. |
 
 ---
 
 ## 📋 Pré-requisitos
 
-- **Node.js** >= 18.0.0
-- **npm** >= 9.0.0 ou **yarn** >= 1.22.0
-- **Git**
-- **Conta no Supabase** (gratuita disponível)
+Para executar o projeto localmente, você precisará ter as seguintes ferramentas instaladas:
+
+- **Node.js**: `v18.0.0` ou superior
+- **npm**: `v9.0.0` ou superior
+- **Git**: Para clonar o repositório
 
 ---
 
-## 🚀 Instalação
+## 🚀 Instalação e Execução
 
-### 1. Clone o repositório
+Siga os passos abaixo para configurar e executar o ambiente de desenvolvimento:
 
+**1. Clone o repositório**
 ```bash
-git clone https://github.com/meuphilim/Agenda-Transfer.git
-cd Agenda-Transfer
+git clone https://github.com/seu-usuario/TourManager.git
+cd TourManager
 ```
 
-### 2. Instale as dependências
-
+**2. Instale as dependências**
 ```bash
 npm install
-# ou
-yarn install
 ```
 
-### 3. Configure as variáveis de ambiente
+**3. Configure as Variáveis de Ambiente**
 
+Crie um arquivo `.env` na raiz do projeto, utilizando o `.env.example` como referência.
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
-
-Edite o arquivo `.env.local` com suas credenciais:
-
+Em seguida, preencha o arquivo `.env` com suas credenciais do Supabase:
 ```env
-# Supabase
-VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua_chave_anonima_aqui
+# URL do seu projeto Supabase
+VITE_SUPABASE_URL="https://seu-projeto.supabase.co"
 
-# Sessão (30 minutos = 1800000ms)
-VITE_SESSION_TIMEOUT=1800000
-
-# App
-VITE_APP_URL=http://localhost:5173
-
-# Backend (Vercel Environment)
-# Esta chave é usada no endpoint da API para operações de administrador.
-# NUNCA exponha esta chave no frontend.
-SUPABASE_SERVICE_KEY=sua_chave_de_serviço_aqui
+# Chave anônima (pública) do seu projeto Supabase
+VITE_SUPABASE_ANON_KEY="sua-chave-publica-anon"
 ```
+> **Onde encontrar as credenciais?**
+> Você pode obter a `URL` e a `ANON_KEY` no painel do seu projeto Supabase, em **Project Settings > API**.
 
-### 4. Execute o projeto
-
+**4. Execute o projeto**
 ```bash
 npm run dev
-# ou
-yarn dev
 ```
-
-Acesse: **http://localhost:5173**
-
----
-
-## ⚙️ Configuração
-
-### Supabase Setup
-
-1. **Crie um projeto** no [Supabase](https://supabase.com/)
-
-2. **Configure o banco de dados:**
-   - Execute as migrations em `supabase/migrations/`
-   - Configure Row Level Security (RLS)
-   - Habilite Realtime para as tabelas necessárias
-
-3. **Obtenha as credenciais:**
-   - URL do projeto: `Settings > API > Project URL`
-   - Chave anônima: `Settings > API > anon public`
-
-4. **Configure CORS:**
-   - `Settings > API > CORS > Add URL: http://localhost:5173`
-
-### Estrutura do Banco de Dados
-
-```sql
--- Tabelas principais
-- profiles (usuários)
-- agencies (agências)
-- drivers (motoristas)
-- vehicles (veículos)
-- attractions (atrações)
-- packages (pacotes)
-- schedules (agendamentos)
-```
+A aplicação estará disponível em **http://localhost:5173**.
 
 ---
 
 ## 📜 Scripts Disponíveis
 
-```bash
-# Desenvolvimento
-npm run dev              # Inicia servidor de desenvolvimento
-
-# Build
-npm run build            # Cria build de produção
-npm run preview          # Preview do build localmente
-
-# Qualidade de Código
-npm run lint             # Executa ESLint
-npm run typecheck        # Verifica tipos TypeScript
-npm run check            # Lint + TypeCheck
-
-# Deploy
-npm run deploy           # Build + Deploy (GitHub Pages)
-```
+- `npm run dev`: Inicia o servidor de desenvolvimento com Hot Reload.
+- `npm run build`: Gera a build de produção otimizada na pasta `dist/`.
+- `npm run lint`: Executa o ESLint para identificar problemas de formatação e estilo.
+- `npm run typecheck`: Realiza a verificação de tipos do TypeScript em todo o projeto.
+- `npm run check`: Executa os scripts `lint` e `typecheck` em sequência.
+- `npm test`: Executa os testes unitários com Vitest.
+- `npm run preview`: Inicia um servidor local para visualizar a build de produção.
 
 ---
 
 ## 📁 Estrutura do Projeto
 
+A estrutura de diretórios foi organizada para separar responsabilidades e facilitar a manutenção:
+
 ```
-Agenda-Transfer/
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # CI/CD automático
-├── public/                        # Assets públicos
+TourManager/
+├── api/                # Funções serverless (backend) para operações seguras
+├── public/             # Arquivos estáticos (ícones, imagens)
 ├── src/
-│   ├── components/                # Componentes React (Auth, Layout, Profile, etc.)
-│   ├── contexts/                  # Contextos React
-│   │   └── AuthContext.tsx       # Autenticação e sessão global
-│   ├── hooks/                     # Custom hooks
-│   │   └── useSupabaseData.ts    # Hook para buscar dados do Supabase
-│   ├── lib/                       # Bibliotecas
-│   │   └── supabase.ts           # Cliente Supabase
-│   ├── pages/                     # Páginas da aplicação
-│   │   ├── Dashboard.tsx         # Dashboard principal
-│   │   ├── Schedule.tsx          # Agenda
-│   │   ├── Packages.tsx          # Pacotes
-│   │   ├── Settings.tsx          # Hub de Cadastros (Agências, Veículos, etc.)
-│   │   └── UserManagement.tsx    # Gestão de usuários
-│   ├── services/                  # Serviços (API)
-│   ├── types/                     # Definições TypeScript
-│   ├── utils/                     # Utilitários
-│   ├── App.tsx                    # Componente raiz
-│   ├── main.tsx                   # Entry point
-│   └── index.css                  # Estilos globais
-├── api/                           # API Backend (Serverless Functions)
-│   └── admin.ts                   # Endpoints de administração
-├── supabase/
-│   └── migrations/                # Migrations do banco
-├── .env.example                   # Exemplo de variáveis
-├── eslint.config.js               # Config ESLint
-├── .gitignore
-├── index.html
-├── package.json
-├── tailwind.config.js             # Config Tailwind
-├── tsconfig.json                  # Config TypeScript
-├── vite.config.ts                 # Config Vite
-└── README.md
+│   ├── components/     # Componentes React reutilizáveis (Common/, Layout/)
+│   ├── contexts/       # Contextos da aplicação (ex: AuthContext)
+│   ├── hooks/          # Hooks customizados (ex: useAuth)
+│   ├── lib/            # Configuração de clientes (Supabase) e utilitários
+│   ├── pages/          # Componentes que representam as páginas da aplicação
+│   ├── services/       # Lógica de comunicação com a API (ex: adminApi)
+│   └── types/          # Definições de tipos TypeScript (enums.ts, database.types.ts)
+├── .env.example        # Arquivo de exemplo para variáveis de ambiente
+├── eslint.config.js    # Configurações do ESLint
+├── package.json        # Dependências e scripts do projeto
+└── vite.config.ts      # Configurações do Vite
 ```
-
----
-
-## 🏗️ Arquitetura
-
-### Fluxo de Autenticação
-
-```
-Login → AuthContext → Supabase Auth
-  ↓
-Verifica Sessão
-  ↓
-Busca Profile (com retry)
-  ↓
-ProtectedRoute valida status
-  ↓
-Renderiza App ou Tela de Erro
-```
-
-### Gestão de Sessão
-
-- **Timeout de Carregamento:** 10 segundos
-- **Timeout de Inatividade:** Configurável via `.env` (padrão: 30 minutos)
-- **Detecção de Atividade:** Click, scroll, teclado, mouse move
-- **Verificação:** A cada 1 minuto
-- **Logout Automático:** Após inatividade configurada
-
-### Fluxo de Dados (Realtime)
-
-```
-useSupabaseData Hook
-  ↓
-Supabase Client
-  ↓
-PostgreSQL + Realtime
-  ↓
-Atualização Automática na UI
-```
-
----
-
-## 🔒 Segurança
-
-### Medidas Implementadas
-
-✅ **Row Level Security (RLS)** habilitado em todas as tabelas  
-✅ **CORS** configurado no Supabase  
-✅ **Validação** de variáveis de ambiente no startup  
-✅ **Secrets** gerenciados pelo GitHub Actions  
-✅ **Proteção de rotas** com ProtectedRoute  
-✅ **Sanitização** de inputs  
-✅ **Error Boundaries** para prevenir crashes  
-✅ **Timeout de sessão** configurável  
-✅ **Limpeza** de cache ao fazer logout
-
-### Práticas Recomendadas
-
-- ⚠️ **Nunca** commite o arquivo `.env.local`
-- ⚠️ Mantenha as dependências atualizadas
-- ⚠️ Configure backups regulares do banco
-- ⚠️ Use HTTPS em produção
-- ⚠️ Implemente rate limiting para APIs públicas
-
----
-
-## 🚀 Deploy
-
-### GitHub Pages (Automático)
-
-O projeto está configurado com GitHub Actions para deploy automático:
-
-1. **Configure os secrets no GitHub:**
-   - `Settings > Secrets and variables > Actions`
-   - Adicione: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
-
-2. **Push para branch `main`:**
-   ```bash
-   git push origin main
-   ```
-
-3. **Deploy automático:**
-   - GitHub Actions executa build
-   - Publica no GitHub Pages
-   - Acesse: `https://seu-usuario.github.io/Agenda-Transfer`
-
-### Deploy Manual
-
-```bash
-# Build de produção
-npm run build
-
-# Deploy para seu servidor
-# Copie o conteúdo da pasta dist/ para seu servidor web
-```
-
-### Vercel
-
-O deploy na Vercel é o método recomendado para este projeto, pois ele suporta os endpoints de API serverless.
-
-1.  **Conecte seu repositório do Git** com a Vercel.
-2.  **Configure o projeto:**
-    *   **Framework Preset:** `Vite`
-    *   **Build Command:** `npm run build`
-    *   **Output Directory:** `dist`
-    *   **Install Command:** `npm install`
-3.  **Configure as Variáveis de Ambiente:**
-    *   Vá para `Settings > Environment Variables` no seu projeto Vercel.
-    *   Adicione as seguintes variáveis:
-        *   `VITE_SUPABASE_URL`
-        *   `VITE_SUPABASE_ANON_KEY`
-        *   `SUPABASE_SERVICE_KEY` (esta é a sua chave de serviço, que deve ser mantida em segredo)
-
-4.  **Faça o deploy.**
-
----
-
-## 🐛 Troubleshooting
-
-### Problema: "Tempo Limite Excedido"
-
-**Causa:** Aplicação demorou > 10s para carregar
-
-**Soluções:**
-1. Verifique sua conexão com a internet
-2. Clique em "Recarregar Página"
-3. Se persistir, clique em "Limpar Sessão e Tentar Novamente"
-4. Verifique se o Supabase está online
-
-### Problema: "Sessão Expirada"
-
-**Causa:** Inatividade por tempo configurado (padrão: 30 minutos)
-
-**Solução:**
-- Faça login novamente
-- Para aumentar o tempo: altere `VITE_SESSION_TIMEOUT` no `.env`
-
-### Problema: Loading Infinito
-
-**Possíveis causas:**
-- Problemas no AuthContext
-- Profile não encontrado no banco
-- Trigger do banco não executado
-
-**Soluções:**
-1. Limpe localStorage: `localStorage.clear()`
-2. Verifique se o trigger de criação de profile existe
-3. Verifique logs do console do navegador
-4. Force refresh: Ctrl+Shift+R (ou Cmd+Shift+R no Mac)
-
-### Problema: Realtime não funciona
-
-**Causa:** Realtime não habilitado no Supabase
-
-**Solução:**
-```sql
--- No Supabase SQL Editor
-ALTER TABLE profiles REPLICA IDENTITY FULL;
-ALTER TABLE drivers REPLICA IDENTITY FULL;
-ALTER TABLE vehicles REPLICA IDENTITY FULL;
--- Repita para todas as tabelas com realtime
-```
-
-### Problema: Build falha
-
-**Causa:** Variáveis de ambiente não definidas
-
-**Solução:**
-```bash
-# Verifique se o .env.local existe e tem as variáveis corretas
-cat .env.local
-
-# Reconstrua
-rm -rf node_modules dist
-npm install
-npm run build
-```
-
----
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Siga os passos:
-
-1. **Fork** o projeto
-2. **Clone** seu fork:
-   ```bash
-   git clone https://github.com/seu-usuario/Agenda-Transfer.git
-   ```
-3. Crie uma **branch** para sua feature:
-   ```bash
-   git checkout -b feature/MinhaFeature
-   ```
-4. **Commit** suas mudanças:
-   ```bash
-   git commit -m 'feat: adiciona nova funcionalidade'
-   ```
-5. **Push** para a branch:
-   ```bash
-   git push origin feature/MinhaFeature
-   ```
-6. Abra um **Pull Request**
-
-### Convenção de Commits
-
-Usamos [Conventional Commits](https://www.conventionalcommits.org/):
-
-- `feat:` Nova funcionalidade
-- `fix:` Correção de bug
-- `docs:` Documentação
-- `style:` Formatação
-- `refactor:` Refatoração de código
-- `test:` Testes
-- `chore:` Manutenção
-
-### Diretrizes
-
-- ✅ Mantenha o código limpo e bem documentado
-- ✅ Siga os padrões de código existentes (ESLint)
-- ✅ Adicione testes para novas funcionalidades
-- ✅ Atualize a documentação conforme necessário
-- ✅ Respeite o código de conduta
-
----
-
-## 📊 Performance
-
-### Métricas Alvo
-
-- ⚡ Tempo de carregamento < 3 segundos
-- ⚡ Score Lighthouse > 90
-- ⚡ First Contentful Paint < 1.5s
-- ⚡ Time to Interactive < 3.5s
-
-### Otimizações Implementadas
-
-✅ **Build otimizado** com Vite  
-✅ **Code splitting** automático  
-✅ **Lazy loading** de componentes  
-✅ **Debounce** em buscas  
-✅ **Prevenção** de requisições duplicadas  
-✅ **Cache** de dados com Supabase  
-
----
-
-## 📈 Roadmap
-
-### Em Desenvolvimento
-- [ ] Validação avançada com Yup
-- [ ] Testes automatizados (Jest + React Testing Library)
-- [ ] Paginação em listagens
-- [ ] Sistema de logs profissional
-- [ ] Monitoramento com Sentry
-
-### Próximas Funcionalidades
-- [ ] Notificações por email
-- [ ] Integração WhatsApp Business
-- [ ] App mobile PWA
-- [ ] Dashboard de relatórios avançados
-- [ ] Sistema de avaliações e feedback
-- [ ] Integração com gateways de pagamento
-- [ ] Exportação de relatórios (PDF/Excel)
-- [ ] Integração com calendários externos (Google Calendar)
-
----
-
-## 👥 Autor
-
-**Maintainer:** [@meuphilim](https://github.com/meuphilim)
-
-**Desenvolvido para:** Bonito Ecoexpedições
-
----
-
-## 🙏 Agradecimentos
-
-- Equipe Bonito Ecoexpedições pela inspiração
-- Comunidade React por ferramentas incríveis
-- Supabase por excelente backend-as-a-service
-- Todos os contribuidores open source
-
----
-
-## 📄 Licença
-
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
----
-
-## 📞 Suporte
-
-- **Issues:** [GitHub Issues](https://github.com/meuphilim/Agenda-Transfer/issues)
-- **Documentação:** Este README
-- **Supabase Docs:** [docs.supabase.com](https://docs.supabase.com)
 
 ---
 
@@ -610,9 +168,8 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 ![Issues](https://img.shields.io/github/issues/meuphilim/Agenda-Transfer)
 ![Pull Requests](https://img.shields.io/github/issues-pr/meuphilim/Agenda-Transfer)
 
+## 📄 Licença
+
 ---
 
-<div align="center">
-  <p>Feito com ❤️ para simplificar a gestão de turismo</p>
-  <p>⭐ Se este projeto te ajudou, considere dar uma estrela!</p>
-</div>
+Este projeto está licenciado sob a **Licença MIT**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
