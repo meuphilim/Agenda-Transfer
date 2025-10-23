@@ -152,7 +152,7 @@ export const generateSettlementStatementPdf = (
     head: [['Data', 'Descrição', 'Status', 'Valor (R$)']],
     body: settlement.dailyBreakdown.map(day => [
       new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR'),
-      day, // Pass the full object for custom rendering in didDrawCell
+      '', // Placeholder for custom rendering
       day.isPaid ? 'Pago' : 'Pendente',
       { content: formatCurrency(day.revenue), styles: { halign: 'right' } }
     ]),
@@ -166,31 +166,31 @@ export const generateSettlementStatementPdf = (
     footStyles: { fillColor: '#F3F4F6', textColor: '#111827', fontStyle: 'bold' },
     columnStyles: {
         0: { cellWidth: 65, halign: 'center' }, // Data
-        1: { cellWidth: 'auto' },               // Descrição
+        1: { cellWidth: 'auto', minCellHeight: 35 }, // Descrição
         2: { cellWidth: 55, halign: 'center' }, // Status
         3: { cellWidth: 80, halign: 'right' },  // Valor (R$)
     },
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
-        const dayData = data.row.raw[1] as DailyBreakdown;
+        const rowIndex = data.row.index;
+        const dayData = settlement.dailyBreakdown[rowIndex];
 
-        if (dayData) {
-          // Prevent autoTable from drawing the placeholder text, which is now the object
-          data.cell.text = [];
-
+        if (dayData && dayData.clientName && dayData.description) {
           const x = data.cell.x + 5;
-          let y = data.cell.y + 10;
+          let y = data.cell.y + 12;
           const cellWidth = data.cell.width - 10;
 
           // Draw Client Name
           doc.setFontSize(8);
           doc.setTextColor(100);
+          doc.setFont('helvetica', 'normal');
           doc.text(`Cliente: ${dayData.clientName}`, x, y);
-          y += 12; // Move y down for the description
+          y += 12;
 
           // Draw Description with text wrapping
           doc.setFontSize(10);
           doc.setTextColor(40);
+          doc.setFont('helvetica', 'normal');
           const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth);
           doc.text(descriptionLines, x, y);
         }
