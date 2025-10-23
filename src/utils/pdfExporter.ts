@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable, { HookData } from 'jspdf-autotable';
-import { AgencySettlement, DailyBreakdown } from '../services/financeApi';
+import { AgencySettlement } from '../services/financeApi';
 import { User } from '@supabase/supabase-js';
 
 // Define an interface for the jsPDF instance with the autoTable plugin property
@@ -166,9 +166,24 @@ export const generateSettlementStatementPdf = (
     footStyles: { fillColor: '#F3F4F6', textColor: '#111827', fontStyle: 'bold' },
     columnStyles: {
         0: { cellWidth: 65, halign: 'center' }, // Data
-        1: { cellWidth: 'auto', minCellHeight: 35 }, // Descrição
+        1: { cellWidth: 'auto' }, // Descrição
         2: { cellWidth: 55, halign: 'center' }, // Status
         3: { cellWidth: 80, halign: 'right' },  // Valor (R$)
+    },
+    willDrawCell: (data) => {
+      if (data.column.index === 1 && data.cell.section === 'body') {
+        const rowIndex = data.row.index;
+        const dayData = settlement.dailyBreakdown[rowIndex];
+
+        if (dayData && dayData.clientName && dayData.description) {
+          const cellWidth = data.cell.width - 10;
+          const descriptionLines = doc.splitTextToSize(dayData.description, cellWidth) as string[];
+
+          // Height = padding-top + client + spacing + description + padding-bottom
+          const calculatedHeight = 10 + 12 + 12 + (descriptionLines.length * 12) + 8;
+          data.cell.minCellHeight = calculatedHeight;
+        }
+      }
     },
     didDrawCell: (data) => {
       if (data.column.index === 1 && data.cell.section === 'body') {
