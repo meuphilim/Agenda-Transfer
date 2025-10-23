@@ -11,7 +11,6 @@ export interface UserProfile {
   full_name: string;
   phone: string | null;
   is_admin: boolean;
-  agency_id: string | null; // Adicionado para agências
   status: UserStatus;
   created_at: string;
   updated_at: string;
@@ -68,34 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchPromise = (async () => {
       try {
         console.log(`🔎 Buscando perfil para o usuário: ${userId}`);
-
-        // 1. Tenta buscar na tabela de agências
-        const { data: agencyData, error: agencyError } = await supabase
-          .from('agencies')
-          .select('id, name, contact_phone')
-          .eq('user_id', userId)
-          .single();
-
-        if (agencyError && agencyError.code !== 'PGRST116') { // Ignora erro 'not found'
-            console.error('❌ Erro ao buscar agência:', agencyError);
-        }
-
-        if (agencyData) {
-          console.log('✅ Perfil de agência encontrado:', agencyData);
-          // Retorna um objeto compatível com UserProfile
-          return {
-            id: userId,
-            full_name: agencyData.name,
-            phone: agencyData.contact_phone,
-            is_admin: false,
-            agency_id: agencyData.id,
-            status: 'active', // Assumindo que agências são ativas
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-        }
-
-        // 2. Se não for agência, busca na tabela de profiles (admin/staff)
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -103,13 +74,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle();
 
         if (error) {
-          console.error('❌ Erro ao buscar perfil de staff/admin:', error);
+          console.error('❌ Erro ao buscar perfil:', error);
           return null;
         }
 
         if (data) {
-          console.log('✅ Perfil de staff/admin encontrado:', data);
-          return { ...data, agency_id: null }; // Garante que agency_id seja null
+          console.log('✅ Perfil encontrado:', data);
+          return data;
         }
 
         console.log('⏳ Perfil ainda não existe para o usuário, aguardando criação...');

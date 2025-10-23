@@ -9,5 +9,5 @@ export enum PackageStatus {
 export enum UserRole {
   ADMIN = 'admin',
   STAFF = 'staff',
-  AGENCY = 'agency',
+  AGENCY = 'agency'
 }

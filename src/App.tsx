@@ -23,11 +23,14 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/agency-register" element={<AgencyRegister />} />
+
             <Route path="/agency-portal" element={
               <ProtectedRoute>
+                {/* Idealmente, o ProtectedRoute deveria aceitar um 'role' */}
                 <AgencyPortal />
               </ProtectedRoute>
             } />
+
             <Route path="/*" element={
               <ProtectedRoute>
                 <Layout>
