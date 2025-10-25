@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { ReservationCalendar } from '../public/ReservationCalendar';
-import { AuthHeader } from './AuthHeader';
 import { AuthForm } from './AuthForm';
 import { FormData } from '../../types/auth.types';
 
@@ -22,14 +21,13 @@ export const Login: React.FC = () => {
           formData.phone
         );
         toast.success('Conta criada! Aguarde a aprovação do administrador.');
-        setIsSignUp(false); // Retorna para tela de login
+        setIsSignUp(false);
       } else {
         await signIn(formData.email, formData.password);
-        // Redirecionamento tratado pelo AuthContext
       }
     } catch (error: any) {
       toast.error(error.message ?? 'Ocorreu um erro.');
-      throw error; // Importante para o AuthForm não resetar em caso de erro
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -40,27 +38,23 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header Centralizado no Topo */}
-      <AuthHeader isSignUp={isSignUp} />
+    <div className="min-h-screen grid lg:grid-cols-2 bg-gradient-to-br from-gray-50 to-gray-100">
 
-      {/* Layout Split-Screen */}
-      <div className="flex-1 grid lg:grid-cols-2">
-        {/* Coluna Esquerda: Formulário */}
-        <div className="flex items-center justify-center bg-white p-4">
-          <AuthForm
-            mode={isSignUp ? 'signup' : 'login'}
-            onSubmit={handleSubmit}
-            onToggleMode={toggleMode}
-            loading={loading}
-          />
-        </div>
-
-        {/* Coluna Direita: Calendário Público */}
-        <div className="bg-gray-50 p-8 flex items-center justify-center border-l border-gray-200">
-          <ReservationCalendar />
-        </div>
+      {/* Coluna Esquerda: Formulário com Fundo Decorativo */}
+      <div className="flex items-center justify-center bg-white p-6 lg:p-8">
+        <AuthForm
+          mode={isSignUp ? 'signup' : 'login'}
+          onSubmit={handleSubmit}
+          onToggleMode={toggleMode}
+          loading={loading}
+        />
       </div>
+
+      {/* Coluna Direita: Calendário */}
+      <div className="flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-6 lg:p-12 border-l border-gray-200">
+        <ReservationCalendar />
+      </div>
+
     </div>
   );
 };
