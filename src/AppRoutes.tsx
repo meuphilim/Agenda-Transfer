@@ -1,0 +1,74 @@
+// src/AppRoutes.tsx
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Layout } from './components/Layout/Layout';
+import { Dashboard } from './pages/Dashboard';
+import { Agenda } from './pages/Agenda';
+import { Settings } from './pages/Settings';
+import { UserManagement } from './pages/UserManagement';
+import { FinanceManagement } from './pages/FinanceManagement';
+import { AgencyRegister } from './pages/AgencyRegister';
+import { AgencyPortal } from './pages/AgencyPortal';
+import { Login } from './components/Auth/Login';
+import { useEffect } from 'react';
+
+export const AppRoutes = () => {
+    const { profile, loading, user } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        if (!loading && user) {
+            const isAgency = !!profile?.agency_id;
+            const isStaff = !isAgency;
+
+            // Se for staff e estiver na rota de agência, redireciona para o dashboard
+            if (isStaff && (location.pathname.startsWith('/agency-portal') || location.pathname.startsWith('/agency-register'))) {
+                navigate('/');
+            }
+            // Se for agência e não estiver no portal, redireciona para o portal
+            if (isAgency && !location.pathname.startsWith('/agency-portal')) {
+                navigate('/agency-portal');
+            }
+        }
+    }, [loading, user, profile, navigate, location.pathname]);
+
+    // Renderiza o login para usuários não autenticados
+    if (loading) {
+        return <div>Carregando...</div>; // Ou um componente de spinner
+    }
+
+    if (!user) {
+        return (
+            <Routes>
+                <Route path="/agency-register" element={<AgencyRegister />} />
+                <Route path="*" element={<Login />} />
+            </Routes>
+        );
+    }
+
+    return (
+        <Routes>
+            <Route path="/agency-portal" element={
+              <ProtectedRoute>
+                <AgencyPortal />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Routes>
+                    <Route index element={<Dashboard />} />
+                    <Route path="agenda" element={<Agenda />} />
+                    <Route path="cadastros" element={<Settings />} />
+                    <Route path="usuarios" element={<UserManagement />} />
+                    <Route path="financeiro" element={<FinanceManagement />} />
+                  </Routes>
+                </Layout>
+              </ProtectedRoute>
+            } />
+        </Routes>
+    );
+}
