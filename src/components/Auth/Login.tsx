@@ -38,10 +38,10 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen grid lg:grid-cols-2 bg-gradient-to-br from-eco-light-100 to-eco-light-200">
 
       {/* Coluna Esquerda: Formulário com Fundo Decorativo */}
-      <div className="flex items-center justify-center bg-white p-6 lg:p-8">
+      <div className="flex items-center justify-center bg-eco-white p-6 lg:p-8">
         <AuthForm
           mode={isSignUp ? 'signup' : 'login'}
           onSubmit={handleSubmit}
@@ -51,7 +51,7 @@ export const Login: React.FC = () => {
       </div>
 
       {/* Coluna Direita: Calendário */}
-      <div className="flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-6 lg:p-12 border-l border-gray-200">
+      <div className="flex items-center justify-center bg-gradient-to-br from-eco-light-100 to-eco-light-200 p-6 lg:p-12 border-l border-eco-light-300">
         <ReservationCalendar />
       </div>
 
