@@ -406,31 +406,43 @@ export const validatePackageAvailability = async (
 };
 
 /**
- * Retorna um mapa de disponibilidade para o calendário público (dados mockados).
+ * Retorna um mapa de disponibilidade para o calendário público.
  * @param startDate - Data de início do período.
  * @param endDate - Data de fim do período.
  * @returns Um registro onde a chave é a data (YYYY-MM-DD) e o valor é um booleano de disponibilidade.
  */
-// TODO: Substituir esta função mockada pela chamada à função RPC do Supabase 'get_public_availability'
 export const getPublicAvailability = async (
   startDate: Date,
   endDate: Date
 ): Promise<Record<string, boolean>> => {
+  try {
+    const { data, error } = await supabase.rpc('get_public_availability', {
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+    });
 
-  console.log("Usando dados de disponibilidade FALSOS (MOCK) para o calendário público.");
+    if (error) {
+      console.error('Erro ao chamar RPC get_public_availability:', error);
+      throw new Error('Não foi possível carregar os dados de disponibilidade.');
+    }
 
-  // Simula um pequeno atraso de rede para imitar uma chamada de API real
-  await new Promise(resolve => setTimeout(resolve, 400));
+    // A RPC retorna um array de objetos: { available_date: string, is_available: boolean }
+    // Precisamos transformar isso em um mapa: { 'YYYY-MM-DD': true/false }
+    if (Array.isArray(data)) {
+      const availabilityMap: Record<string, boolean> = {};
+      for (const item of data) {
+        const dateOnly = item.available_date.split('T')[0];
+        availabilityMap[dateOnly] = item.is_available;
+      }
+      return availabilityMap;
+    }
 
-  const availability: Record<string, boolean> = {};
-  let currentDate = new Date(startDate);
+    // Fallback para o caso da RPC retornar o formato esperado diretamente
+    return data ?? {};
 
-  while (currentDate <= endDate) {
-    const dateString = currentDate.toISOString().split('T')[0];
-    // Lógica de mock: Dias com data par são disponíveis, ímpares são indisponíveis.
-    availability[dateString] = currentDate.getDate() % 2 === 0;
-    currentDate.setDate(currentDate.getDate() + 1);
+  } catch (err) {
+    console.error('Erro inesperado em getPublicAvailability:', err);
+    // Retorna um objeto vazio em caso de erro para não quebrar o calendário
+    return {};
   }
-
-  return availability;
 };
