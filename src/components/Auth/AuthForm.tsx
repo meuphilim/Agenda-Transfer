@@ -49,7 +49,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     <div className="relative flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 w-full">
 
       {/* Fundo Decorativo - Retângulo Rotacionado */}
-      <div className="absolute w-full h-full max-w-sm max-h-[550px] bg-eco-secondary-200 rounded-3xl transform rotate-6 lg:-translate-x-24 transition-transform duration-300 ease-in-out"></div>
+      <div className="absolute w-full h-full max-w-sm max-h-[550px] bg-eco-primary-500 rounded-3xl transform rotate-6 lg:-translate-x-24 transition-transform duration-300 ease-in-out"></div>
 
       {/* Card com Imagem - Rotacionado */}
       <div className="absolute w-full h-full max-w-sm max-h-[550px] rounded-3xl shadow-2xl transform -rotate-12 lg:-translate-x-32 overflow-hidden transition-transform duration-300 ease-in-out">
