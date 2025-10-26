@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { ReservationCalendar } from '../public/ReservationCalendar';
+import { AuthHeader } from './AuthHeader';
 import { AuthForm } from './AuthForm';
 import { FormData } from '../../types/auth.types';
 
@@ -38,23 +39,29 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-gradient-to-br from-eco-light-100 to-eco-light-200">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Header Centralizado no Topo */}
+      <AuthHeader isSignUp={isSignUp} />
 
-      {/* Coluna Esquerda: Formulário com Fundo Decorativo */}
-      <div className="flex items-center justify-center bg-eco-white p-6 lg:p-8">
-        <AuthForm
-          mode={isSignUp ? 'signup' : 'login'}
-          onSubmit={handleSubmit}
-          onToggleMode={toggleMode}
-          loading={loading}
-        />
+      {/* Layout Split-Screen */}
+      <div className="flex-1 grid lg:grid-cols-2 gap-0">
+
+        {/* Coluna Esquerda: Formulário */}
+        <div className="flex items-center justify-center bg-white p-6 lg:p-12">
+          <AuthForm
+            mode={isSignUp ? 'signup' : 'login'}
+            onSubmit={handleSubmit}
+            onToggleMode={toggleMode}
+            loading={loading}
+          />
+        </div>
+
+        {/* Coluna Direita: Calendário */}
+        <div className="flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-6 lg:p-12 border-l border-gray-200">
+          <ReservationCalendar />
+        </div>
+
       </div>
-
-      {/* Coluna Direita: Calendário */}
-      <div className="flex items-center justify-center bg-gradient-to-br from-eco-light-100 to-eco-light-200 p-6 lg:p-12 border-l border-eco-light-300">
-        <ReservationCalendar />
-      </div>
-
     </div>
   );
 };
