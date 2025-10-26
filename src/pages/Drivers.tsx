@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSupabaseData } from '../hooks/useSupabaseData';
 import { toast } from 'react-toastify';
 import { Plus, Pencil, Trash2, MoreVertical, Search } from 'lucide-react';
-import { Modal } from '../components/Common';
+import { Modal, LoadingSpinner } from '../components/Common';
 import { cn } from '../lib/utils';
 import { Database } from '../types/database.types';
 import { getDriverOccupiedDates } from '../services/availabilityService';
@@ -133,7 +133,7 @@ export const Drivers: React.FC = () => {
   }[status]);
 
   if (loading && !drivers.length) {
-    return <div className="p-4 md:p-6">Carregando motoristas...</div>;
+    return <div className="p-4 md:p-6 flex justify-center items-center"><LoadingSpinner /></div>;
   }
 
   return (

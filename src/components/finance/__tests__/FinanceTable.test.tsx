@@ -62,7 +62,8 @@ describe('FinanceTable', () => {
 
   it('shows loading state correctly', () => {
     render(<FinanceTable packages={[]} loading={true} onEdit={() => {}} />);
-    expect(screen.getByText('Carregando...')).toBeInTheDocument();
+    // O spinner é renderizado com um 'role' para acessibilidade.
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('shows empty state correctly', () => {

@@ -12,6 +12,7 @@ import { AgencyRegister } from './pages/AgencyRegister';
 import { AgencyPortal } from './pages/AgencyPortal';
 import { Login } from './components/Auth/Login';
 import { useEffect } from 'react';
+import { FullScreenLoader } from './components/Common/FullScreenLoader';
 
 export const AppRoutes = () => {
     const { profile, loading, user } = useAuth();
@@ -36,7 +37,7 @@ export const AppRoutes = () => {
 
     // Renderiza o login para usuários não autenticados
     if (loading) {
-        return <div>Carregando...</div>; // Ou um componente de spinner
+        return <FullScreenLoader message="Inicializando aplicação..." />;
     }
 
     if (!user) {

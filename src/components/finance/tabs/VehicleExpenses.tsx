@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   ClipboardList
 } from 'lucide-react';
-import { Modal, FloatingActionButton } from '../../Common';
+import { Modal, FloatingActionButton, LoadingSpinner } from '../../Common';
 import { Database } from '../../../types/database.types';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
 
@@ -201,7 +201,7 @@ export const VehicleExpenses: React.FC = () => {
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  if (loading) return <div className="p-8 text-center">Carregando...</div>;
+  if (loading) return <div className="p-8 flex justify-center items-center"><LoadingSpinner /></div>;
 
   return (
     <div className="p-4 md:p-6">

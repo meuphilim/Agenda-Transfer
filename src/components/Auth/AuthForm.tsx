@@ -49,7 +49,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     <div className="relative flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 w-full">
 
       {/* Fundo Decorativo - Retângulo Rotacionado */}
-      <div className="absolute w-full h-full max-w-sm max-h-[550px] bg-blue-200 rounded-3xl transform rotate-6 lg:-translate-x-24 transition-transform duration-300 ease-in-out"></div>
+      <div className="absolute w-full h-full max-w-sm max-h-[550px] bg-lime-200 rounded-3xl transform rotate-6 lg:-translate-x-24 transition-transform duration-300 ease-in-out"></div>
 
       {/* Card com Imagem - Rotacionado */}
       <div className="absolute w-full h-full max-w-sm max-h-[550px] rounded-3xl shadow-2xl transform -rotate-12 lg:-translate-x-32 overflow-hidden transition-transform duration-300 ease-in-out">
@@ -61,14 +61,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({
       </div>
 
       {/* Card de Login/Cadastro Principal */}
-      <div className="relative z-10 w-full max-w-sm p-8 space-y-6 bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl lg:transform lg:translate-x-16 transition-transform duration-300 ease-in-out">
+      <div className="relative z-10 w-full max-w-sm p-8 space-y-6 bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl lg:transform lg:translate-x-16 transition-transform duration-300 ease-in-out">
 
         {/* Cabeçalho */}
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">
             {isSignUp ? 'Criar Conta' : 'Bem-vindo de volta!'}
           </h2>
-          <p className="mt-2 text-sm text-gray-700">
+          <p className="mt-2 text-sm text-gray-600">
             {isSignUp
               ? 'Preencha os dados para criar sua conta.'
               : 'Acesse sua conta para continuar.'}
@@ -93,7 +93,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                   id="fullName"
                   type="text"
                   required
-                  className="mt-1 block w-full rounded-lg bg-gray-100 border-gray-200 px-3 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition"
+                  className="mt-1 block w-full rounded-lg bg-white border border-gray-200 px-3 py-3 text-gray-900 placeholder-gray-400 focus:border-lime-500 focus:ring-lime-500 sm:text-sm transition"
                   value={formData.fullName}
                   onChange={(e) => handleInputChange('fullName', e.target.value)}
                   placeholder="Digite seu nome completo"
@@ -115,7 +115,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                   id="phone"
                   type="tel"
                   required
-                  className="mt-1 block w-full rounded-lg bg-gray-100 border-gray-200 px-3 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition"
+                  className="mt-1 block w-full rounded-lg bg-white border border-gray-200 px-3 py-3 text-gray-900 placeholder-gray-400 focus:border-lime-500 focus:ring-lime-500 sm:text-sm transition"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
                   placeholder="(00) 00000-0000"
@@ -140,7 +140,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               type="email"
               autoComplete="email"
               required
-              className="mt-1 block w-full rounded-lg bg-gray-100 border-gray-200 px-3 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition"
+              className="mt-1 block w-full rounded-lg bg-white border border-gray-200 px-3 py-3 text-gray-900 placeholder-gray-400 focus:border-lime-500 focus:ring-lime-500 sm:text-sm transition"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="voce@exemplo.com"
@@ -164,7 +164,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 required
-                className="mt-1 block w-full rounded-lg bg-gray-100 border-gray-200 px-3 py-3 pr-10 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500 sm:text-sm transition"
+                className="mt-1 block w-full rounded-lg bg-white border border-gray-200 px-3 py-3 pr-10 text-gray-900 placeholder-gray-400 focus:border-lime-500 focus:ring-lime-500 sm:text-sm transition"
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
                 placeholder="••••••••"
@@ -195,7 +195,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 rounded border-gray-200 text-blue-500 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-gray-200 text-lime-500 focus:ring-lime-500"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Lembrar-me
@@ -203,7 +203,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-700">
+                <a href="#" className="font-medium text-lime-500 hover:text-lime-700">
                   Esqueceu a senha?
                 </a>
               </div>
@@ -215,7 +215,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="group relative flex w-full justify-center items-center rounded-xl border border-transparent bg-blue-600 py-3 px-4 text-sm font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:bg-blue-400 disabled:cursor-wait"
+              className="group relative flex w-full justify-center items-center rounded-xl border border-transparent bg-lime-500 py-3 px-4 text-sm font-bold text-gray-900 hover:bg-lime-700 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 transition-colors disabled:bg-lime-400 disabled:cursor-wait"
             >
               {loading ? (
                 <>
@@ -234,23 +234,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           <button
             type="button"
             onClick={onToggleMode}
-            className="text-sm text-gray-700"
+            className="text-sm text-gray-600"
           >
             {isSignUp ? 'Já tem uma conta?' : 'Não tem uma conta?'}{' '}
-            <span className="font-medium text-blue-600 hover:text-blue-700">
+            <span className="font-medium text-lime-500 hover:text-lime-700">
               {isSignUp ? 'Faça login' : 'Cadastre-se'}
             </span>
           </button>
-
-          <p className="text-xs text-gray-600">
-            É uma agência?{' '}
-            <Link
-              to="/agency-register"
-              className="font-medium text-blue-600 hover:text-blue-700"
-            >
-              Cadastre sua agência aqui
-            </Link>
-          </p>
         </div>
       </div>
     </div>

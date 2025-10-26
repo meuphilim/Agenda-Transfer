@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Login } from './Auth/Login';
 import { CompleteProfile } from './Auth/CompleteProfile';
 import { useEffect, useState, useRef } from 'react';
+import { FullScreenLoader } from './Common/FullScreenLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -50,15 +51,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // 1. Estado de Carregamento Inicial
   if (loading && !loadingTimeout) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg font-medium">Carregando aplicação...</p>
-          <p className="text-gray-400 text-sm mt-2">Verificando suas credenciais...</p>
-        </div>
-      </div>
-    );
+    return <FullScreenLoader message="Verificando permissões..." />;
   }
 
   // 2. Estado de Timeout de Carregamento

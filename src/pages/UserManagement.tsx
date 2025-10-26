@@ -6,7 +6,7 @@ import { adminApi } from '../services/adminApi';
 import { 
   Users, CheckCircle, XCircle, Clock, Pencil, MoreVertical, Search, UserCog, UserCheck, UserX
 } from 'lucide-react';
-import { Modal } from '../components/Common';
+import { Modal, LoadingSpinner } from '../components/Common';
 import { cn } from '../lib/utils';
 
 interface UserProfile {
@@ -89,7 +89,7 @@ export const UserManagement = () => {
   }[status]);
 
   if (!isAdmin) return <div className="p-6 text-center text-red-600">Acesso Negado.</div>;
-  if (loading) return <div className="p-6">Carregando usuários...</div>;
+  if (loading) return <div className="p-6 flex justify-center items-center"><LoadingSpinner /></div>;
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 min-h-screen">

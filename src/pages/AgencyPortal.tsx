@@ -5,6 +5,7 @@ import { reservationService } from '../services/reservation.service';
 import { PackageReservation } from '../types/custom';
 import { PlusCircle } from 'lucide-react';
 import { SimpleReservationForm } from '../components/agency/SimpleReservationForm';
+import { LoadingSpinner } from '../components/Common';
 
 export const AgencyPortal = () => {
   const { profile, signOut } = useAuth();
@@ -50,7 +51,7 @@ export const AgencyPortal = () => {
         </div>
 
         {loading ? (
-          <p>Carregando reservas...</p>
+          <div className="flex justify-center py-12"><LoadingSpinner /></div>
         ) : reservations.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow">
             <h3 className="text-lg font-medium text-gray-700">Nenhuma reserva encontrada</h3>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getPublicAvailability } from '../../services/availabilityService';
+import { LoadingSpinner } from '../Common/LoadingSpinner';
 
 const getNext60Days = () => {
   const dates: Date[] = [];
@@ -58,20 +60,20 @@ export const ReservationCalendar = () => {
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-full hover:bg-eco-light-100 transition-colors"
           aria-label="Mês anterior"
         >
-          <ChevronLeft size={20} className="text-gray-600" />
+          <ChevronLeft size={20} className="text-eco-dark-400" />
         </button>
-        <h2 className="text-xl font-bold text-gray-900 capitalize text-center flex-grow">
+        <h2 className="text-xl font-bold text-eco-dark-700 capitalize text-center flex-grow">
           {`${monthName} ${year}`}
         </h2>
         <button
           onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-full hover:bg-eco-light-100 transition-colors"
           aria-label="Próximo mês"
         >
-          <ChevronRight size={20} className="text-gray-600" />
+          <ChevronRight size={20} className="text-eco-dark-400" />
         </button>
       </div>
     );
@@ -91,7 +93,7 @@ export const ReservationCalendar = () => {
     // Dias do mês anterior
     for (let i = firstDayOfMonth; i > 0; i--) {
       calendarDays.push(
-        <div key={`prev-${i}`} className="text-center w-10 h-10 flex items-center justify-center text-gray-400 text-sm">
+        <div key={`prev-${i}`} className="text-center w-10 h-10 flex items-center justify-center text-eco-dark-200 text-sm">
           {daysInPrevMonth - i + 1}
         </div>
       );
@@ -115,19 +117,19 @@ export const ReservationCalendar = () => {
       let dayClasses = 'text-center w-10 h-10 flex items-center justify-center transition-colors text-sm';
 
       if (isPast || !isAvailable) {
-        dayClasses += ' text-gray-400 bg-gray-100 cursor-not-allowed rounded-full';
+        dayClasses += ' text-eco-dark-200 bg-eco-light-100 cursor-not-allowed rounded-full';
       } else {
         dayClasses += ' cursor-pointer';
         if (isSingleDaySelection) {
-          dayClasses += ' bg-lime-500 text-gray-900 rounded-full font-bold';
+          dayClasses += ' bg-eco-primary-500 text-eco-white rounded-full font-bold';
         } else if (isStartDate) {
-          dayClasses += ' bg-lime-500 text-gray-900 rounded-l-full font-bold';
+          dayClasses += ' bg-eco-primary-500 text-eco-white rounded-l-full font-bold';
         } else if (isEndDate) {
-          dayClasses += ' bg-lime-500 text-gray-900 rounded-r-full font-bold';
+          dayClasses += ' bg-eco-primary-500 text-eco-white rounded-r-full font-bold';
         } else if (isInRange) {
-          dayClasses += ' bg-lime-100 text-gray-900';
+          dayClasses += ' bg-eco-primary-100 text-eco-dark-700';
         } else {
-          dayClasses += ' text-gray-700 rounded-full hover:bg-lime-50';
+          dayClasses += ' text-eco-dark-500 rounded-full hover:bg-eco-primary-50';
         }
       }
 
@@ -138,7 +140,7 @@ export const ReservationCalendar = () => {
           className={dayClasses}
           disabled={!isClickable}
         >
-          <span className={isToday && !isPast ? 'font-bold border-b-2 border-lime-500' : ''}>
+          <span className={isToday && !isPast ? 'font-bold border-b-2 border-eco-primary-500' : ''}>
             {i}
           </span>
         </button>
@@ -150,7 +152,7 @@ export const ReservationCalendar = () => {
     const remainingDays = (7 - (totalDays % 7)) % 7;
     for (let i = 1; i <= remainingDays; i++) {
       calendarDays.push(
-        <div key={`next-${i}`} className="text-center w-10 h-10 flex items-center justify-center text-gray-400 text-sm">
+        <div key={`next-${i}`} className="text-center w-10 h-10 flex items-center justify-center text-eco-dark-200 text-sm">
           {i}
         </div>
       );
@@ -160,13 +162,13 @@ export const ReservationCalendar = () => {
   };
 
   return (
-    <div className="bg-white w-full max-w-md p-6 rounded-3xl shadow-lg">
+    <div className="bg-eco-white w-full max-w-md p-6 rounded-3xl shadow-lg">
       {/* Título */}
       <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+        <h2 className="text-3xl font-bold tracking-tight text-eco-dark-700">
           Disponibilidades
         </h2>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-sm text-eco-dark-400">
           Solicite sua Reserva
         </p>
       </div>
@@ -175,7 +177,7 @@ export const ReservationCalendar = () => {
       {renderHeader()}
 
       {/* Dias da semana */}
-      <div className="grid grid-cols-7 gap-y-2 text-center text-sm font-bold text-lime-600 mb-2">
+      <div className="grid grid-cols-7 gap-y-2 text-center text-sm font-bold text-eco-primary-600 mb-2">
         {daysOfWeek.map((day, index) => (
           <div key={index}>{day}</div>
         ))}
@@ -183,8 +185,9 @@ export const ReservationCalendar = () => {
 
       {/* Grid de dias */}
       {loading ? (
-        <div className="text-center p-8 text-gray-500">
-          Verificando disponibilidade...
+        <div className="flex flex-col items-center justify-center p-8 space-y-3">
+          <LoadingSpinner size={32} />
+          <p className="text-sm text-eco-dark-400">Verificando disponibilidade...</p>
         </div>
       ) : (
         renderDays()
@@ -193,15 +196,26 @@ export const ReservationCalendar = () => {
       {/* Botão de ação */}
       <button
         disabled={!startDate}
-        className="w-full mt-6 bg-lime-500 text-gray-900 text-sm font-bold py-3 px-4 rounded-xl hover:bg-lime-400 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+        className="w-full mt-6 bg-eco-primary-500 text-eco-white text-sm font-bold py-3 px-4 rounded-xl hover:bg-eco-primary-400 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-eco-primary-500 disabled:bg-eco-light-200 disabled:text-eco-dark-300 disabled:cursor-not-allowed"
       >
         Solicitar Reserva
       </button>
 
-      {/* Mensagem informativa */}
-      <p className="text-xs text-center mt-4 text-gray-500">
-        Este é um calendário apenas para visualização. Para reservar, entre com sua conta de agência.
-      </p>
+      {/* Mensagens de Rodapé */}
+      <div className="text-center mt-4 space-y-2">
+        <p className="text-xs text-eco-dark-300">
+          Este é um calendário apenas para visualização. Para reservar, entre com sua conta de agência.
+        </p>
+        <p className="text-xs text-eco-dark-400">
+          É uma agência?{' '}
+          <Link
+            to="/agency-register"
+            className="font-medium text-eco-primary-600 hover:text-eco-primary-700"
+          >
+            Cadastre sua agência aqui
+          </Link>
+        </p>
+      </div>
     </div>
   );
 };

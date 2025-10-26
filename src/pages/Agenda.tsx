@@ -8,7 +8,7 @@ import { format, startOfWeek, addDays, isSameDay, parseISO, startOfMonth, endOfM
 import { ptBR } from 'date-fns/locale';
 import { Database } from '../types/database.types';
 import { cn } from '../lib/utils';
-import { FloatingActionButton, Modal } from '../components/Common';
+import { FloatingActionButton, Modal, LoadingSpinner } from '../components/Common';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
 import { PackageStatus } from '../types/enums';
@@ -206,7 +206,7 @@ const MobileCalendarView: React.FC<{
   const formatTime = (time: string | null) => time ? time.slice(0, 5) : '';
 
 
-  if (loading) return <div className="text-center p-8">Carregando calendário...</div>;
+  if (loading) return <div className="flex justify-center items-center p-8"><LoadingSpinner /></div>;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
@@ -382,7 +382,7 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void; onNewP
   const formatTime = (time: string | null) => time ? time.slice(0, 5) : '';
   const getItemColor = (status: string) => status === 'completed' ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500';
 
-  if (loading) return <div className="text-center p-8">Carregando calendário...</div>;
+  if (loading) return <div className="flex justify-center items-center p-8"><LoadingSpinner /></div>;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
@@ -793,7 +793,7 @@ export const Agenda: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-4 md:p-6">Carregando...</div>;
+  if (loading) return <div className="flex justify-center items-center p-8"><LoadingSpinner /></div>;
 
   return (
     <>
