@@ -61,7 +61,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
       </div>
 
       {/* Card de Login/Cadastro Principal */}
-      <div className="relative z-10 w-full max-w-sm p-8 space-y-6 bg-eco-white/90 backdrop-blur-md rounded-3xl shadow-2xl lg:transform lg:translate-x-16 transition-transform duration-300 ease-in-out">
+      <div className="relative z-10 w-full max-w-sm p-8 space-y-6 bg-eco-white rounded-3xl shadow-2xl lg:transform lg:translate-x-16 transition-transform duration-300 ease-in-out">
 
         {/* Cabeçalho */}
         <div>
@@ -241,16 +241,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               {isSignUp ? 'Faça login' : 'Cadastre-se'}
             </span>
           </button>
-
-          <p className="text-xs text-eco-dark-400">
-            É uma agência?{' '}
-            <Link
-              to="/agency-register"
-              className="font-medium text-eco-primary-600 hover:text-eco-primary-700"
-            >
-              Cadastre sua agência aqui
-            </Link>
-          </p>
         </div>
       </div>
     </div>

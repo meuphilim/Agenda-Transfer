@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getPublicAvailability } from '../../services/availabilityService';
 
@@ -198,10 +199,21 @@ export const ReservationCalendar = () => {
         Solicitar Reserva
       </button>
 
-      {/* Mensagem informativa */}
-      <p className="text-xs text-center mt-4 text-eco-dark-300">
-        Este é um calendário apenas para visualização. Para reservar, entre com sua conta de agência.
-      </p>
+      {/* Mensagens de Rodapé */}
+      <div className="text-center mt-4 space-y-2">
+        <p className="text-xs text-eco-dark-300">
+          Este é um calendário apenas para visualização. Para reservar, entre com sua conta de agência.
+        </p>
+        <p className="text-xs text-eco-dark-400">
+          É uma agência?{' '}
+          <Link
+            to="/agency-register"
+            className="font-medium text-eco-primary-600 hover:text-eco-primary-700"
+          >
+            Cadastre sua agência aqui
+          </Link>
+        </p>
+      </div>
     </div>
   );
 };
