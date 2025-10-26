@@ -15,7 +15,7 @@ import {
   Undo2,
   FileDown,
 } from 'lucide-react';
-import { Modal, FloatingActionButton, Button } from '../../Common';
+import { Modal, FloatingActionButton, Button, LoadingSpinner } from '../../Common';
 import { exportToPdf, Column } from '../../../utils/pdfExporter';
 
 export const AgencySettlements: React.FC = () => {
@@ -215,7 +215,7 @@ export const AgencySettlements: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center">Carregando...</div>;
+    return <div className="p-8 flex justify-center items-center"><LoadingSpinner /></div>;
   }
 
   return (

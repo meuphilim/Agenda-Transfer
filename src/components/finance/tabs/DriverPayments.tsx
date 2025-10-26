@@ -11,7 +11,7 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
-import { Modal } from '../../Common';
+import { Modal, LoadingSpinner } from '../../Common';
 import { Database } from '../../../types/database.types';
 
 type Driver = Database['public']['Tables']['drivers']['Row'];
@@ -197,7 +197,7 @@ export const DriverPayments: React.FC = () => {
 
   const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  if (loading) return <div className="p-8 text-center">Carregando...</div>;
+  if (loading) return <div className="p-8 flex justify-center items-center"><LoadingSpinner /></div>;
 
   return (
     <div className="p-4 md:p-6">

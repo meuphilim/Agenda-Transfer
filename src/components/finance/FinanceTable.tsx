@@ -3,6 +3,7 @@ import { PackageWithRelations } from '../../services/financeApi';
 import { cn } from '../../lib/utils';
 import { useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { LoadingSpinner } from '../Common';
 
 interface FinanceTableProps {
   packages: PackageWithRelations[];
@@ -89,7 +90,7 @@ const MobileTableRow: React.FC<{ pkg: PackageWithRelations; onEdit: (pkg: Packag
 
 export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, onEdit }) => {
   if (loading) {
-    return <div className="text-center p-12">Carregando...</div>;
+    return <div className="text-center p-12"><LoadingSpinner /></div>;
   }
 
   if (packages.length === 0) {

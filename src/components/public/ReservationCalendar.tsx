@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getPublicAvailability } from '../../services/availabilityService';
+import { LoadingSpinner } from '../Common/LoadingSpinner';
 
 const getNext60Days = () => {
   const dates: Date[] = [];
@@ -184,8 +185,9 @@ export const ReservationCalendar = () => {
 
       {/* Grid de dias */}
       {loading ? (
-        <div className="text-center p-8 text-eco-dark-300">
-          Verificando disponibilidade...
+        <div className="flex flex-col items-center justify-center p-8 space-y-3">
+          <LoadingSpinner size={32} />
+          <p className="text-sm text-eco-dark-400">Verificando disponibilidade...</p>
         </div>
       ) : (
         renderDays()
