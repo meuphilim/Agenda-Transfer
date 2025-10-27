@@ -108,7 +108,7 @@ export const FinanceTable: React.FC<FinanceTableProps> = ({ packages, loading, o
     { header: 'Receita Total', key: 'receita', className: 'text-green-600 font-semibold' },
     { header: 'Custos Totais', key: 'custos', className: 'text-red-600 font-semibold' },
     { header: 'Margem Bruta', key: 'margem' },
-    { header: 'Status', key: 'status' },
+    { header: 'Status Financeiro', key: 'status' },
     { header: 'Ações', key: 'acoes', className: 'text-right' },
   ];
 

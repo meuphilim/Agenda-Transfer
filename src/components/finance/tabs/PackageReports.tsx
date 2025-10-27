@@ -116,7 +116,7 @@ export const PackageReports: React.FC = () => {
       { header: 'Despesas Veículo', accessor: (row) => formatCurrency(row.valor_despesas_veiculo) },
       { header: 'Margem Bruta', accessor: (row) => formatCurrency(row.valor_margem_bruta) },
       { header: 'Margem %', accessor: (row) => `${row.percentual_margem.toFixed(1)}%` },
-      { header: 'Status', accessor: 'status_pagamento' },
+      { header: 'Status Financeiro', accessor: 'status_pagamento' },
     ];
 
     exportToPdf(packages, columns, `Demonstrativo_Financeiro_${filters.startDate}_${filters.endDate}`);

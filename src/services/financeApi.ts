@@ -156,6 +156,14 @@ export const financeApi = {
           .gte('date', startDate)
           .lte('date', endDate);
 
+        // Buscar fechamentos (settlements) no período para determinar o status de pagamento
+        const { data: settlementsData, error: stlError } = await supabase
+            .from('settlements')
+            .select('id, agency_id, start_date, end_date')
+            .lte('start_date', endDate)
+            .gte('end_date', startDate);
+        if (stlError) throw stlError;
+
         // Processar cada pacote
         const processedPackages: PackageWithRelations[] = packagesWithActivitiesInPeriod.map(pkg => {
           // Filtrar atividades do período
@@ -245,17 +253,26 @@ export const financeApi = {
           const valor_margem_bruta = valor_receita_total - valor_custo_total;
           const percentual_margem = valor_receita_total > 0 ? (valor_margem_bruta / valor_receita_total) * 100 : 0;
 
-          // Converter status do BD para status de pagamento da UI
-          let status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial' = 'pendente';
-          if (pkg.status === 'completed') {
-            status_pagamento = 'pago';
-          } else if (pkg.status === 'cancelled') {
-            status_pagamento = 'cancelado';
-          }
+          // Lógica de status financeiro baseada nos fechamentos (settlements)
+          const paidDatesCount = activeDates.filter(date => {
+            return (settlementsData || []).some(s =>
+                s.agency_id === pkg.agency_id &&
+                date >= s.start_date &&
+                date <= s.end_date
+            );
+          }).length;
 
-          // Ajustar para "parcial" se necessário
-          if (isPartial && status_pagamento === 'pago') {
+          let status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial' = 'pendente';
+          if (pkg.status === 'cancelled') {
+            status_pagamento = 'cancelado';
+          } else if (activeDates.length === 0) {
+            status_pagamento = 'pendente';
+          } else if (paidDatesCount === activeDates.length) {
+            status_pagamento = 'pago';
+          } else if (paidDatesCount > 0) {
             status_pagamento = 'parcial';
+          } else {
+            status_pagamento = 'pendente';
           }
 
           return {
