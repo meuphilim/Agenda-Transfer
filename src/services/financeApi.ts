@@ -185,15 +185,16 @@ export const financeApi = {
             // Atividades deste dia
             const dayActivities = activitiesInPeriod.filter(act => act.scheduled_date === dateStr);
 
-            const netActivities = dayActivities
-              .filter(act => act.considerar_valor_net && act.attractions)
-              .map(act => ({
-                attractionName: act.attractions.name,
-                netValue: act.attractions.valor_net,
-                startTime: act.start_time || '',
-              }));
+            // Atividades para cálculo de valor NET (apenas as que contribuem para receita)
+            const activitiesForNetValue = dayActivities.filter(act => act.considerar_valor_net && act.attractions);
+            const netValue = activitiesForNetValue.reduce((sum, act) => sum + (act.attractions?.valor_net ?? 0), 0);
 
-            const netValue = netActivities.reduce((sum, act) => sum + act.netValue, 0);
+            // Lista COMPLETA de atividades para exibição no frontend
+            const allDayActivitiesForDisplay = dayActivities.map(act => ({
+              attractionName: act.attractions?.name ?? 'Atividade sem nome',
+              netValue: act.attractions?.valor_net ?? 0,
+              startTime: act.start_time || '',
+            }));
 
             // Lógica de receita mutuamente exclusiva: ou é NET ou é Diária
             const hasNetValue = netValue > 0;
@@ -222,7 +223,7 @@ export const financeApi = {
               date: dateStr,
               hasDailyServiceRate,
               dailyServiceRateAmount,
-              netActivities,
+              netActivities: allDayActivitiesForDisplay, // Envia todas as atividades para o front
               dailyRevenue,
               hasDriverDailyCost,
               driverDailyCostAmount,

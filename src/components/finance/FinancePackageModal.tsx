@@ -12,23 +12,23 @@ const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style
 const formatDate = (date: string) => new Date(date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
 const PackageHeader: React.FC<{ pkg: PackageWithRelations }> = ({ pkg }) => (
-  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200 mb-4">
-    <h3 className="text-xl font-bold text-blue-900 mb-2">{pkg.title}</h3>
+  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+    <h3 className="text-xl font-bold text-gray-800 mb-2">{pkg.title}</h3>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
       <div className="flex items-center gap-2">
-        <User size={14} className="text-blue-600" />
+        <User size={14} className="text-gray-500" />
         <span><strong>Cliente:</strong> {pkg.client_name}</span>
       </div>
       <div className="flex items-center gap-2">
-        <Briefcase size={14} className="text-blue-600" />
+        <Briefcase size={14} className="text-gray-500" />
         <span><strong>Agência:</strong> {pkg.agencies?.name}</span>
       </div>
       <div className="flex items-center gap-2">
-        <User size={14} className="text-blue-600" />
+        <User size={14} className="text-gray-500" />
         <span><strong>Motorista:</strong> {pkg.drivers?.name}</span>
       </div>
       <div className="flex items-center gap-2">
-        <Truck size={14} className="text-blue-600" />
+        <Truck size={14} className="text-gray-500" />
         <span><strong>Veículo:</strong> {pkg.vehicles?.license_plate}</span>
       </div>
     </div>
@@ -41,8 +41,8 @@ const PackageHeader: React.FC<{ pkg: PackageWithRelations }> = ({ pkg }) => (
 );
 
 const FinancialSummary: React.FC<{ pkg: PackageWithRelations }> = ({ pkg }) => (
-  <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg mb-6">
-    <h4 className="font-bold text-lg mb-3 text-center">📊 Resumo Financeiro do Período</h4>
+  <div className="p-4 bg-white border border-gray-200 rounded-lg mb-6">
+    <h4 className="font-bold text-lg mb-3 text-center text-gray-700">Resumo Financeiro do Período</h4>
     <div className="grid grid-cols-3 gap-4 text-center">
       <div>
         <p className="text-sm text-gray-600">Receita Total</p>
@@ -62,7 +62,7 @@ const FinancialSummary: React.FC<{ pkg: PackageWithRelations }> = ({ pkg }) => (
       </div>
       <div>
         <p className="text-sm text-gray-600">Margem Bruta</p>
-        <p className={`text-xl font-bold ${pkg.valor_margem_bruta >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+        <p className={`text-xl font-bold ${pkg.valor_margem_bruta >= 0 ? 'text-gray-800' : 'text-red-700'}`}>
           {formatCurrency(pkg.valor_margem_bruta)}
           <span className="text-sm ml-1">({pkg.percentual_margem.toFixed(1)}%)</span>
         </p>
@@ -73,14 +73,14 @@ const FinancialSummary: React.FC<{ pkg: PackageWithRelations }> = ({ pkg }) => (
 
 const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax }) => (
   <div className="border rounded-lg overflow-hidden mb-4 bg-white shadow-sm">
-    <div className="bg-blue-600 text-white p-3 font-bold">
+    <div className="bg-gray-100 text-gray-800 p-3 font-bold border-b">
       <Calendar size={16} className="inline mr-2" />
       {formatDate(day.date)}
     </div>
 
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-gray-50">
           <tr>
             <th className="px-4 py-2 text-left">Hora</th>
             <th className="px-4 py-2 text-left">Serviço Executado</th>
@@ -91,20 +91,27 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
         <tbody>
           {/* Lógica de exibição condicional: ou mostra Diária ou mostra NET */}
           {day.dailyServiceRateAmount > 0 ? (
-            <tr className="border-t">
-              <td className="px-4 py-3 text-gray-600">-</td>
-              <td className="px-4 py-3">
-                <strong>PRIVATIVO - DIÁRIA DE PASSEIOS</strong>
-                <div className="text-xs text-gray-600 mt-1">
-                  Atrativos: {day.netActivities.map(a => a.attractionName).join(', ') || 'N/A'}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-center font-semibold">{pax}</td>
-              <td className="px-4 py-3 text-right font-semibold text-green-700">{formatCurrency(day.dailyServiceRateAmount)}</td>
-            </tr>
+            <>
+              <tr className="border-t">
+                <td className="px-4 py-3 text-gray-600">-</td>
+                <td className="px-4 py-3">
+                  <strong>PRIVATIVO - DIÁRIA DE PASSEIOS</strong>
+                </td>
+                <td className="px-4 py-3 text-center font-semibold">{pax}</td>
+                <td className="px-4 py-3 text-right font-semibold text-green-700">{formatCurrency(day.dailyServiceRateAmount)}</td>
+              </tr>
+              {day.netActivities.map((act, idx) => (
+                <tr key={idx} className="border-t bg-gray-50">
+                  <td className="px-4 py-2 text-gray-600">{act.startTime ? act.startTime.slice(0, 5) : '-'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-700 pl-8">{act.attractionName}</td>
+                  <td className="px-4 py-2 text-center">-</td>
+                  <td className="px-4 py-2 text-right"></td>
+                </tr>
+              ))}
+            </>
           ) : (
             day.netActivities.map((act, idx) => (
-              <tr key={idx} className="border-t bg-green-50">
+              <tr key={idx} className="border-t">
                 <td className="px-4 py-2 text-gray-600">{act.startTime.slice(0, 5)}</td>
                 <td className="px-4 py-2 text-xs">
                   <span className="font-medium">Valor NET:</span> {act.attractionName}
@@ -117,7 +124,7 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
 
           {/* Custos do Motorista */}
           {day.hasDriverDailyCost && (
-            <tr className="border-t bg-red-50">
+            <tr className="border-t">
               <td className="px-4 py-2 text-gray-600">-</td>
               <td className="px-4 py-2 text-xs"><span className="font-medium">Custo:</span> Diária do Motorista</td>
               <td className="px-4 py-2 text-center">-</td>
@@ -127,7 +134,7 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
 
           {/* Despesas de Veículo */}
           {day.vehicleExpenses.map((exp, idx) => (
-            <tr key={`exp-${idx}`} className="border-t bg-red-50">
+            <tr key={`exp-${idx}`} className="border-t">
               <td className="px-4 py-2 text-gray-600">-</td>
               <td className="px-4 py-2 text-xs">
                 <span className="font-medium">Custo:</span> {exp.description} <span className="text-gray-500">({exp.category})</span>
@@ -140,7 +147,7 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
       </table>
     </div>
 
-    <div className="bg-gray-100 p-3 grid grid-cols-3 gap-4 text-sm border-t">
+    <div className="bg-gray-50 p-3 grid grid-cols-3 gap-4 text-sm border-t">
       <div>
         <p className="text-gray-600">Receita do Dia:</p>
         <p className="font-bold text-green-700">{formatCurrency(day.dailyRevenue)}</p>
@@ -151,7 +158,7 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
       </div>
       <div>
         <p className="text-gray-600">Margem do Dia:</p>
-        <p className={`font-bold ${day.dailyMargin >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+        <p className={`font-bold ${day.dailyMargin >= 0 ? 'text-gray-800' : 'text-red-700'}`}>
           {formatCurrency(day.dailyMargin)}
           {day.dailyMargin < 0 && ' ⚠️'}
         </p>
@@ -162,12 +169,12 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
 
 const TotalsTable: React.FC<{ breakdown: DailyBreakdown[] }> = ({ breakdown }) => (
   <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-    <div className="bg-gray-700 text-white p-3 font-bold">
-      📈 Totais por Data
+    <div className="bg-gray-100 text-gray-800 p-3 font-bold border-b">
+      Totais por Data
     </div>
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-gray-50">
           <tr>
             <th className="px-4 py-2 text-left">Data</th>
             <th className="px-4 py-2 text-right">Receita (R$)</th>
@@ -181,7 +188,7 @@ const TotalsTable: React.FC<{ breakdown: DailyBreakdown[] }> = ({ breakdown }) =
               <td className="px-4 py-2">{new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
               <td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(day.dailyRevenue)}</td>
               <td className="px-4 py-2 text-right font-semibold text-red-600">{formatCurrency(day.dailyCost)}</td>
-              <td className={`px-4 py-2 text-right font-semibold ${day.dailyMargin >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+              <td className={`px-4 py-2 text-right font-semibold ${day.dailyMargin >= 0 ? 'text-gray-700' : 'text-red-600'}`}>
                 {formatCurrency(day.dailyMargin)}
               </td>
             </tr>
@@ -194,7 +201,7 @@ const TotalsTable: React.FC<{ breakdown: DailyBreakdown[] }> = ({ breakdown }) =
             <td className="px-4 py-3 text-right text-red-700">
               {formatCurrency(breakdown.reduce((sum, d) => sum + d.dailyCost, 0))}
             </td>
-            <td className="px-4 py-3 text-right text-purple-700">
+            <td className="px-4 py-3 text-right text-gray-800">
               {formatCurrency(breakdown.reduce((sum, d) => sum + d.dailyMargin, 0))}
             </td>
           </tr>
@@ -214,7 +221,7 @@ export const FinancePackageModal: React.FC<FinancePackageModalProps> = ({ isOpen
         <FinancialSummary pkg={pkg} />
 
         <div className="space-y-4 mb-6">
-          <h4 className="text-lg font-bold">📋 Detalhamento Diário</h4>
+          <h4 className="text-lg font-bold text-gray-700">Detalhamento Diário</h4>
           {pkg.dailyBreakdown.map((day, idx) => (
             <DailyReport key={idx} day={day} pax={pkg.total_participants} />
           ))}
