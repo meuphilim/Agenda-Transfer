@@ -346,9 +346,12 @@ export const financeApi = {
         `)
         .in('status', ['completed', 'confirmed', 'in_progress']);
 
-      if (agencyId !== 'all') {
+      if (agencyId === 'direct_sale') {
+        pkgQuery = pkgQuery.is('agency_id', null);
+      } else if (agencyId !== 'all') {
         pkgQuery = pkgQuery.eq('agency_id', agencyId);
       }
+      // Se for 'all', não aplica filtro de agência
 
       const { data: packagesData, error: pkgError } = await pkgQuery;
       if (pkgError) throw pkgError;
@@ -367,8 +370,9 @@ export const financeApi = {
       if (stlError) throw stlError;
 
       const grouped = filteredPackages.reduce((acc, pkg) => {
-        const agencyId = pkg.agencies?.id || 'sem_agencia';
-        const agencyName = pkg.agencies?.name || 'Sem Agência';
+        const isDirectSale = !pkg.agencies;
+        const agencyId = isDirectSale ? 'direct_sale' : pkg.agencies!.id;
+        const agencyName = isDirectSale ? 'Venda Direta' : pkg.agencies!.name;
 
         if (!acc[agencyId]) {
           acc[agencyId] = {
@@ -448,6 +452,9 @@ export const financeApi = {
   },
 
   settleAgencyPeriod: async (agencyId: string, startDate: string, endDate: string, details: any) => {
+    if (agencyId === 'direct_sale') {
+      return { error: { message: 'Não é possível criar um fechamento para Vendas Diretas.' } };
+    }
     try {
       const { error } = await supabase
         .from('settlements')
