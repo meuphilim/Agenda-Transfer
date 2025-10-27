@@ -616,9 +616,8 @@ export const Agenda: React.FC = () => {
       }
 
       // 2. Se a validação passar, prosseguir com o salvamento via RPC
-      const { valor_diaria_motorista, ...rest } = formData;
       const packageData = {
-        ...rest,
+        ...formData,
         id: editingPackage?.id || null,
         agency_id: formData.agency_id || null,
       };
