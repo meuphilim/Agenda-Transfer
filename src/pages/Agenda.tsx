@@ -576,58 +576,46 @@ export const Agenda: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (formData.valor_diaria_servico <= 0) {
-      toast.error('O valor da diária de serviço deve ser maior que zero');
-      return;
-    }
-
     setIsSubmitting(true);
 
-    // 1. Preparar dados e validar disponibilidade (fora do try...catch)
-    const activitiesForValidation: ActivityForValidation[] = packageAttractions.map((activity, index) => {
-      if (!activity.attraction_id || !activity.scheduled_date || !activity.start_time) {
-        // Lançar um erro aqui é seguro, pois será pego pelo catch geral se ocorrer.
-        throw new Error(`Dados incompletos para a atividade ${index + 1}.`);
-      }
-      const attractionDetails = attractions.find(a => a.id === activity.attraction_id);
-      return {
-        scheduled_date: activity.scheduled_date,
-        start_time: activity.start_time,
-        considerar_valor_net: activity.considerar_valor_net,
-        duration: attractionDetails?.estimated_duration ?? 0,
-      };
-    });
-
-    const validation = await validatePackageAvailability(
-      formData.vehicle_id,
-      formData.driver_id,
-      activitiesForValidation,
-      editingPackage?.id
-    );
-
-    if (!validation.isValid) {
-      const errors = [
-        ...validation.vehicleConflicts.map(c => `🚗 Veículo: ${c}`),
-        ...validation.driverConflicts.map(c => `👤 Motorista: ${c}`)
-      ];
-
-      toast.error(
-        <div>
-          <p className="font-bold mb-2">Conflito de disponibilidade:</p>
-          <ul className="list-disc pl-4 space-y-1">
-            {errors.map((error, i) => <li key={i} className="text-sm">{error}</li>)}
-          </ul>
-        </div>,
-        { autoClose: 8000 }
-      );
-      setIsSubmitting(false);
-      return;
-    }
-
-    // 2. Se a validação passar, prosseguir com o salvamento via RPC
     try {
-      // Preparar os dados para a função RPC
+      // Validação inicial
+      if (formData.valor_diaria_servico <= 0) {
+        throw new Error('O valor da diária de serviço deve ser maior que zero');
+      }
+
+      // 1. Preparar dados e validar disponibilidade
+      const activitiesForValidation: ActivityForValidation[] = packageAttractions.map((activity, index) => {
+        if (!activity.attraction_id || !activity.scheduled_date || !activity.start_time) {
+          throw new Error(`Dados incompletos para a atividade ${index + 1}.`);
+        }
+        const attractionDetails = attractions.find(a => a.id === activity.attraction_id);
+        return {
+          scheduled_date: activity.scheduled_date,
+          start_time: activity.start_time,
+          considerar_valor_net: activity.considerar_valor_net,
+          duration: attractionDetails?.estimated_duration ?? 0,
+        };
+      });
+
+      const validation = await validatePackageAvailability(
+        formData.vehicle_id,
+        formData.driver_id,
+        activitiesForValidation,
+        editingPackage?.id
+      );
+
+      if (!validation.isValid) {
+        const errors = [
+          ...validation.vehicleConflicts.map(c => `🚗 Veículo: ${c}`),
+          ...validation.driverConflicts.map(c => `👤 Motorista: ${c}`)
+        ];
+
+        // Lançar um erro customizado para ser pego pelo catch
+        throw new Error(errors.join('; '));
+      }
+
+      // 2. Se a validação passar, prosseguir com o salvamento via RPC
       const { valor_diaria_motorista, ...rest } = formData;
       const packageData = {
         ...rest,
@@ -656,8 +644,20 @@ export const Agenda: React.FC = () => {
 
     } catch (error: any) {
       console.error('❌ Erro ao salvar pacote:', error);
-      const errorMsg = error.details ? `${error.message}: ${error.details}` : error.message;
-      toast.error(`Erro ao salvar: ${errorMsg}`);
+      // Lógica aprimorada para exibir erros de validação ou erros genéricos
+      if (error.message.includes('🚗') || error.message.includes('👤')) {
+         const errorMessages = error.message.split('; ').map((msg: string, i: number) => <li key={i}>{msg}</li>);
+         toast.error(
+            <div>
+              <p className="font-bold mb-2">Conflito de disponibilidade:</p>
+              <ul className="list-disc pl-4 space-y-1">{errorMessages}</ul>
+            </div>,
+          { autoClose: 8000 }
+         );
+      } else {
+        const errorMsg = error.details ? `${error.message}: ${error.details}` : error.message;
+        toast.error(`Erro ao salvar: ${errorMsg}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
