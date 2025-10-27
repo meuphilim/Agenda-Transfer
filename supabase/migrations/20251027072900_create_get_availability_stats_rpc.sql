@@ -62,7 +62,7 @@ BEGIN
     WHERE pa.scheduled_date = CURRENT_DATE
       AND pa.considerar_valor_net = true
       AND p.status IN ('confirmed', 'in_progress')
-      AND NOW() BETWEEN pa.start_time::time AND (pa.start_time::time + (a.estimated_duration || ' minutes')::interval + '1 hour'::interval)
+      AND NOW()::time BETWEEN pa.start_time::time AND (pa.start_time::time + (a.estimated_duration || ' minutes')::interval + '1 hour'::interval)
     GROUP BY p.driver_id, p.vehicle_id
   ),
 
