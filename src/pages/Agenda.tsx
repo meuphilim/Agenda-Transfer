@@ -625,50 +625,35 @@ export const Agenda: React.FC = () => {
       return;
     }
 
-    // 2. Se a validação passar, prosseguir com o salvamento dentro do try...catch
+    // 2. Se a validação passar, prosseguir com o salvamento via RPC
     try {
+      // Preparar os dados para a função RPC
       const { valor_diaria_motorista, ...rest } = formData;
-      const dataToSave = {
+      const packageData = {
         ...rest,
+        id: editingPackage?.id || null,
         agency_id: formData.agency_id || null,
       };
 
-      let packageId;
-      if (editingPackage) {
-        const { error } = await supabase
-          .from('packages')
-          .update({ ...dataToSave, updated_at: new Date().toISOString() })
-          .eq('id', editingPackage.id);
-        if (error) throw error;
-        packageId = editingPackage.id;
-        toast.success('Pacote atualizado!');
-      } else {
-        const { data, error } = await supabase.from('packages').insert([dataToSave]).select().single();
-        if (error) throw error;
-        packageId = data.id;
-        toast.success('Pacote cadastrado!');
-      }
+      const activitiesData = packageAttractions.map(attr => ({
+        attraction_id: attr.attraction_id,
+        scheduled_date: attr.scheduled_date,
+        start_time: attr.start_time || null,
+        notes: attr.notes || null,
+        considerar_valor_net: attr.considerar_valor_net || false,
+      }));
 
-      if (editingPackage) {
-        await supabase.from('package_attractions').delete().eq('package_id', packageId);
-      }
+      const { error: rpcError } = await supabase.rpc('upsert_package_with_activities', {
+        p_package_data: packageData,
+        p_activities_data: activitiesData,
+      });
 
-      if (packageAttractions.length > 0) {
-        const activitiesToInsert = packageAttractions.map(attr => ({
-          package_id: packageId,
-          attraction_id: attr.attraction_id,
-          scheduled_date: attr.scheduled_date,
-          start_time: attr.start_time ?? null,
-          end_time: attr.end_time ?? null,
-          notes: attr.notes ?? null,
-          considerar_valor_net: attr.considerar_valor_net ?? false,
-        }));
-        const { error: attractionsError } = await supabase.from('package_attractions').insert(activitiesToInsert);
-        if (attractionsError) throw attractionsError;
-      }
+      if (rpcError) throw rpcError;
 
+      toast.success(`Pacote ${editingPackage ? 'atualizado' : 'cadastrado'} com sucesso!`);
       handleModalClose();
       void fetchData();
+
     } catch (error: any) {
       console.error('❌ Erro ao salvar pacote:', error);
       const errorMsg = error.details ? `${error.message}: ${error.details}` : error.message;
