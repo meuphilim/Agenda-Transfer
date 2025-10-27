@@ -99,6 +99,68 @@ export const validatePackageAvailability = async (
     return { isValid: true, vehicleConflicts, driverConflicts };
   }
 
+  // Helper para converter data e hora em objeto Date
+  const toDateTime = (date: string, time: string) => parseISO(`${date}T${time}`);
+
+  const checkConflicts = (
+    newActivities: ActivityForValidation[],
+    existingActivities: any[], // O tipo exato será inferido no uso
+    date: string
+  ): AvailabilityCheck => {
+    // a. Verificar se há alguma atividade de dia inteiro (não-NET) existente
+    const fullDayExisting = existingActivities.find(act => !act.considerar_valor_net);
+    if (fullDayExisting) {
+      return {
+        isAvailable: false,
+        reason: `${date}: Já existe uma reserva de dia inteiro (Pacote: ${fullDayExisting.packages.title}).`,
+      };
+    }
+
+    // b. Verificar se alguma das novas atividades é de dia inteiro
+    const fullDayNew = newActivities.find(act => !act.considerar_valor_net);
+    if (fullDayNew && existingActivities.length > 0) {
+      return {
+        isAvailable: false,
+        reason: `${date}: Não é possível adicionar uma reserva de dia inteiro, pois já existem outras atividades agendadas.`,
+      };
+    }
+
+    // c. Se tudo for por hora (Valor NET), verificar sobreposição de horários
+    const allActivities = [
+      ...existingActivities.map(act => ({
+        start_time: act.start_time!,
+        duration: act.attractions?.estimated_duration ?? 0,
+        title: act.packages?.title,
+      })),
+      ...newActivities.map(act => ({
+        start_time: act.start_time,
+        duration: act.duration,
+        title: 'Nova Atividade',
+      })),
+    ];
+
+    // Ordenar por horário de início para facilitar a verificação
+    allActivities.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+    for (let i = 0; i < allActivities.length - 1; i++) {
+        const current = allActivities[i];
+        const next = allActivities[i + 1];
+
+        // Adicionar buffer de 30min antes e 30min depois
+        const currentEnd = addMinutes(toDateTime(date, current.start_time), current.duration + 30);
+        const nextStart = addMinutes(toDateTime(date, next.start_time), -30);
+
+        if (currentEnd > nextStart) {
+            return {
+                isAvailable: false,
+                reason: `${date}: Conflito de horário entre atividades (com buffer de 1h). Verifique os horários.`,
+            };
+        }
+    }
+
+    return { isAvailable: true };
+  };
+
   // 1. Agrupar novas atividades por data
   const activitiesByDate = activities.reduce((acc, act) => {
     (acc[act.scheduled_date] = acc[act.scheduled_date] || []).push(act);
@@ -162,67 +224,6 @@ export const validatePackageAvailability = async (
       driverConflicts.push(driverResult.reason!);
     }
   }
-
-  const checkConflicts = (
-    newActivities: ActivityForValidation[],
-    existingActivities: typeof existingVehicleActivities,
-    date: string
-  ): AvailabilityCheck => {
-    // a. Verificar se há alguma atividade de dia inteiro (não-NET) existente
-    const fullDayExisting = existingActivities.find(act => !act.considerar_valor_net);
-    if (fullDayExisting) {
-      return {
-        isAvailable: false,
-        reason: `${date}: Já existe uma reserva de dia inteiro (Pacote: ${(fullDayExisting.packages as any).title}).`,
-      };
-    }
-
-    // b. Verificar se alguma das novas atividades é de dia inteiro
-    const fullDayNew = newActivities.find(act => !act.considerar_valor_net);
-    if (fullDayNew && existingActivities.length > 0) {
-      return {
-        isAvailable: false,
-        reason: `${date}: Não é possível adicionar uma reserva de dia inteiro, pois já existem outras atividades agendadas.`,
-      };
-    }
-
-    // c. Se tudo for por hora (Valor NET), verificar sobreposição de horários
-    const allActivities = [
-      ...existingActivities.map(act => ({
-        start_time: act.start_time!,
-        duration: (act.attractions as any)?.estimated_duration ?? 0,
-        title: (act.packages as any)?.title,
-      })),
-      ...newActivities.map(act => ({
-        start_time: act.start_time,
-        duration: act.duration,
-        title: 'Nova Atividade',
-      })),
-    ];
-
-    // Ordenar por horário de início para facilitar a verificação
-    allActivities.sort((a, b) => a.start_time.localeCompare(b.start_time));
-
-    for (let i = 0; i < allActivities.length - 1; i++) {
-        const current = allActivities[i];
-        const next = allActivities[i + 1];
-
-        // Adicionar buffer de 30min antes e 30min depois
-        const currentStart = addMinutes(toDateTime(date, current.start_time), -30);
-        const currentEnd = addMinutes(toDateTime(date, current.start_time), current.duration + 30);
-
-        const nextStart = addMinutes(toDateTime(date, next.start_time), -30);
-
-        if (currentEnd > nextStart) {
-            return {
-                isAvailable: false,
-                reason: `${date}: Conflito de horário entre atividades (com buffer de 1h). Verifique os horários.`,
-            };
-        }
-    }
-
-    return { isAvailable: true };
-  };
 
   return {
     isValid: vehicleConflicts.length === 0 && driverConflicts.length === 0,
