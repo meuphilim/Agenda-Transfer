@@ -26,7 +26,6 @@ interface DashboardStats {
   activePackages: number;
   availableVehicles: number;
   availableDrivers: number;
-  upcomingToday: number;
 }
 
 // Definindo um tipo mais específico para os pacotes recentes
@@ -58,16 +57,17 @@ export const Dashboard: React.FC = () => {
     activePackages: 0,
     availableVehicles: 0,
     availableDrivers: 0,
-    upcomingToday: 0,
   });
   const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
   const [todayActivities, setTodayActivities] = useState<TodayActivity[]>([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetchDashboardData(selectedDate);
+    void fetchDashboardData();
+    void fetchScheduledActivities(selectedDate);
 
     const channel = supabase
       .channel('dashboard-realtime')
@@ -75,14 +75,15 @@ export const Dashboard: React.FC = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'packages' },
         () => {
-          void fetchDashboardData(selectedDate);
+          void fetchDashboardData();
+          void fetchScheduledActivities(selectedDate);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'package_attractions' },
         () => {
-          void fetchDashboardData(selectedDate);
+          void fetchScheduledActivities(selectedDate);
         }
       )
       .subscribe();
@@ -90,17 +91,51 @@ export const Dashboard: React.FC = () => {
     return () => {
       void supabase.removeChannel(channel);
     };
+  }, []);
+
+  useEffect(() => {
+    void fetchScheduledActivities(selectedDate);
   }, [selectedDate]);
 
-  const fetchDashboardData = async (date: Date) => {
+  const fetchScheduledActivities = async (date: Date) => {
+    setActivitiesLoading(true);
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+
+    const { data, error } = await supabase
+      .from('package_attractions')
+      .select(
+        `
+        scheduled_date,
+        start_time,
+        attractions!inner(name, estimated_duration),
+        packages(
+          status,
+          drivers(name),
+          vehicles(license_plate, model)
+        )
+      `
+      )
+      .gte('scheduled_date', startDate.toISOString())
+      .lt('scheduled_date', endDate.toISOString())
+      .order('scheduled_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) {
+      console.error('Erro ao buscar atividades:', error);
+      setError('Não foi possível carregar as atividades. Tente novamente mais tarde.');
+    } else {
+      setTodayActivities(data ?? []);
+    }
+    setActivitiesLoading(false);
+  };
+
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const startDate = new Date(date);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 1);
 
       // Chamada à função RPC para obter estatísticas de disponibilidade
       const { data: availabilityData, error: availabilityError } = await supabase.rpc(
@@ -109,24 +144,8 @@ export const Dashboard: React.FC = () => {
 
       // As queries dependem de RLS permissiva.
       // Considere migrar para funções de borda (edge functions) para maior segurança.
-      const [packagesResult, upcomingResult, recentResult] = await Promise.all([
+      const [packagesResult, recentResult] = await Promise.all([
         supabase.from('packages').select('id, status', { count: 'exact' }),
-        supabase
-          .from('package_attractions')
-          .select(`
-            scheduled_date,
-            start_time,
-            attractions!inner(name, estimated_duration),
-            packages(
-              status,
-              drivers(name),
-              vehicles(license_plate, model)
-            )
-          `)
-          .gte('scheduled_date', startDate.toISOString())
-          .lt('scheduled_date', endDate.toISOString())
-          .order('scheduled_date', { ascending: true })
-          .order('start_time', { ascending: true }),
         supabase
           .from('packages')
           .select(`
@@ -143,7 +162,7 @@ export const Dashboard: React.FC = () => {
       ]);
 
       // Centralizando o tratamento de erros
-      const results = [packagesResult, upcomingResult, recentResult];
+      const results = [packagesResult, recentResult];
       const errors = [availabilityError, ...results.map(r => r.error)].filter(Boolean);
 
       if (errors.length > 0) {
@@ -167,10 +186,8 @@ export const Dashboard: React.FC = () => {
         // Usando os dados da RPC para veículos e motoristas disponíveis
         availableVehicles: availabilityData?.available_vehicles ?? 0,
         availableDrivers: availabilityData?.available_drivers ?? 0,
-        upcomingToday: upcomingResult.data?.length ?? 0,
       });
 
-      setTodayActivities(upcomingResult.data ?? []);
       setRecentPackages(recentResult.data ?? []);
     } catch (err) {
       console.error('Erro inesperado ao buscar dados do dashboard:', err);
@@ -289,7 +306,7 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
         </p>
         <button
           onClick={() => {
-            void fetchDashboardData(selectedDate);
+            void fetchDashboardData();
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
@@ -384,62 +401,97 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
               </span>
             </div>
             <div className="flex items-center justify-between text-sm text-gray-600">
-                <button
-                  onClick={() => handleDateChange(-1)}
-                  className="p-2 rounded-md hover:bg-gray-100"
-                  aria-label="Dia anterior"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <span className="font-semibold text-center">
-                  {selectedDate.toLocaleDateString('pt-BR', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
-                <button
-                  onClick={() => handleDateChange(1)}
-                  className="p-2 rounded-md hover:bg-gray-100"
-                  aria-label="Próximo dia"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
+              <button
+                onClick={() => handleDateChange(-1)}
+                className="p-2 rounded-md hover:bg-gray-100"
+                aria-label="Dia anterior"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <span className="font-semibold text-center">
+                {selectedDate.toLocaleDateString('pt-BR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </span>
+              <button
+                onClick={() => handleDateChange(1)}
+                className="p-2 rounded-md hover:bg-gray-100"
+                aria-label="Próximo dia"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
           </div>
           <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-            {todayActivities.length > 0 ? todayActivities.map((activity, index) => {
-              const [statusText, statusColor] = getActivityStatus(activity);
-              const isCancelled = activity.packages?.status === PackageStatus.CANCELLED;
-              return (
-                <div key={index} className="p-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                      <CalendarDays className="h-4 w-4 text-gray-500" />
-                      <p className={cn("font-mono text-sm", isCancelled ? 'text-gray-500' : 'text-gray-800')}>
-                        {activity.start_time ? activity.start_time.slice(0, 5) : '—'}
-                      </p>
+            {activitiesLoading ? (
+              <ActivitiesSkeleton />
+            ) : todayActivities.length > 0 ? (
+              todayActivities.map((activity, index) => {
+                const [statusText, statusColor] = getActivityStatus(activity);
+                const isCancelled =
+                  activity.packages?.status === PackageStatus.CANCELLED;
+                return (
+                  <div key={index} className="p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-2">
+                        <CalendarDays className="h-4 w-4 text-gray-500" />
+                        <p
+                          className={cn(
+                            'font-mono text-sm',
+                            isCancelled ? 'text-gray-500' : 'text-gray-800'
+                          )}
+                        >
+                          {activity.start_time
+                            ? activity.start_time.slice(0, 5)
+                            : '—'}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          'px-2 py-1 rounded-full text-xs font-medium',
+                          statusColor
+                        )}
+                      >
+                        {statusText}
+                      </span>
                     </div>
-                    <span className={cn("px-2 py-1 rounded-full text-xs font-medium", statusColor)}>
-                      {statusText}
-                    </span>
+                    <p
+                      className={cn(
+                        'font-semibold',
+                        isCancelled
+                          ? 'text-gray-500 line-through'
+                          : 'text-gray-900'
+                      )}
+                    >
+                      {activity.attractions?.name ?? 'Atividade não especificada'}
+                    </p>
+                    <div
+                      className={cn(
+                        'flex items-center text-xs space-x-4',
+                        isCancelled ? 'text-gray-400' : 'text-gray-500'
+                      )}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <Users className="h-3 w-3" />
+                        <span>{activity.packages?.drivers?.name ?? 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Truck className="h-3 w-3" />
+                        <span>
+                          {activity.packages?.vehicles?.license_plate ?? 'N/A'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <p className={cn("font-semibold", isCancelled ? 'text-gray-500 line-through' : 'text-gray-900')}>{activity.attractions?.name ?? 'Atividade não especificada'}</p>
-                  <div className={cn("flex items-center text-xs space-x-4", isCancelled ? 'text-gray-400' : 'text-gray-500')}>
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-3 w-3" />
-                      <span>{activity.packages?.drivers?.name ?? 'N/A'}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Truck className="h-3 w-3" />
-                      <span>{activity.packages?.vehicles?.license_plate ?? 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            }) : (
-              <p className="text-center text-gray-500 p-8">Nenhuma atividade agendada para esta data.</p>
+                );
+              })
+            ) : (
+              <p className="text-center text-gray-500 p-8">
+                Nenhuma atividade agendada para esta data.
+              </p>
             )}
           </div>
         </div>
@@ -463,5 +515,17 @@ const DashboardSkeleton: React.FC = () => (
       <div className="lg:col-span-2 h-64 bg-gray-200 rounded-lg"></div>
       <div className="h-64 bg-gray-200 rounded-lg"></div>
     </div>
+  </div>
+);
+
+const ActivitiesSkeleton: React.FC = () => (
+  <div className="p-4 space-y-4">
+    {Array.from({ length: 3 }).map((_, i) => (
+      <div key={i} className="space-y-2">
+        <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+        <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      </div>
+    ))}
   </div>
 );
