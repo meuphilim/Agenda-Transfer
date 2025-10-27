@@ -1,4 +1,16 @@
 import { supabase } from '../lib/supabase';
+import { parseISO, addMinutes } from 'date-fns';
+
+/**
+ * Detalhes de uma atividade necessários para validação de disponibilidade.
+ */
+export interface ActivityForValidation {
+  scheduled_date: string;
+  start_time: string;
+  considerar_valor_net: boolean;
+  // Duração da atividade em minutos, obtida do cadastro de 'attractions'.
+  duration: number;
+}
 
 /**
  * Status de disponibilidade calculado dinamicamente
@@ -29,6 +41,9 @@ export interface AvailabilityCheck {
   conflictingPackages?: string[];
 }
 
+
+// --- Funções Legadas (mantidas para outras partes do sistema, mas não usadas pela nova validação) ---
+
 /**
  * Busca todas as datas ocupadas por um veículo
  */
@@ -37,46 +52,13 @@ export const getVehicleOccupiedDates = async (
   startDate?: Date,
   endDate?: Date
 ): Promise<string[]> => {
-  try {
-    // Query para buscar atividades de pacotes ativos
-    let query = supabase
-      .from('package_attractions')
-      .select(`
-        scheduled_date,
-        packages!inner (
-          id,
-          vehicle_id,
-          status
-        )
-      `)
-      .eq('packages.vehicle_id', vehicleId)
-      .in('packages.status', ['confirmed', 'in_progress']);
-
-    // Aplicar filtro de data se fornecido
-    if (startDate) {
-      query = query.gte('scheduled_date', startDate.toISOString().split('T')[0]);
-    }
-    if (endDate) {
-      query = query.lte('scheduled_date', endDate.toISOString().split('T')[0]);
-    }
-
+    let query = supabase.from('package_attractions').select(`scheduled_date, packages!inner(id, vehicle_id, status)`)
+      .eq('packages.vehicle_id', vehicleId).in('packages.status', ['confirmed', 'in_progress']);
+    if (startDate) query = query.gte('scheduled_date', startDate.toISOString().split('T')[0]);
+    if (endDate) query = query.lte('scheduled_date', endDate.toISOString().split('T')[0]);
     const { data, error } = await query;
-
-    if (error) {
-      console.error('Erro ao buscar datas ocupadas do veículo:', error);
-      return [];
-    }
-
-    // Extrair datas únicas
-    const uniqueDates = new Set(
-      (data as { scheduled_date: string }[]).map(activity => activity.scheduled_date)
-    );
-
-    return Array.from(uniqueDates).sort();
-  } catch (error) {
-    console.error('Erro ao calcular datas ocupadas:', error);
-    return [];
-  }
+    if (error) { console.error('Erro:', error); return []; }
+    return Array.from(new Set((data as { scheduled_date: string }[]).map(a => a.scheduled_date))).sort();
 };
 
 /**
@@ -87,314 +69,156 @@ export const getDriverOccupiedDates = async (
   startDate?: Date,
   endDate?: Date
 ): Promise<string[]> => {
-  try {
-    let query = supabase
-      .from('package_attractions')
-      .select(`
-        scheduled_date,
-        packages!inner (
-          id,
-          driver_id,
-          status
-        )
-      `)
-      .eq('packages.driver_id', driverId)
-      .in('packages.status', ['confirmed', 'in_progress']);
-
-    if (startDate) {
-      query = query.gte('scheduled_date', startDate.toISOString().split('T')[0]);
-    }
-    if (endDate) {
-      query = query.lte('scheduled_date', endDate.toISOString().split('T')[0]);
-    }
-
+    let query = supabase.from('package_attractions').select(`scheduled_date, packages!inner(id, driver_id, status)`)
+      .eq('packages.driver_id', driverId).in('packages.status', ['confirmed', 'in_progress']);
+    if (startDate) query = query.gte('scheduled_date', startDate.toISOString().split('T')[0]);
+    if (endDate) query = query.lte('scheduled_date', endDate.toISOString().split('T')[0]);
     const { data, error } = await query;
-
-    if (error) {
-      console.error('Erro ao buscar datas ocupadas do motorista:', error);
-      return [];
-    }
-
-    const uniqueDates = new Set(
-      (data as { scheduled_date: string }[]).map(activity => activity.scheduled_date)
-    );
-
-    return Array.from(uniqueDates).sort();
-  } catch (error) {
-    console.error('Erro ao calcular datas ocupadas:', error);
-    return [];
-  }
+    if (error) { console.error('Erro:', error); return []; }
+    return Array.from(new Set((data as { scheduled_date: string }[]).map(a => a.scheduled_date))).sort();
 };
 
 /**
- * Verifica se um veículo está disponível em uma data específica
- */
-export const isVehicleAvailable = async (
-  vehicleId: string,
-  date: Date,
-  excludePackageId?: string
-): Promise<AvailabilityCheck> => {
-  try {
-    const dateStr = date.toISOString().split('T')[0];
-
-    // Buscar atividades na data
-    const { data, error } = await supabase
-      .from('package_attractions')
-      .select(`
-        scheduled_date,
-        packages!inner (
-          id,
-          title,
-          vehicle_id,
-          status
-        )
-      `)
-      .eq('packages.vehicle_id', vehicleId)
-      .eq('scheduled_date', dateStr)
-      .in('packages.status', ['confirmed', 'in_progress']);
-
-    if (error) {
-      console.error('Erro ao verificar disponibilidade:', error);
-      return {
-        isAvailable: false,
-        reason: 'Erro ao verificar disponibilidade',
-      };
-    }
-
-    // Filtrar pacotes excluídos (para edição)
-    const conflictingActivities = excludePackageId
-      ? data.filter((a) => (a.packages as { id: string }).id !== excludePackageId)
-      : data;
-
-    if (conflictingActivities.length > 0) {
-      return {
-        isAvailable: false,
-        reason: `Veículo ocupado por ${conflictingActivities.length} pacote(s)`,
-        conflictingPackages: conflictingActivities.map((a) => (a.packages as { title: string }).title),
-      };
-    }
-
-    return { isAvailable: true };
-  } catch (error) {
-    console.error('Erro ao verificar disponibilidade do veículo:', error);
-    return {
-      isAvailable: false,
-      reason: 'Erro inesperado',
-    };
-  }
-};
-
-/**
- * Verifica se um motorista está disponível em uma data específica
- */
-export const isDriverAvailable = async (
-  driverId: string,
-  date: Date,
-  excludePackageId?: string
-): Promise<AvailabilityCheck> => {
-  try {
-    const dateStr = date.toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-      .from('package_attractions')
-      .select(`
-        scheduled_date,
-        packages!inner (
-          id,
-          title,
-          driver_id,
-          status
-        )
-      `)
-      .eq('packages.driver_id', driverId)
-      .eq('scheduled_date', dateStr)
-      .in('packages.status', ['confirmed', 'in_progress']);
-
-    if (error) {
-      console.error('Erro ao verificar disponibilidade:', error);
-      return {
-        isAvailable: false,
-        reason: 'Erro ao verificar disponibilidade',
-      };
-    }
-
-    const conflictingActivities = excludePackageId
-      ? data.filter((a) => (a.packages as { id: string }).id !== excludePackageId)
-      : data;
-
-    if (conflictingActivities.length > 0) {
-      return {
-        isAvailable: false,
-        reason: `Motorista ocupado por ${conflictingActivities.length} pacote(s)`,
-        conflictingPackages: conflictingActivities.map((a) => (a.packages as { title: string }).title),
-      };
-    }
-
-    return { isAvailable: true };
-  } catch (error) {
-    console.error('Erro ao verificar disponibilidade do motorista:', error);
-    return {
-      isAvailable: false,
-      reason: 'Erro inesperado',
-    };
-  }
-};
-
-/**
- * Verifica disponibilidade de veículo para múltiplas datas
- */
-export const checkVehicleAvailabilityForDates = async (
-  vehicleId: string,
-  dates: Date[],
-  excludePackageId?: string
-): Promise<Record<string, AvailabilityCheck>> => {
-  const results: Record<string, AvailabilityCheck> = {};
-
-  for (const date of dates) {
-    const dateStr = date.toISOString().split('T')[0];
-    results[dateStr] = await isVehicleAvailable(vehicleId, date, excludePackageId);
-  }
-
-  return results;
-};
-
-/**
- * Verifica disponibilidade de motorista para múltiplas datas
- */
-export const checkDriverAvailabilityForDates = async (
-  driverId: string,
-  dates: Date[],
-  excludePackageId?: string
-): Promise<Record<string, AvailabilityCheck>> => {
-  const results: Record<string, AvailabilityCheck> = {};
-
-  for (const date of dates) {
-    const dateStr = date.toISOString().split('T')[0];
-    results[dateStr] = await isDriverAvailable(driverId, date, excludePackageId);
-  }
-
-  return results;
-};
-
-/**
- * Obtém informação completa de disponibilidade de um veículo
- */
-export const getVehicleAvailability = async (
-  vehicleId: string,
-  vehicleName: string,
-  startDate?: Date,
-  endDate?: Date
-): Promise<AvailabilityInfo> => {
-  const occupiedDates = await getVehicleOccupiedDates(vehicleId, startDate, endDate);
-
-  // Buscar pacotes ativos
-  const { data: packages } = await supabase
-    .from('packages')
-    .select('id, title, vehicle_id, status')
-    .eq('vehicle_id', vehicleId)
-    .in('status', ['confirmed', 'in_progress']);
-
-  const activePackages = await Promise.all(
-    (packages ?? []).map(async (pkg: { id: string; title: string }) => {
-      const dates = await getVehicleOccupiedDates(pkg.id, startDate, endDate);
-      return {
-        packageId: pkg.id,
-        packageTitle: pkg.title,
-        dates,
-      };
-    })
-  );
-
-  // Determinar status baseado em ocupação
-  const today = new Date().toISOString().split('T')[0];
-  const isBusyToday = occupiedDates.includes(today);
-
-  return {
-    resourceId: vehicleId,
-    resourceName: vehicleName,
-    status: isBusyToday ? 'busy' : 'available',
-    occupiedDates,
-    activePackages,
-  };
-};
-
-/**
- * Obtém informação completa de disponibilidade de um motorista
- */
-export const getDriverAvailability = async (
-  driverId: string,
-  driverName: string,
-  startDate?: Date,
-  endDate?: Date
-): Promise<AvailabilityInfo> => {
-  const occupiedDates = await getDriverOccupiedDates(driverId, startDate, endDate);
-
-  const { data: packages } = await supabase
-    .from('packages')
-    .select('id, title, driver_id, status')
-    .eq('driver_id', driverId)
-    .in('status', ['confirmed', 'in_progress']);
-
-  const activePackages = await Promise.all(
-    (packages ?? []).map(async (pkg: { id: string; title: string }) => {
-      const dates = await getDriverOccupiedDates(pkg.id, startDate, endDate);
-      return {
-        packageId: pkg.id,
-        packageTitle: pkg.title,
-        dates,
-      };
-    })
-  );
-
-  const today = new Date().toISOString().split('T')[0];
-  const isBusyToday = occupiedDates.includes(today);
-
-  return {
-    resourceId: driverId,
-    resourceName: driverName,
-    status: isBusyToday ? 'busy' : 'available',
-    occupiedDates,
-    activePackages,
-  };
-};
-
-/**
- * Valida se um pacote pode ser criado/atualizado sem conflitos
+ * Valida se um pacote pode ser criado/atualizado sem conflitos.
+ * Esta é a função principal que implementa a nova lógica de validação.
  */
 export const validatePackageAvailability = async (
   vehicleId: string,
   driverId: string,
-  activityDates: Date[],
+  activities: ActivityForValidation[],
   excludePackageId?: string
 ): Promise<{
   isValid: boolean;
   vehicleConflicts: string[];
   driverConflicts: string[];
 }> => {
-  const vehicleResults = await checkVehicleAvailabilityForDates(
-    vehicleId,
-    activityDates,
-    excludePackageId
-  );
-
-  const driverResults = await checkDriverAvailabilityForDates(
-    driverId,
-    activityDates,
-    excludePackageId
-  );
-
   const vehicleConflicts: string[] = [];
   const driverConflicts: string[] = [];
 
-  for (const [date, check] of Object.entries(vehicleResults)) {
-    if (!check.isAvailable) {
-      vehicleConflicts.push(`${date}: ${check.reason}`);
-    }
+  if (activities.length === 0) {
+    return { isValid: true, vehicleConflicts, driverConflicts };
   }
 
-  for (const [date, check] of Object.entries(driverResults)) {
-    if (!check.isAvailable) {
-      driverConflicts.push(`${date}: ${check.reason}`);
+  // Helper para converter data e hora em objeto Date
+  const toDateTime = (date: string, time: string) => parseISO(`${date}T${time}`);
+
+  const checkConflicts = (
+    newActivities: ActivityForValidation[],
+    existingActivities: any[], // O tipo exato será inferido no uso
+    date: string
+  ): AvailabilityCheck => {
+    // a. Verificar se há alguma atividade de dia inteiro (não-NET) existente
+    const fullDayExisting = existingActivities.find(act => !act.considerar_valor_net);
+    if (fullDayExisting) {
+      return {
+        isAvailable: false,
+        reason: `${date}: Já existe uma reserva de dia inteiro (Pacote: ${fullDayExisting.packages.title}).`,
+      };
+    }
+
+    // b. Verificar se alguma das novas atividades é de dia inteiro
+    const fullDayNew = newActivities.find(act => !act.considerar_valor_net);
+    if (fullDayNew && existingActivities.length > 0) {
+      return {
+        isAvailable: false,
+        reason: `${date}: Não é possível adicionar uma reserva de dia inteiro, pois já existem outras atividades agendadas.`,
+      };
+    }
+
+    // c. Se tudo for por hora (Valor NET), verificar sobreposição de horários
+    const allActivities = [
+      ...existingActivities.map(act => ({
+        start_time: act.start_time!,
+        duration: act.attractions?.estimated_duration ?? 0,
+        title: act.packages?.title,
+      })),
+      ...newActivities.map(act => ({
+        start_time: act.start_time,
+        duration: act.duration,
+        title: 'Nova Atividade',
+      })),
+    ];
+
+    // Ordenar por horário de início para facilitar a verificação
+    allActivities.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+    for (let i = 0; i < allActivities.length - 1; i++) {
+        const current = allActivities[i];
+        const next = allActivities[i + 1];
+
+        // Adicionar buffer de 30min antes e 30min depois
+        const currentEnd = addMinutes(toDateTime(date, current.start_time), current.duration + 30);
+        const nextStart = addMinutes(toDateTime(date, next.start_time), -30);
+
+        if (currentEnd > nextStart) {
+            return {
+                isAvailable: false,
+                reason: `${date}: Conflito de horário entre atividades (com buffer de 1h). Verifique os horários.`,
+            };
+        }
+    }
+
+    return { isAvailable: true };
+  };
+
+  // 1. Agrupar novas atividades por data
+  const activitiesByDate = activities.reduce((acc, act) => {
+    (acc[act.scheduled_date] = acc[act.scheduled_date] || []).push(act);
+    return acc;
+  }, {} as Record<string, ActivityForValidation[]>);
+
+  const allDates = Object.keys(activitiesByDate);
+
+  // 2. Buscar todas as atividades existentes para os recursos e datas relevantes de uma só vez
+  const fetchExistingActivities = async (resourceType: 'vehicle' | 'driver', resourceId: string) => {
+    let query = supabase
+      .from('package_attractions')
+      .select(`
+        scheduled_date, start_time, considerar_valor_net,
+        attractions ( estimated_duration ),
+        packages!inner ( id, title, status )
+      `)
+      .in('scheduled_date', allDates)
+      .in('packages.status', ['confirmed', 'in_progress']);
+
+    if (resourceType === 'vehicle') {
+      query = query.eq('packages.vehicle_id', resourceId);
+    } else {
+      query = query.eq('packages.driver_id', resourceId);
+    }
+
+    if (excludePackageId) {
+      query = query.not('packages.id', 'eq', excludePackageId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Erro ao buscar agendamentos existentes: ${error.message}`);
+    }
+    return data;
+  };
+
+  const [existingVehicleActivities, existingDriverActivities] = await Promise.all([
+    fetchExistingActivities('vehicle', vehicleId),
+    fetchExistingActivities('driver', driverId),
+  ]);
+
+  // 3. Iterar por cada dia e validar conflitos
+  for (const date of allDates) {
+    const newActivitiesOnDate = activitiesByDate[date];
+    const existingVehicleActsOnDate = existingVehicleActivities.filter(a => a.scheduled_date === date);
+    const existingDriverActsOnDate = existingDriverActivities.filter(a => a.scheduled_date === date);
+
+    // Validação para o Veículo
+    const vehicleResult = checkConflicts(newActivitiesOnDate, existingVehicleActsOnDate, date);
+    if (!vehicleResult.isAvailable) {
+      vehicleConflicts.push(vehicleResult.reason!);
+    }
+
+    // Validação para o Motorista
+    const driverResult = checkConflicts(newActivitiesOnDate, existingDriverActsOnDate, date);
+    if (!driverResult.isAvailable) {
+      driverConflicts.push(driverResult.reason!);
     }
   }
 
@@ -407,9 +231,6 @@ export const validatePackageAvailability = async (
 
 /**
  * Retorna um mapa de disponibilidade para o calendário público.
- * @param startDate - Data de início do período.
- * @param endDate - Data de fim do período.
- * @returns Um registro onde a chave é a data (YYYY-MM-DD) e o valor é um booleano de disponibilidade.
  */
 export const getPublicAvailability = async (
   startDate: Date,
@@ -426,23 +247,18 @@ export const getPublicAvailability = async (
       throw new Error('Não foi possível carregar os dados de disponibilidade.');
     }
 
-    // A RPC retorna um array de objetos: { available_date: string, is_available: boolean }
-    // Precisamos transformar isso em um mapa: { 'YYYY-MM-DD': true/false }
     if (Array.isArray(data)) {
       const availabilityMap: Record<string, boolean> = {};
       for (const item of data) {
-        const dateOnly = item.available_date.split('T')[0];
-        availabilityMap[dateOnly] = item.is_available;
+        availabilityMap[item.available_date.split('T')[0]] = item.is_available;
       }
       return availabilityMap;
     }
 
-    // Fallback para o caso da RPC retornar o formato esperado diretamente
     return data ?? {};
 
   } catch (err) {
     console.error('Erro inesperado em getPublicAvailability:', err);
-    // Retorna um objeto vazio em caso de erro para não quebrar o calendário
     return {};
   }
 };

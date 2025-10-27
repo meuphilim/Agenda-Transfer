@@ -232,9 +232,10 @@ export const AgencySettlements: React.FC = () => {
             <input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-2 border rounded-lg" />
           </div>
           <div>
-            <label htmlFor="agency" className="block text-sm font-medium mb-1">Agência</label>
+            <label htmlFor="agency" className="block text-sm font-medium mb-1">Agência / Tipo</label>
             <select id="agency" value={selectedAgency} onChange={(e) => setSelectedAgency(e.target.value)} className="w-full p-2 border rounded-lg">
               <option value="all">Todas</option>
+              <option value="direct_sale">Venda Direta</option>
               {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
@@ -247,7 +248,7 @@ export const AgencySettlements: React.FC = () => {
           <div>
             <p className="text-sm text-blue-700 font-medium">Total a Pagar (Pendentes)</p>
             <p className="text-3xl font-bold text-blue-900">{formatCurrency(totalGeralAPagar)}</p>
-            <p className="text-sm text-blue-600 mt-1">{settlements.length} agência(s) com fechamento no período</p>
+            <p className="text-sm text-blue-600 mt-1">{settlements.length} registros com fechamento no período</p>
           </div>
           <DollarSign className="h-12 w-12 text-blue-600" />
         </div>
@@ -274,10 +275,10 @@ export const AgencySettlements: React.FC = () => {
                 <td className="px-6 py-4 text-center"><StatusBadge status={s.settlementStatus} /></td>
                 <td className="px-6 py-4 text-right flex justify-end items-center gap-2">
                   <button onClick={() => handleViewDetails(s)} className="text-gray-500 hover:text-blue-600 p-1 rounded-full hover:bg-gray-100" title="Ver Detalhes"><Eye size={18} /></button>
-                  {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
+                  {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
                     <button onClick={() => handleConfirmSettlement(s)} className="text-gray-500 hover:text-green-600 p-1 rounded-full hover:bg-gray-100" title="Realizar Fechamento"><BadgeCheck size={18} /></button>
                   )}
-                  {(s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
+                  {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
                     <button onClick={() => handleCancelConfirmation(s)} className="text-gray-500 hover:text-red-600 p-1 rounded-full hover:bg-gray-100" title="Cancelar Fechamento"><Undo2 size={18} /></button>
                   )}
                 </td>
@@ -301,10 +302,10 @@ export const AgencySettlements: React.FC = () => {
             </div>
             <div className="mt-3 pt-3 border-t flex justify-end items-center gap-2">
               <button onClick={() => handleViewDetails(s)} className="text-sm text-gray-600 hover:text-blue-700">Detalhes</button>
-              {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
+              {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
                 <button onClick={() => handleConfirmSettlement(s)} className="text-sm text-green-600 hover:text-green-800 font-semibold">Realizar Fechamento</button>
               )}
-              {(s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
+              {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
                 <button onClick={() => handleCancelConfirmation(s)} className="text-sm text-red-600 hover:text-red-800 font-semibold">Cancelar</button>
               )}
             </div>

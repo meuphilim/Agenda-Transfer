@@ -12,7 +12,7 @@ import { FloatingActionButton, Modal, LoadingSpinner } from '../components/Commo
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { formatScheduleMessage } from '../utils/messageFormat';
 import { PackageStatus } from '../types/enums';
-import { validatePackageAvailability } from '../services/availabilityService';
+import { validatePackageAvailability, ActivityForValidation } from '../services/availabilityService';
 
 // Função para formatar valor como moeda brasileira
 const formatCurrencyInput = (value: number): string => {
@@ -576,94 +576,87 @@ export const Agenda: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // ✅ VALIDAÇÃO: Valor da diária obrigatório
-    if (formData.valor_diaria_servico <= 0) {
-      toast.error('O valor da diária de serviço deve ser maior que zero');
-      return;
-    }
-
     setIsSubmitting(true);
 
-    const activityDates = packageAttractions.map(a => new Date(a.scheduled_date));
-
-    // A validação de disponibilidade foi ajustada para usar o ID do motorista do formulário.
-    const validation = await validatePackageAvailability(
-      formData.vehicle_id,
-      formData.driver_id,
-      activityDates,
-      editingPackage?.id
-    );
-
-    if (!validation.isValid) {
-      const errors = [
-        ...validation.vehicleConflicts.map(c => `🚗 Veículo: ${c}`),
-        ...validation.driverConflicts.map(c => `👤 Motorista: ${c}`)
-      ];
-
-      toast.error(
-        <div>
-          <p className="font-bold mb-2">Conflito de disponibilidade:</p>
-          <ul className="list-disc pl-4 space-y-1">
-            {errors.map((error, i) => <li key={i} className="text-sm">{error}</li>)}
-          </ul>
-        </div>,
-        { autoClose: 8000 }
-      );
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      // ✅ CORREÇÃO: Remover valor_diaria_motorista do payload (não existe no banco)
-      const { valor_diaria_motorista, ...dataToSave } = formData;
-
-      let packageId;
-      if (editingPackage) {
-        const { error } = await supabase
-          .from('packages')
-          .update({ ...dataToSave, updated_at: new Date().toISOString() })
-          .eq('id', editingPackage.id);
-        if (error) throw error;
-
-        packageId = editingPackage.id;
-        toast.success('Pacote atualizado!');
-      } else {
-        const { data, error } = await supabase.from('packages').insert([dataToSave]).select().single();
-        if (error) throw error;
-        packageId = data.id;
-        toast.success('Pacote cadastrado!');
+      // Validação inicial
+      if (formData.valor_diaria_servico <= 0) {
+        throw new Error('O valor da diária de serviço deve ser maior que zero');
       }
 
-      if (editingPackage) {
-        await supabase.from('package_attractions').delete().eq('package_id', packageId);
+      // 1. Preparar dados e validar disponibilidade
+      const activitiesForValidation: ActivityForValidation[] = packageAttractions.map((activity, index) => {
+        if (!activity.attraction_id || !activity.scheduled_date || !activity.start_time) {
+          throw new Error(`Dados incompletos para a atividade ${index + 1}.`);
+        }
+        const attractionDetails = attractions.find(a => a.id === activity.attraction_id);
+        return {
+          scheduled_date: activity.scheduled_date,
+          start_time: activity.start_time,
+          considerar_valor_net: activity.considerar_valor_net,
+          duration: attractionDetails?.estimated_duration ?? 0,
+        };
+      });
+
+      const validation = await validatePackageAvailability(
+        formData.vehicle_id,
+        formData.driver_id,
+        activitiesForValidation,
+        editingPackage?.id
+      );
+
+      if (!validation.isValid) {
+        const errors = [
+          ...validation.vehicleConflicts.map(c => `🚗 Veículo: ${c}`),
+          ...validation.driverConflicts.map(c => `👤 Motorista: ${c}`)
+        ];
+
+        // Lançar um erro customizado para ser pego pelo catch
+        throw new Error(errors.join('; '));
       }
 
-      if (packageAttractions.length > 0) {
-        const activitiesToInsert = packageAttractions.map(attr => ({
-          package_id: packageId,
-          attraction_id: attr.attraction_id,
-          scheduled_date: attr.scheduled_date,
-          start_time: attr.start_time ?? null,
-          end_time: attr.end_time ?? null,
-          notes: attr.notes ?? null,
-          considerar_valor_net: attr.considerar_valor_net ?? false,
-        }));
-        const { error: attractionsError } = await supabase.from('package_attractions').insert(activitiesToInsert);
-        if (attractionsError) throw attractionsError;
-      }
+      // 2. Se a validação passar, prosseguir com o salvamento via RPC
+      const packageData = {
+        ...formData,
+        id: editingPackage?.id || null,
+        agency_id: formData.agency_id || null,
+      };
 
+      const activitiesData = packageAttractions.map(attr => ({
+        attraction_id: attr.attraction_id,
+        scheduled_date: attr.scheduled_date,
+        start_time: attr.start_time || null,
+        notes: attr.notes || null,
+        considerar_valor_net: attr.considerar_valor_net || false,
+      }));
+
+      const { error: rpcError } = await supabase.rpc('upsert_package_with_activities', {
+        p_package_data: packageData,
+        p_activities_data: activitiesData,
+      });
+
+      if (rpcError) throw rpcError;
+
+      toast.success(`Pacote ${editingPackage ? 'atualizado' : 'cadastrado'} com sucesso!`);
       handleModalClose();
       void fetchData();
+
     } catch (error: any) {
-      // Notificar o usuário com uma mensagem de erro aprimorada
       console.error('❌ Erro ao salvar pacote:', error);
-
-      const errorMsg = error.details
-        ? `${error.message}: ${error.details}`
-        : error.message;
-
-      toast.error(`Erro ao salvar: ${errorMsg}`);
+      // Lógica aprimorada para exibir erros de validação ou erros genéricos
+      if (error.message.includes('🚗') || error.message.includes('👤')) {
+         const errorMessages = error.message.split('; ').map((msg: string, i: number) => <li key={i}>{msg}</li>);
+         toast.error(
+            <div>
+              <p className="font-bold mb-2">Conflito de disponibilidade:</p>
+              <ul className="list-disc pl-4 space-y-1">{errorMessages}</ul>
+            </div>,
+          { autoClose: 8000 }
+         );
+      } else {
+        const errorMsg = error.details ? `${error.message}: ${error.details}` : error.message;
+        toast.error(`Erro ao salvar: ${errorMsg}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -945,7 +938,13 @@ export const Agenda: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><label htmlFor="title">Título</label><input id="title" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div className="md:col-span-2"><label htmlFor="client_name">Cliente</label><input id="client_name" required value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} className="w-full p-2 border rounded" /></div>
-            <div><label htmlFor="agency_id">Agência</label><select id="agency_id" required value={formData.agency_id} onChange={e => setFormData({...formData, agency_id: e.target.value})} className="w-full p-2 border rounded"><option value="">Selecione</option>{agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+            <div>
+                <label htmlFor="agency_id">Agência</label>
+                <select id="agency_id" value={formData.agency_id} onChange={e => setFormData({...formData, agency_id: e.target.value})} className="w-full p-2 border rounded">
+                    <option value="">Nenhuma (Venda Direta)</option>
+                    {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+            </div>
             <div><label htmlFor="total_participants">Participantes</label><input id="total_participants" type="number" required value={formData.total_participants} onChange={e => setFormData({...formData, total_participants: +e.target.value})} className="w-full p-2 border rounded" /></div>
             <div><label htmlFor="start_date">Data Início</label><input id="start_date" type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-2 border rounded" /></div>
             <div><label htmlFor="end_date">Data Fim</label><input id="end_date" type="date" required value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-2 border rounded" /></div>

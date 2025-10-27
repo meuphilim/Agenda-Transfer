@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Evita recriações em re-renderizações e estabiliza a dependência de outros hooks.
   const fetchProfile = useCallback(async (userId: string, forceRefresh = false): Promise<UserProfile | null> => {
     if (!userId || typeof userId !== 'string') {
-      console.error('ERRO: ID de usuário inválido fornecido para fetchProfile:', userId);
+      console.error('ERRO: ID de usuário inválido para fetchProfile:', userId);
       return null;
     }
 
@@ -69,51 +69,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log(`🔎 Buscando perfil para o usuário: ${userId}`);
 
-        // 1. Tenta buscar na tabela de agências
-        const { data: agencyData, error: agencyError } = await supabase
-          .from('agencies')
-          .select('id, name, contact_phone, created_at, updated_at')
-          .eq('user_id', userId)
-          .single();
-
-        if (agencyError && agencyError.code !== 'PGRST116') { // Ignora erro 'not found'
-            console.error('❌ Erro ao buscar agência:', agencyError);
-        }
-
-        if (agencyData) {
-          console.log('✅ Perfil de agência encontrado:', agencyData);
-          // Retorna um objeto compatível com UserProfile
-          return {
-            id: userId,
-            full_name: agencyData.name,
-            phone: agencyData.contact_phone,
-            is_admin: false,
-            agency_id: agencyData.id,
-            status: 'active', // Assumindo que agências são ativas
-            created_at: agencyData.created_at,
-            updated_at: agencyData.updated_at,
-          };
-        }
-
-        // 2. Se não for agência, busca na tabela de profiles (admin/staff)
-        const { data, error } = await supabase
+        // Etapa 1: Buscar o perfil base na tabela 'profiles'
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .maybeSingle();
+          .single();
 
-        if (error) {
-          console.error('❌ Erro ao buscar perfil de staff/admin:', error);
+        // Se não encontrar perfil ou der um erro (que não seja 'not found'), encerra.
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('❌ Erro ao buscar perfil base:', profileError);
           return null;
         }
 
-        if (data) {
-          console.log('✅ Perfil de staff/admin encontrado:', data);
-          return { ...data, agency_id: null }; // Garante que agency_id seja null
+        // Se o perfil não existe, pode ser um usuário novo.
+        if (!profileData) {
+          console.log('⏳ Perfil base ainda não existe. Verificando se é um usuário de agência...');
+
+          // Etapa 1.1: Tentar buscar o usuário na tabela de agências como fallback
+          const { data: agencyUserData, error: agencyUserError } = await supabase
+            .from('agencies')
+            .select('id, name, contact_phone, created_at, updated_at')
+            .eq('user_id', userId)
+            .single();
+
+          if (agencyUserError && agencyUserError.code !== 'PGRST116') {
+             console.error('❌ Erro ao buscar usuário de agência:', agencyUserError);
+             return null;
+          }
+
+          if (agencyUserData) {
+            console.log('✅ Perfil de agência encontrado (via fallback):', agencyUserData);
+            return {
+              id: userId,
+              full_name: agencyUserData.name,
+              phone: agencyUserData.contact_phone,
+              is_admin: false,
+              agency_id: agencyUserData.id,
+              status: 'active',
+              created_at: agencyUserData.created_at,
+              updated_at: agencyUserData.updated_at,
+            };
+          }
+
+          console.log('🤷 Usuário novo sem perfil em profiles nem em agencies.');
+          return null;
         }
 
-        console.log('⏳ Perfil ainda não existe para o usuário, aguardando criação...');
-        return null;
+        // Etapa 2: Se o perfil base tiver um 'agency_id', buscar os detalhes da agência.
+        if (profileData.agency_id) {
+          console.log(`🏢 Perfil de staff de agência. Buscando detalhes da agência: ${profileData.agency_id}`);
+          const { data: agencyData, error: agencyError } = await supabase
+            .from('agencies')
+            .select('name, contact_phone')
+            .eq('id', profileData.agency_id)
+            .single();
+
+          if (agencyError) {
+            console.error('❌ Erro ao buscar detalhes da agência:', agencyError);
+            // Retorna o perfil parcial para não quebrar a aplicação.
+            return { ...profileData, full_name: 'Agência não encontrada', phone: null };
+          }
+
+          // Funde os dados do perfil com os da agência.
+          const finalProfile: UserProfile = {
+            ...profileData,
+            full_name: agencyData.name,
+            phone: agencyData.contact_phone,
+            is_admin: false, // Usuários de agência nunca são admins.
+          };
+          console.log('✅ Perfil de agência mesclado:', finalProfile);
+          return finalProfile;
+        }
+
+        // Etapa 3: Se não tem 'agency_id', é um staff/admin.
+        console.log('✅ Perfil de staff/admin encontrado:', profileData);
+        return profileData;
+
       } catch (error) {
         console.error('🚨 Exceção crítica em fetchProfile:', error);
         return null;
