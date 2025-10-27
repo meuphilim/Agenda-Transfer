@@ -91,17 +91,24 @@ const DailyReport: React.FC<{ day: DailyBreakdown; pax: number }> = ({ day, pax 
         <tbody>
           {/* Lógica de exibição condicional: ou mostra Diária ou mostra NET */}
           {day.dailyServiceRateAmount > 0 ? (
-            <tr className="border-t">
-              <td className="px-4 py-3 text-gray-600">-</td>
-              <td className="px-4 py-3">
-                <strong>PRIVATIVO - DIÁRIA DE PASSEIOS</strong>
-                <span className="text-xs text-gray-600 ml-1">
-                  (Atrativos: {day.netActivities.map(a => a.attractionName).join(', ') || 'N/A'})
-                </span>
-              </td>
-              <td className="px-4 py-3 text-center font-semibold">{pax}</td>
-              <td className="px-4 py-3 text-right font-semibold text-green-700">{formatCurrency(day.dailyServiceRateAmount)}</td>
-            </tr>
+            <>
+              <tr className="border-t">
+                <td className="px-4 py-3 text-gray-600">-</td>
+                <td className="px-4 py-3">
+                  <strong>PRIVATIVO - DIÁRIA DE PASSEIOS</strong>
+                </td>
+                <td className="px-4 py-3 text-center font-semibold">{pax}</td>
+                <td className="px-4 py-3 text-right font-semibold text-green-700">{formatCurrency(day.dailyServiceRateAmount)}</td>
+              </tr>
+              {day.netActivities.map((act, idx) => (
+                <tr key={idx} className="border-t bg-gray-50">
+                  <td className="px-4 py-2 text-gray-600">{act.startTime ? act.startTime.slice(0, 5) : '-'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-700 pl-8">{act.attractionName}</td>
+                  <td className="px-4 py-2 text-center">-</td>
+                  <td className="px-4 py-2 text-right"></td>
+                </tr>
+              ))}
+            </>
           ) : (
             day.netActivities.map((act, idx) => (
               <tr key={idx} className="border-t">
