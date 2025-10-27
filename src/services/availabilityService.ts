@@ -203,9 +203,6 @@ export const validatePackageAvailability = async (
     fetchExistingActivities('driver', driverId),
   ]);
 
-  // Helper para converter data e hora em objeto Date
-  const toDateTime = (date: string, time: string) => parseISO(`${date}T${time}`);
-
   // 3. Iterar por cada dia e validar conflitos
   for (const date of allDates) {
     const newActivitiesOnDate = activitiesByDate[date];
