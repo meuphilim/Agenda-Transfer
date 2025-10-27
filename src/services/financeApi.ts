@@ -18,6 +18,7 @@ export interface PackageActivity {
     date: string;
     hasDailyServiceRate: boolean;
     dailyServiceRateAmount: number;
+    dailyNetRevenue: number; // Adicionado para clareza
     netActivities: {
       attractionName: string;
       netValue: number;
@@ -207,7 +208,8 @@ export const financeApi = {
             // Lógica de receita mutuamente exclusiva: ou é NET ou é Diária
             const hasNetValue = netValue > 0;
             const dailyServiceRateAmount = !hasNetValue && dayActivities.length > 0 ? pkg.valor_diaria_servico : 0;
-            const dailyRevenue = hasNetValue ? netValue : dailyServiceRateAmount;
+            const dailyNetRevenue = hasNetValue ? netValue : 0;
+            const dailyRevenue = dailyServiceRateAmount + dailyNetRevenue;
             const hasDailyServiceRate = dailyServiceRateAmount > 0;
 
             // Custos do dia
@@ -231,6 +233,7 @@ export const financeApi = {
               date: dateStr,
               hasDailyServiceRate,
               dailyServiceRateAmount,
+              dailyNetRevenue,
               netActivities: allDayActivitiesForDisplay, // Envia todas as atividades para o front
               dailyRevenue,
               hasDriverDailyCost,
@@ -241,10 +244,10 @@ export const financeApi = {
             };
           });
 
-          // Calcular totais
+          // Calcular totais somando diretamente os valores diários já validados
+          const valor_receita_total = dailyBreakdown.reduce((sum, day) => sum + day.dailyRevenue, 0);
           const valor_diaria_servico_calculado = dailyBreakdown.reduce((sum, day) => sum + day.dailyServiceRateAmount, 0);
-          const valor_net_receita = dailyBreakdown.reduce((sum, day) => sum + day.netActivities.reduce((s, a) => s + a.netValue, 0), 0);
-          const valor_receita_total = valor_diaria_servico_calculado + valor_net_receita;
+          const valor_net_receita = dailyBreakdown.reduce((sum, day) => sum + day.dailyNetRevenue, 0);
 
           const valor_diaria_motorista_calculado = dailyBreakdown.reduce((sum, day) => sum + day.driverDailyCostAmount, 0);
           const valor_despesas_veiculo = dailyBreakdown.reduce((sum, day) => sum + day.vehicleExpenses.reduce((s, e) => s + e.amount, 0), 0);
