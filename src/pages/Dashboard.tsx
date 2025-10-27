@@ -22,7 +22,7 @@ interface DashboardStats {
   totalPackages: number;
   activePackages: number;
   availableVehicles: number;
-  busyDrivers: number;
+  availableDrivers: number;
   upcomingToday: number;
 }
 
@@ -54,7 +54,7 @@ export const Dashboard: React.FC = () => {
     totalPackages: 0,
     activePackages: 0,
     availableVehicles: 0,
-    busyDrivers: 0,
+    availableDrivers: 0,
     upcomingToday: 0,
   });
   const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
@@ -103,7 +103,7 @@ export const Dashboard: React.FC = () => {
       const [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult] = await Promise.all([
         supabase.from('packages').select('id, status', { count: 'exact' }),
         supabase.from('vehicles').select('status', { count: 'exact' }).eq('status', 'available'),
-        supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'busy'),
+        supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'available'),
         supabase
           .from('package_attractions')
           .select(`
@@ -153,7 +153,7 @@ export const Dashboard: React.FC = () => {
         totalPackages: packagesResult.count ?? 0,
         activePackages: activePackages,
         availableVehicles: vehiclesResult.count ?? 0,
-        busyDrivers: driversResult.count ?? 0,
+        availableDrivers: driversResult.count ?? 0,
         upcomingToday: upcomingResult.data?.length ?? 0,
       });
 
@@ -171,7 +171,7 @@ export const Dashboard: React.FC = () => {
     { label: 'Total de Pacotes', value: stats.totalPackages, icon: Package },
     { label: 'Pacotes Ativos', value: stats.activePackages, icon: CheckCircle },
     { label: 'Veículos Disponíveis', value: stats.availableVehicles, icon: Truck },
-    { label: 'Motoristas Ocupados', value: stats.busyDrivers, icon: Users },
+    { label: 'Motoristas Disponíveis', value: stats.availableDrivers, icon: Users },
   ];
 
   const getStatusColor = (status: PackageStatus | string) => {
