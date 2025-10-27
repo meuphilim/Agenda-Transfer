@@ -4,6 +4,7 @@
 // - Removida asserção de tipo insegura (`as`) para `recentPackages`.
 // - Adicionado alerta de segurança sobre a dependência de RLS para as queries.
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   CalendarDays,
@@ -177,10 +178,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const statsCards = [
-    { label: 'Total de Pacotes', value: stats.totalPackages, icon: Package },
-    { label: 'Pacotes Ativos', value: stats.activePackages, icon: CheckCircle },
-    { label: 'Veículos Disponíveis', value: stats.availableVehicles, icon: Truck },
-    { label: 'Motoristas Disponíveis', value: stats.availableDrivers, icon: Users },
+    { label: 'Total de Pacotes', value: stats.totalPackages, icon: Package, link: '/agenda' },
+    { label: 'Pacotes Ativos', value: stats.activePackages, icon: CheckCircle, link: '/agenda' },
+    { label: 'Veículos Disponíveis', value: stats.availableVehicles, icon: Truck, link: '/cadastros?tab=Veículos' },
+    { label: 'Motoristas Disponíveis', value: stats.availableDrivers, icon: Users, link: '/cadastros?tab=Motoristas' },
   ];
 
   const getStatusColor = (status: PackageStatus | string) => {
@@ -298,24 +299,25 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide">
-                  {stat.label}
-                </p>
-                <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
-                  {stat.value}
-                </p>
-              </div>
-              <div className="flex-shrink-0 ml-4">
-                <stat.icon className="h-8 w-8 md:h-10 md:w-10 text-blue-600" />
+          <Link to={stat.link} key={stat.label} className="block">
+            <div
+              className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-200 h-full"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+                    {stat.value}
+                  </p>
+                </div>
+                <div className="flex-shrink-0 ml-4">
+                  <stat.icon className="h-8 w-8 md:h-10 md:w-10 text-blue-600" />
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
