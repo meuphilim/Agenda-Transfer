@@ -157,6 +157,14 @@ export const financeApi = {
           .gte('date', startDate)
           .lte('date', endDate);
 
+        // Buscar DIÁRIAS AVULSAS/SUBSTITUTAS no período para a lógica de substituição
+        const { data: extraRatesData, error: extraRatesError } = await supabase
+          .from('driver_daily_rates')
+          .select('id, package_id, date, amount')
+          .gte('date', startDate)
+          .lte('date', endDate);
+        if (extraRatesError) throw extraRatesError;
+
         // Buscar fechamentos (settlements) no período para determinar o status de pagamento
         const { data: settlementsData, error: stlError } = await supabase
             .from('settlements')
@@ -213,8 +221,23 @@ export const financeApi = {
             const hasDailyServiceRate = dailyServiceRateAmount > 0;
 
             // Custos do dia
-            const hasDriverDailyCost = pkg.considerar_diaria_motorista && dayActivities.length > 0;
-            const driverDailyCostAmount = hasDriverDailyCost ? (pkg.drivers?.valor_diaria_motorista || 0) : 0;
+            // LÓGICA DE CUSTO DO MOTORISTA (com substituição)
+            const substituteRate = (extraRatesData || []).find(
+              rate => rate.package_id === pkg.id && rate.date === dateStr
+            );
+
+            let driverDailyCostAmount = 0;
+            const hasActivity = dayActivities.length > 0;
+
+            if (substituteRate) {
+              // Se há uma diária avulsa (substituta) para este dia, o custo é o dela.
+              driverDailyCostAmount = substituteRate.amount;
+            } else if (pkg.considerar_diaria_motorista && hasActivity) {
+              // Senão, usa o custo do motorista principal do pacote.
+              driverDailyCostAmount = pkg.drivers?.valor_diaria_motorista ?? 0;
+            }
+
+            const hasDriverDailyCost = driverDailyCostAmount > 0;
 
             const vehicleExpenses = (expensesData || [])
               .filter(exp => exp.vehicle_id === pkg.vehicle_id && exp.date === dateStr)
@@ -453,4 +476,104 @@ export const financeApi = {
       return { error };
     }
   },
+
+  getDriverPaymentsStatement: async (filters: { startDate: string; endDate: string; driverId: string }) => {
+    try {
+      const { startDate, endDate, driverId } = filters;
+
+      // 1. Buscar pacotes no período que geram diárias
+      const { data: pkgs, error: pkgError } = await supabase
+        .from('packages')
+        .select(`
+          id, title, driver_id, start_date, end_date,
+          drivers!inner(id, name, valor_diaria_motorista),
+          package_attractions!inner(scheduled_date)
+        `)
+        .eq('considerar_diaria_motorista', true)
+        .gte('package_attractions.scheduled_date', startDate)
+        .lte('package_attractions.scheduled_date', endDate);
+      if (pkgError) throw pkgError;
+
+      // 2. Buscar todas as diárias avulsas (substitutas ou não) no período
+      let extraRatesQuery = supabase
+        .from('driver_daily_rates')
+        .select('*, drivers(id, name)')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (driverId !== 'all') {
+        extraRatesQuery = extraRatesQuery.eq('driver_id', driverId);
+      }
+      const { data: extraRates, error: extraRatesError } = await extraRatesQuery;
+      if (extraRatesError) throw extraRatesError;
+
+      // 3. Processar e gerar o extrato
+      const statement: any[] = [];
+      const processedPackageDays = new Set<string>(); // "packageId-date"
+
+      // Adicionar diárias de pacotes, respeitando substituições
+      for (const pkg of pkgs) {
+        const activeDates = [...new Set(pkg.package_attractions.map(act => act.scheduled_date))];
+
+        for (const date of activeDates) {
+          const key = `${pkg.id}-${date}`;
+          const substitute = (extraRates || []).find(r => r.package_id === pkg.id && r.date === date);
+
+          if (substitute) {
+            // Se houver substituto, a diária é dele. Adiciona e marca como processado.
+            statement.push({
+              ...substitute,
+              id: substitute.id,
+              driver_name: substitute.drivers?.name,
+              package_title: pkg.title,
+              is_substitute: true,
+            });
+            processedPackageDays.add(key);
+          } else {
+            // Senão, a diária é do motorista principal
+            if (driverId === 'all' || pkg.driver_id === driverId) {
+              statement.push({
+                id: `auto-${pkg.id}-${date}`, // ID sintético para diárias automáticas
+                driver_id: pkg.driver_id,
+                driver_name: pkg.drivers.name,
+                package_id: pkg.id,
+                package_title: pkg.title,
+                date: date,
+                amount: pkg.drivers.valor_diaria_motorista,
+                paid: false, // Diárias automáticas são sempre "pendentes" por padrão
+                is_substitute: false,
+                notes: `Diária automática do pacote`,
+              });
+            }
+          }
+        }
+      }
+
+      // Adicionar diárias avulsas que não são substitutas de pacotes já processados
+      for (const rate of (extraRates || [])) {
+        if (rate.package_id) {
+            const key = `${rate.package_id}-${rate.date}`;
+            if (processedPackageDays.has(key)) {
+                continue; // Já foi adicionado como substituto
+            }
+        }
+        statement.push({
+            ...rate,
+            driver_name: rate.drivers?.name,
+            package_title: null, // Pode ser vinculado a um pacote, mas não como substituto direto
+            is_substitute: !!rate.package_id,
+        });
+      }
+
+      // Filtrar final pelo motorista, caso não tenha sido feito em todas as queries
+      const finalStatement = driverId === 'all'
+        ? statement
+        : statement.filter(s => s.driver_id === driverId);
+
+      return { data: finalStatement.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()), error: null };
+
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  }
 };

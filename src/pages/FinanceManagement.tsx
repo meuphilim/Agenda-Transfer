@@ -14,9 +14,7 @@ const tabs = [
 ];
 
 export const FinanceManagement: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const ActiveComponent = tabs[activeTab].component;
-
+  // FORÇANDO A RENDERIZAÇÃO APENAS DA ABA DE PAGAMENTOS DE MOTORISTAS PARA VERIFICAÇÃO VISUAL
   return (
     <FinanceErrorBoundary>
       <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -25,47 +23,13 @@ export const FinanceManagement: React.FC = () => {
             <Landmark className="h-8 w-8 text-blue-600" />
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Gestão Financeira</h1>
-              <p className="mt-1 text-sm text-gray-500">{tabs[activeTab].description}</p>
+              <p className="mt-1 text-sm text-gray-500">Controle de pagamentos aos motoristas</p>
             </div>
           </div>
         </div>
-
         <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-          <div className="hidden md:block border-b border-gray-200">
-            <nav className="flex -mb-px">
-              {tabs.map((tab, index) => (
-                <button
-                  key={tab.name}
-                  onClick={() => setActiveTab(index)}
-                  className={`group relative min-w-0 flex-1 overflow-hidden py-4 px-6 text-sm font-medium text-center hover:bg-gray-50 focus:z-10 transition-colors ${
-                    activeTab === index
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 border-b-2 border-transparent hover:text-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-center">
-                    <tab.icon className="h-5 w-5 mr-2" />
-                    {tab.name}
-                  </div>
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="md:hidden border-b border-gray-200 p-4">
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(Number(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              {tabs.map((tab, index) => (
-                <option key={index} value={index}>{tab.name}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="p-0">
-            <ActiveComponent />
+            <DriverPayments />
           </div>
         </div>
       </div>
