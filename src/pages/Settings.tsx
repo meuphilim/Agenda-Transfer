@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Users,
   Truck,
@@ -18,9 +18,15 @@ const tabs = [
 ];
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTabName = searchParams.get('tab') || tabs[0].name;
 
-  const ActiveComponent = tabs[activeTab].component;
+  const activeTabIndex = tabs.findIndex(tab => tab.name === activeTabName);
+  const ActiveComponent = tabs[activeTabIndex !== -1 ? activeTabIndex : 0].component;
+
+  const handleTabClick = (tabName: string) => {
+    setSearchParams({ tab: tabName });
+  };
 
   return (
     <div className="p-6">
@@ -38,9 +44,9 @@ export const Settings: React.FC = () => {
             {tabs.map((tab, index) => (
               <button
                 key={tab.name}
-                onClick={() => setActiveTab(index)}
+                onClick={() => handleTabClick(tab.name)}
                 className={`group relative min-w-0 flex-1 overflow-hidden py-4 px-6 text-sm font-medium text-center hover:bg-gray-50 focus:z-10 ${
-                  activeTab === index
+                  (activeTabIndex !== -1 ? activeTabIndex : 0) === index
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-500 border-b-2 border-transparent'
                 }`}

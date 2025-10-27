@@ -4,6 +4,7 @@
 // - Removida asserção de tipo insegura (`as`) para `recentPackages`.
 // - Adicionado alerta de segurança sobre a dependência de RLS para as queries.
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   CalendarDays,
@@ -22,7 +23,7 @@ interface DashboardStats {
   totalPackages: number;
   activePackages: number;
   availableVehicles: number;
-  busyDrivers: number;
+  availableDrivers: number;
   upcomingToday: number;
 }
 
@@ -54,7 +55,7 @@ export const Dashboard: React.FC = () => {
     totalPackages: 0,
     activePackages: 0,
     availableVehicles: 0,
-    busyDrivers: 0,
+    availableDrivers: 0,
     upcomingToday: 0,
   });
   const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
@@ -98,12 +99,15 @@ export const Dashboard: React.FC = () => {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      // Chamada à função RPC para obter estatísticas de disponibilidade
+      const { data: availabilityData, error: availabilityError } = await supabase.rpc(
+        'get_availability_stats'
+      );
+
       // As queries dependem de RLS permissiva.
       // Considere migrar para funções de borda (edge functions) para maior segurança.
-      const [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult] = await Promise.all([
+      const [packagesResult, upcomingResult, recentResult] = await Promise.all([
         supabase.from('packages').select('id, status', { count: 'exact' }),
-        supabase.from('vehicles').select('status', { count: 'exact' }).eq('status', 'available'),
-        supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'busy'),
         supabase
           .from('package_attractions')
           .select(`
@@ -132,28 +136,34 @@ export const Dashboard: React.FC = () => {
             drivers(name)
           `)
           .order('created_at', { ascending: false })
-          .limit(5)
+          .limit(5),
       ]);
 
-      const results = [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult];
-      for (const result of results) {
-        if (result.error) {
-          console.error('Erro na API do Supabase:', result.error);
-          setError('Falha ao carregar os dados do dashboard. Verifique sua conexão e tente novamente.');
-          return;
-        }
+      // Centralizando o tratamento de erros
+      const results = [packagesResult, upcomingResult, recentResult];
+      const errors = [availabilityError, ...results.map(r => r.error)].filter(Boolean);
+
+      if (errors.length > 0) {
+        errors.forEach(err => console.error('Erro na API do Supabase:', err));
+        setError(
+          'Falha ao carregar os dados do dashboard. Verifique sua conexão e tente novamente.'
+        );
+        return;
       }
 
       const allPackages: { status: string }[] = packagesResult.data ?? [];
       const activePackages = allPackages.filter(p =>
-        [PackageStatus.CONFIRMED, PackageStatus.IN_PROGRESS].includes(p.status as PackageStatus)
+        [PackageStatus.CONFIRMED, PackageStatus.IN_PROGRESS].includes(
+          p.status as PackageStatus
+        )
       ).length;
 
       setStats({
         totalPackages: packagesResult.count ?? 0,
         activePackages: activePackages,
-        availableVehicles: vehiclesResult.count ?? 0,
-        busyDrivers: driversResult.count ?? 0,
+        // Usando os dados da RPC para veículos e motoristas disponíveis
+        availableVehicles: availabilityData?.available_vehicles ?? 0,
+        availableDrivers: availabilityData?.available_drivers ?? 0,
         upcomingToday: upcomingResult.data?.length ?? 0,
       });
 
@@ -168,10 +178,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const statsCards = [
-    { label: 'Total de Pacotes', value: stats.totalPackages, icon: Package },
-    { label: 'Pacotes Ativos', value: stats.activePackages, icon: CheckCircle },
-    { label: 'Veículos Disponíveis', value: stats.availableVehicles, icon: Truck },
-    { label: 'Motoristas Ocupados', value: stats.busyDrivers, icon: Users },
+    { label: 'Total de Pacotes', value: stats.totalPackages, icon: Package, link: '/agenda' },
+    { label: 'Pacotes Ativos', value: stats.activePackages, icon: CheckCircle, link: '/agenda' },
+    { label: 'Veículos Disponíveis', value: stats.availableVehicles, icon: Truck, link: '/cadastros?tab=Veículos' },
+    { label: 'Motoristas Disponíveis', value: stats.availableDrivers, icon: Users, link: '/cadastros?tab=Motoristas' },
   ];
 
   const getStatusColor = (status: PackageStatus | string) => {
@@ -289,24 +299,25 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide">
-                  {stat.label}
-                </p>
-                <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
-                  {stat.value}
-                </p>
-              </div>
-              <div className="flex-shrink-0 ml-4">
-                <stat.icon className="h-8 w-8 md:h-10 md:w-10 text-blue-600" />
+          <Link to={stat.link} key={stat.label} className="block">
+            <div
+              className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-200 h-full"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-xs md:text-sm text-gray-500 uppercase tracking-wide">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+                    {stat.value}
+                  </p>
+                </div>
+                <div className="flex-shrink-0 ml-4">
+                  <stat.icon className="h-8 w-8 md:h-10 md:w-10 text-blue-600" />
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
