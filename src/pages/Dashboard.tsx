@@ -14,6 +14,8 @@ import {
   Package,
   Users,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { PackageStatus } from '../types/enums';
 import { cn } from '../lib/utils';
@@ -60,11 +62,12 @@ export const Dashboard: React.FC = () => {
   });
   const [recentPackages, setRecentPackages] = useState<RecentPackage[]>([]);
   const [todayActivities, setTodayActivities] = useState<TodayActivity[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetchDashboardData();
+    void fetchDashboardData(selectedDate);
 
     const channel = supabase
       .channel('dashboard-realtime')
@@ -72,14 +75,14 @@ export const Dashboard: React.FC = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'packages' },
         () => {
-          void fetchDashboardData();
+          void fetchDashboardData(selectedDate);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'package_attractions' },
         () => {
-          void fetchDashboardData();
+          void fetchDashboardData(selectedDate);
         }
       )
       .subscribe();
@@ -87,17 +90,17 @@ export const Dashboard: React.FC = () => {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedDate]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (date: Date) => {
     try {
       setLoading(true);
       setError(null);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
 
       // Chamada à função RPC para obter estatísticas de disponibilidade
       const { data: availabilityData, error: availabilityError } = await supabase.rpc(
@@ -120,8 +123,8 @@ export const Dashboard: React.FC = () => {
               vehicles(license_plate, model)
             )
           `)
-          .gte('scheduled_date', today.toISOString())
-          .lt('scheduled_date', tomorrow.toISOString())
+          .gte('scheduled_date', startDate.toISOString())
+          .lt('scheduled_date', endDate.toISOString())
           .order('scheduled_date', { ascending: true })
           .order('start_time', { ascending: true }),
         supabase
@@ -206,7 +209,18 @@ export const Dashboard: React.FC = () => {
     return statusText[status as PackageStatus] || status;
   };
 
+  const handleDateChange = (days: number) => {
+    setSelectedDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() + days);
+      return newDate;
+    });
+  };
+
 const getActivityStatus = (activity: TodayActivity): [string, string] => {
+  if (activity.packages?.status === PackageStatus.CANCELLED) {
+    return ['Cancelado', 'bg-red-100 text-red-800'];
+  }
   // Obter horário atual em GMT-4
   const now = getNowInMS();
 
@@ -275,7 +289,7 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
         </p>
         <button
           onClick={() => {
-            void fetchDashboardData();
+            void fetchDashboardData(selectedDate);
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
@@ -360,23 +374,50 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 md:p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-base md:text-lg font-semibold">
-              Atividades de Hoje
-            </h3>
-            <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-              {todayActivities.length}
-            </span>
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-base md:text-lg font-semibold">
+                Atividades Agendadas
+              </h3>
+              <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                {todayActivities.length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-gray-600">
+                <button
+                  onClick={() => handleDateChange(-1)}
+                  className="p-2 rounded-md hover:bg-gray-100"
+                  aria-label="Dia anterior"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="font-semibold text-center">
+                  {selectedDate.toLocaleDateString('pt-BR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </span>
+                <button
+                  onClick={() => handleDateChange(1)}
+                  className="p-2 rounded-md hover:bg-gray-100"
+                  aria-label="Próximo dia"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+            </div>
           </div>
           <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
             {todayActivities.length > 0 ? todayActivities.map((activity, index) => {
               const [statusText, statusColor] = getActivityStatus(activity);
+              const isCancelled = activity.packages?.status === PackageStatus.CANCELLED;
               return (
                 <div key={index} className="p-4 space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                       <CalendarDays className="h-4 w-4 text-gray-500" />
-                      <p className="font-mono text-sm text-gray-800">
+                      <p className={cn("font-mono text-sm", isCancelled ? 'text-gray-500' : 'text-gray-800')}>
                         {activity.start_time ? activity.start_time.slice(0, 5) : '—'}
                       </p>
                     </div>
@@ -384,8 +425,8 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
                       {statusText}
                     </span>
                   </div>
-                  <p className="font-semibold text-gray-900">{activity.attractions?.name ?? 'Atividade não especificada'}</p>
-                  <div className="flex items-center text-xs text-gray-500 space-x-4">
+                  <p className={cn("font-semibold", isCancelled ? 'text-gray-500 line-through' : 'text-gray-900')}>{activity.attractions?.name ?? 'Atividade não especificada'}</p>
+                  <div className={cn("flex items-center text-xs space-x-4", isCancelled ? 'text-gray-400' : 'text-gray-500')}>
                     <div className="flex items-center space-x-1">
                       <Users className="h-3 w-3" />
                       <span>{activity.packages?.drivers?.name ?? 'N/A'}</span>
@@ -398,7 +439,7 @@ const getActivityStatus = (activity: TodayActivity): [string, string] => {
                 </div>
               );
             }) : (
-              <p className="text-center text-gray-500 p-8">Nenhuma atividade agendada para hoje.</p>
+              <p className="text-center text-gray-500 p-8">Nenhuma atividade agendada para esta data.</p>
             )}
           </div>
         </div>
