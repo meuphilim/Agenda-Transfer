@@ -93,12 +93,7 @@ export const DriverPayments: React.FC = () => {
       setStatement(data || []);
     } catch (error: any) {
       toast.error('Erro ao buscar extrato de motoristas: ' + error.message);
-      // MOCK DATA FOR VISUAL VERIFICATION
-      setStatement([
-          { id: 'auto-1-2024-10-26', driver_id: '1', driver_name: 'João da Silva', package_id: '1', package_title: 'Pacote Família Feliz', date: '2024-10-26', amount: 250, paid: false, is_substitute: false, notes: 'Diária automática' },
-          { id: 'extra-2', driver_id: '2', driver_name: 'Carlos Pereira', package_id: '1', package_title: 'Pacote Família Feliz', date: '2024-10-27', amount: 300, paid: true, is_substitute: true, notes: 'Substituição no dia 27' },
-          { id: 'auto-3-2024-10-28', driver_id: '1', driver_name: 'João da Silva', package_id: '1', package_title: 'Pacote Família Feliz', date: '2024-10-28', amount: 250, paid: false, is_substitute: false, notes: 'Diária automática' },
-      ]);
+      setStatement([]); // Limpa os dados em caso de erro
     } finally {
       setLoading(false);
     }
