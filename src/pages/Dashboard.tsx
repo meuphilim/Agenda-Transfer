@@ -98,12 +98,15 @@ export const Dashboard: React.FC = () => {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      // Chamada à função RPC para obter estatísticas de disponibilidade
+      const { data: availabilityData, error: availabilityError } = await supabase.rpc(
+        'get_availability_stats'
+      );
+
       // As queries dependem de RLS permissiva.
       // Considere migrar para funções de borda (edge functions) para maior segurança.
-      const [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult] = await Promise.all([
+      const [packagesResult, upcomingResult, recentResult] = await Promise.all([
         supabase.from('packages').select('id, status', { count: 'exact' }),
-        supabase.from('vehicles').select('status', { count: 'exact' }).eq('status', 'available'),
-        supabase.from('drivers').select('status', { count: 'exact' }).eq('status', 'available'),
         supabase
           .from('package_attractions')
           .select(`
@@ -132,28 +135,34 @@ export const Dashboard: React.FC = () => {
             drivers(name)
           `)
           .order('created_at', { ascending: false })
-          .limit(5)
+          .limit(5),
       ]);
 
-      const results = [packagesResult, vehiclesResult, driversResult, upcomingResult, recentResult];
-      for (const result of results) {
-        if (result.error) {
-          console.error('Erro na API do Supabase:', result.error);
-          setError('Falha ao carregar os dados do dashboard. Verifique sua conexão e tente novamente.');
-          return;
-        }
+      // Centralizando o tratamento de erros
+      const results = [packagesResult, upcomingResult, recentResult];
+      const errors = [availabilityError, ...results.map(r => r.error)].filter(Boolean);
+
+      if (errors.length > 0) {
+        errors.forEach(err => console.error('Erro na API do Supabase:', err));
+        setError(
+          'Falha ao carregar os dados do dashboard. Verifique sua conexão e tente novamente.'
+        );
+        return;
       }
 
       const allPackages: { status: string }[] = packagesResult.data ?? [];
       const activePackages = allPackages.filter(p =>
-        [PackageStatus.CONFIRMED, PackageStatus.IN_PROGRESS].includes(p.status as PackageStatus)
+        [PackageStatus.CONFIRMED, PackageStatus.IN_PROGRESS].includes(
+          p.status as PackageStatus
+        )
       ).length;
 
       setStats({
         totalPackages: packagesResult.count ?? 0,
         activePackages: activePackages,
-        availableVehicles: vehiclesResult.count ?? 0,
-        availableDrivers: driversResult.count ?? 0,
+        // Usando os dados da RPC para veículos e motoristas disponíveis
+        availableVehicles: availabilityData?.available_vehicles ?? 0,
+        availableDrivers: availabilityData?.available_drivers ?? 0,
         upcomingToday: upcomingResult.data?.length ?? 0,
       });
 
