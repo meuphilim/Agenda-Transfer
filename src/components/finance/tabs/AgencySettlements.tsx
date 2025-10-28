@@ -32,6 +32,7 @@ export const AgencySettlements: React.FC = () => {
   const [selectedSettlement, setSelectedSettlement] = useState<AgencySettlement | null>(null);
   const [isSettling, setIsSettling] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [discount, setDiscount] = useState<number>(0);
 
   useEffect(() => {
     const today = new Date();
@@ -96,6 +97,7 @@ export const AgencySettlements: React.FC = () => {
 
   const handleConfirmSettlement = (settlement: AgencySettlement) => {
     setSelectedSettlement(settlement);
+    setDiscount(0); // Reseta o desconto ao abrir o modal
     setShowConfirmModal(true);
   };
 
@@ -111,8 +113,13 @@ export const AgencySettlements: React.FC = () => {
     try {
       toast.info('Processando fechamento...');
 
+      const totalToPay = selectedSettlement.totalValueToPay;
+      const finalAmount = totalToPay - discount;
+
       const details = {
-        totalPaid: selectedSettlement.totalValueToPay,
+        totalPaid: finalAmount,
+        originalAmount: totalToPay,
+        discount,
         activitiesCount: selectedSettlement.dailyBreakdown.filter(d => !d.isPaid).length,
       };
 
@@ -275,10 +282,10 @@ export const AgencySettlements: React.FC = () => {
                 <td className="px-6 py-4 text-center"><StatusBadge status={s.settlementStatus} /></td>
                 <td className="px-6 py-4 text-right flex justify-end items-center gap-2">
                   <button onClick={() => handleViewDetails(s)} className="text-gray-500 hover:text-blue-600 p-1 rounded-full hover:bg-gray-100" title="Ver Detalhes"><Eye size={18} /></button>
-                  {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
+                  {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
                     <button onClick={() => handleConfirmSettlement(s)} className="text-gray-500 hover:text-green-600 p-1 rounded-full hover:bg-gray-100" title="Realizar Fechamento"><BadgeCheck size={18} /></button>
                   )}
-                  {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
+                  {(s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
                     <button onClick={() => handleCancelConfirmation(s)} className="text-gray-500 hover:text-red-600 p-1 rounded-full hover:bg-gray-100" title="Cancelar Fechamento"><Undo2 size={18} /></button>
                   )}
                 </td>
@@ -302,10 +309,10 @@ export const AgencySettlements: React.FC = () => {
             </div>
             <div className="mt-3 pt-3 border-t flex justify-end items-center gap-2">
               <button onClick={() => handleViewDetails(s)} className="text-sm text-gray-600 hover:text-blue-700">Detalhes</button>
-              {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
+              {(s.settlementStatus === 'Pendente' || s.settlementStatus === 'Parcial') && s.totalValueToPay > 0 && (
                 <button onClick={() => handleConfirmSettlement(s)} className="text-sm text-green-600 hover:text-green-800 font-semibold">Realizar Fechamento</button>
               )}
-              {s.agencyId !== 'direct_sale' && (s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
+              {(s.settlementStatus === 'Pago' || s.settlementStatus === 'Parcial') && s.totalValuePaid > 0 && (
                 <button onClick={() => handleCancelConfirmation(s)} className="text-sm text-red-600 hover:text-red-800 font-semibold">Cancelar</button>
               )}
             </div>
@@ -357,8 +364,31 @@ export const AgencySettlements: React.FC = () => {
       <Modal isOpen={showConfirmModal} onClose={() => setShowConfirmModal(false)} title="Confirmar Fechamento">
         {selectedSettlement && (
           <div>
-            <p>Você está prestes a marcar todas as atividades pendentes da agência <strong>{selectedSettlement.agencyName}</strong> como pagas para o período selecionado.</p>
-            <p className="text-2xl font-bold text-center my-4">{formatCurrency(selectedSettlement.totalValueToPay)}</p>
+            <p>Você está prestes a marcar todas as atividades pendentes de <strong>{selectedSettlement.agencyName}</strong> como pagas para o período selecionado.</p>
+
+            <div className="my-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex justify-between items-center text-lg">
+                <span className="text-gray-600">Valor a Pagar:</span>
+                <span className="font-semibold">{formatCurrency(selectedSettlement.totalValueToPay)}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <label htmlFor="discount" className="text-gray-600">Desconto:</label>
+                <input
+                  id="discount"
+                  type="number"
+                  value={discount}
+                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                  className="w-32 p-1 border rounded-md text-right font-semibold"
+                  placeholder="0,00"
+                />
+              </div>
+              <hr className="my-2" />
+              <div className="flex justify-between items-center text-xl font-bold text-blue-600">
+                <span>Total Final:</span>
+                <span>{formatCurrency(selectedSettlement.totalValueToPay - discount)}</span>
+              </div>
+            </div>
+
             <p className="text-sm text-gray-600">Esta ação não pode ser desfeita. Deseja continuar?</p>
             <div className="flex justify-end gap-3 mt-6">
               <Button onClick={() => setShowConfirmModal(false)} variant="secondary" disabled={isSettling}>Cancelar</Button>
