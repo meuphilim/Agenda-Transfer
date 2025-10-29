@@ -8,7 +8,7 @@ import FinanceErrorBoundary from '../components/ErrorBoundary/FinanceErrorBounda
 
 const tabs = [
   { name: 'Relatórios de Pacotes', icon: FileText, component: PackageReports, description: 'Visão geral financeira dos pacotes' },
-  { name: 'Fechamentos com Agências', icon: Briefcase, component: AgencySettlements, description: 'Gestão de fechamentos e recebimentos' },
+  { name: 'Fechamento', icon: Briefcase, component: AgencySettlements, description: 'Gestão de fechamentos e recebimentos' },
   { name: 'Diárias de Motoristas', icon: User, component: DriverPayments, description: 'Controle de pagamentos aos motoristas' },
   { name: 'Despesas de Veículos', icon: Truck, component: VehicleExpenses, description: 'Registro de despesas com veículos' },
 ];
