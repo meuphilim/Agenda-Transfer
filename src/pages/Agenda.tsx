@@ -332,10 +332,10 @@ const MobileCalendarView: React.FC<{
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-gray-800">{item.packages.client_name}</p>
-                    <p className="text-sm text-gray-600">{item.attractions.name}</p>
+                    <p className="text-sm text-gray-600">{item.attractions?.name ?? 'Atração não informada'}</p>
                     <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                      <span className="flex items-center gap-1"><User size={12}/> {item.packages.drivers.name}</span>
-                      <span className="flex items-center gap-1"><Truck size={12}/> {item.packages.vehicles.model}</span>
+                      <span className="flex items-center gap-1"><User size={12}/> {item.packages.drivers?.name ?? 'N/A'}</span>
+                      <span className="flex items-center gap-1"><Truck size={12}/> {item.packages.vehicles?.model ?? 'N/A'}</span>
                     </div>
                   </div>
                   <div className="flex items-center">
@@ -405,16 +405,16 @@ const AgendaCalendarView: React.FC<{onSend: (item: ScheduleItem) => void; onNewP
                           <span>{formatTime(item.start_time)} - {item.packages.client_name}</span>
                           <Send size={12} className="opacity-50 group-hover:opacity-100"/>
                         </p>
-                        <p className="text-xs text-gray-500 truncate">{item.packages.agencies.name}</p>
-                        <p className="truncate font-medium">{item.attractions.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{item.packages.agencies?.name ?? 'Venda Direta'}</p>
+                        <p className="truncate font-medium">{item.attractions?.name ?? 'Atração não informada'}</p>
                         <div className="mt-1 flex items-center gap-4 text-gray-600">
                           <div className="flex items-center gap-1.5 truncate">
                             <User size={12} />
-                            <span className="truncate">{item.packages.drivers.name}</span>
+                            <span className="truncate">{item.packages.drivers?.name ?? 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-1.5 truncate">
                              <Truck size={12} />
-                             <span className="truncate">{item.packages.vehicles.model}</span>
+                             <span className="truncate">{item.packages.vehicles?.model ?? 'N/A'}</span>
                           </div>
                         </div>
                      </div>
