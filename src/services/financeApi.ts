@@ -452,14 +452,11 @@ export const financeApi = {
   },
 
   settleAgencyPeriod: async (agencyId: string, startDate: string, endDate: string, details: any) => {
-    if (agencyId === 'direct_sale') {
-      return { error: { message: 'Não é possível criar um fechamento para Vendas Diretas.' } };
-    }
     try {
       const { error } = await supabase
         .from('settlements')
         .insert({
-          agency_id: agencyId,
+          agency_id: agencyId === 'direct_sale' ? null : agencyId,
           start_date: startDate,
           end_date: endDate,
           details,
