@@ -12,7 +12,8 @@ import {
   User,
   LogOut,
   Users,
-  Landmark
+  Landmark,
+  Building2
 } from 'lucide-react';
 import { SidebarRoot, SidebarBody, useSidebar } from './SidebarComponents';
 import { cn } from '../../lib/utils';
@@ -31,6 +32,7 @@ const getNavigation = (isAdmin: boolean): NavigationItem[] => [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Agenda', href: '/agenda', icon: CalendarDays },
   { name: 'Cadastros', href: '/cadastros', icon: Settings },
+  { name: 'Perfil da Empresa', href: '/perfil-empresa', icon: Building2 },
   ...(isAdmin ? [
     { name: 'Gerenciar Usuários', href: '/usuarios', icon: Users },
     { name: 'Financeiro', href: '/financeiro', icon: Landmark }

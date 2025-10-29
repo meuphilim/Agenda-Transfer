@@ -8,6 +8,7 @@ import { Agenda } from './pages/Agenda';
 import { Settings } from './pages/Settings';
 import { UserManagement } from './pages/UserManagement';
 import { FinanceManagement } from './pages/FinanceManagement';
+import CompanyProfilePage from './pages/CompanyProfile';
 import { AgencyRegister } from './pages/AgencyRegister';
 import { AgencyPortal } from './pages/AgencyPortal';
 import { Login } from './components/Auth/Login';
@@ -66,6 +67,7 @@ export const AppRoutes = () => {
                     <Route path="cadastros" element={<Settings />} />
                     <Route path="usuarios" element={<UserManagement />} />
                     <Route path="financeiro" element={<FinanceManagement />} />
+                    <Route path="perfil-empresa" element={<CompanyProfilePage />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
