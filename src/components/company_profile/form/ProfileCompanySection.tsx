@@ -48,7 +48,7 @@ const ProfileCompanySection = ({ register, errors, currentProfile, control }: Se
           </div>
         </div>
         <div className="md:col-span-1">
-          <ProfileLogoUpload control={control} currentLogo={currentProfile?.logo_url} />
+          <ProfileLogoUpload control={control} companyId={currentProfile?.id} />
         </div>
       </div>
       <FormField
