@@ -1,8 +1,6 @@
 /** @type {import('tailwindcss').Config} */
-import { colors } from "./src/theme/colors";
-
 export default {
-  darkMode: ["class"], // ou 'media', se preferir
+  darkMode: ["class", '[data-theme="dark"]'],
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -10,36 +8,57 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 🔹 Tokens semânticos principais
-        background: colors.background,
-        foreground: colors.foreground,
+        // 🔹 Tokens semânticos principais (via CSS variables)
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
 
-        card: colors.card,
-        "card-foreground": colors["card-foreground"],
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
 
-        primary: colors.primary,
-        "primary-dark": colors["primary-dark"],
-        "primary-light": colors["primary-light"],
-        "primary-foreground": colors["primary-foreground"],
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          dark: "hsl(var(--primary-dark))",
+          light: "hsl(var(--primary-light))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
 
-        secondary: colors.secondary,
-        "secondary-foreground": colors["secondary-foreground"],
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
 
-        accent: colors.accent,
-        "accent-foreground": colors["accent-foreground"],
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
 
-        muted: colors.muted,
-        "muted-foreground": colors["muted-foreground"],
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
 
-        border: colors.border,
-        input: colors.input,
-        ring: colors.ring,
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
 
         // 🔹 Escalas contextuais (status / feedback)
-        info: colors.info,
-        success: colors.success,
-        warning: colors.warning,
-        danger: colors.danger,
+        info: {
+          50: "hsl(var(--info-50))",
+          100: "hsl(var(--info-100))",
+          200: "hsl(var(--info-200))",
+          500: "hsl(var(--info-500))",
+        },
+        success: {
+          500: "hsl(var(--success-500))",
+        },
+        warning: {
+          500: "hsl(var(--warning-500))",
+        },
+        danger: {
+          500: "hsl(var(--danger-500))",
+        },
       },
     },
   },
