@@ -22,10 +22,15 @@ interface DriverFormData {
   active: boolean;
 }
 
-export const Drivers: React.FC = () => {
+interface DriversProps {
+  companyId?: string;
+}
+
+export const Drivers: React.FC<DriversProps> = ({ companyId }) => {
   const { data: drivers, loading, create, update, delete: deleteDriver } = useSupabaseData<Driver>({
     table: 'drivers',
     orderBy: { column: 'name' },
+    filters: { company_id: companyId },
   });
   const [occupiedDatesMap, setOccupiedDatesMap] = useState<Map<string, string[]>>(new Map());
 
@@ -67,11 +72,16 @@ export const Drivers: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const dataToSave = {
+    const dataToSave: Partial<Driver> = {
       ...formData,
       valor_diaria_motorista: formData.valor_diaria_motorista ? parseFloat(formData.valor_diaria_motorista) : null,
       license_expiry: formData.license_expiry || null,
     };
+
+    if (companyId) {
+      dataToSave.company_id = companyId;
+    }
+
     try {
       if (editingDriver) {
         await update(editingDriver.id, dataToSave);
