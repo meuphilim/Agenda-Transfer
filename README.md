@@ -1,4 +1,4 @@
-# 🚀 TourManager - Sistema de Gestão para Turismo Receptivo
+# 🚀 Agenda-Transfer - Sistema de Gestão para Turismo Receptivo
 
 [![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue?logo=typescript)](https://www.typescriptlang.org/)
@@ -7,7 +7,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.1-cyan?logo=tailwindcss)](https://tailwindcss.com/)
 [![Licença](https://img.shields.io/badge/Licença-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**TourManager** é uma aplicação web completa e robusta, projetada para otimizar a gestão de empresas de turismo receptivo. O sistema centraliza o controle de agências, motoristas, veículos e pacotes turísticos, oferecendo uma plataforma segura e eficiente para agendar e acompanhar todas as operações do dia a dia.
+**Agenda-Transfer** é uma aplicação web robusta, desenhada como um sistema ERP para otimizar a gestão logística e financeira de empresas de turismo receptivo. A plataforma centraliza o controle de agências, motoristas, veículos e pacotes turísticos, oferecendo uma solução segura e eficiente para agendar, executar e faturar todas as operações.
 
 ---
 
@@ -27,53 +27,91 @@
 
 ## 🎯 Sobre o Projeto
 
-O **TourManager** foi desenvolvido para resolver os desafios logísticos de agências de turismo, substituindo planilhas e processos manuais por uma solução integrada. A plataforma permite um gerenciamento claro e em tempo real de todas as atividades, desde o cadastro de um novo pacote até a conclusão de um serviço.
+O **Agenda-Transfer** foi arquitetado para resolver os desafios logísticos e financeiros de agências de turismo, substituindo planilhas e processos manuais por uma solução centralizada e em tempo real. A plataforma permite um gerenciamento completo do ciclo de vida de um pacote turístico, desde o agendamento inicial até o fechamento financeiro.
 
-### 🌟 Diferenciais
+### 🌟 Diferenciais Técnicos
 
-- **Interface Moderna e Responsiva:** Construído com React e Tailwind CSS, o sistema oferece uma experiência de usuário fluida tanto em desktops quanto em dispositivos móveis.
-- **Backend Poderoso com Supabase:** Utiliza o Supabase para autenticação, banco de dados PostgreSQL em tempo real e segurança de dados com Row Level Security (RLS).
-- **Arquitetura Segura:** As operações sensíveis (como gerenciamento de usuários) são tratadas por funções de backend (`api/`), garantindo que chaves de serviço não sejam expostas no frontend.
-- **Qualidade de Código:** Desenvolvido com TypeScript para garantir a tipagem e a robustez do código, com verificações de qualidade via ESLint.
+- **Interface Reativa e Responsiva:** Construído com React e Tailwind CSS, o sistema oferece uma experiência de usuário fluida e adaptável a desktops e dispositivos móveis, seguindo uma abordagem *mobile-first*.
+- **Backend Robusto com Supabase:** Utiliza o Supabase para autenticação, banco de dados PostgreSQL com real-time, e segurança de dados via Row Level Security (RLS). A lógica de negócio complexa é encapsulada em **Funções RPC PostgreSQL**, garantindo transações atômicas e performance.
+- **Arquitetura Segura:** Operações sensíveis, como o gerenciamento de usuários e a lógica de faturamento, são tratadas no backend para garantir que chaves de serviço e regras de negócio críticas não sejam expostas no frontend.
+- **Código de Alta Qualidade:** Desenvolvido com TypeScript para garantir tipagem estática e robustez. O projeto segue boas práticas de engenharia de software, com verificações de qualidade via ESLint e testes automatizados.
 
 ---
 
-## ⚡ Funcionalidades Principais
+## ⚡ Funcionalidades
 
-### Gestão
+### Gestão Operacional
 - **CRUD Completo:** Gerenciamento de Agências, Motoristas, Veículos, Atrações e Pacotes Turísticos.
-- **Agenda Inteligente:** Visualização de agendamentos em formato de lista ou calendário (semanal/mensal), com validação de conflitos para evitar agendamentos sobrepostos.
-- **Dashboard Central:** Painel com métricas em tempo real, incluindo uma lista detalhada das atividades do dia com status dinâmico (A iniciar, Em andamento, Concluída) calculado com precisão de fuso horário.
-- **Gestão de Disponibilidade Dinâmica:** O status de veículos e motoristas é calculado automaticamente com base nos agendamentos de pacotes confirmados, garantindo uma visão precisa da ocupação dos recursos.
+- **Agenda Inteligente:** Visualização de agendamentos com validação de conflitos de disponibilidade para motoristas e veículos, evitando sobreposições.
+- **Dashboard Central:** Painel com métricas em tempo real e uma lista detalhada das atividades do dia com status dinâmico (Aguardando, Em andamento, Concluída), calculado com base no fuso horário (`America/Campo_Grande`).
+- **Roteirização e Mensagens:** Geração de roteiro diário para motoristas com envio simplificado via WhatsApp.
 
-### Segurança
-- **Autenticação e Autorização:** Sistema de login seguro com perfis de usuário (Administrador e Usuário).
-- **Aprovação de Usuários:** Novos usuários cadastrados precisam ser ativados por um administrador.
-- **Rotas Protegidas:** O acesso às páginas do sistema é protegido e requer autenticação.
+### Módulo Financeiro
+- **Gestão de Faturamento:** Relatórios detalhados por pacote, com cálculo de custos (diárias de motoristas, valores NET de atrações) e receita.
+- **Fechamento por Agência:** Geração de extratos de faturamento para agências parceiras.
+- **Controle de Pagamentos:** Módulo para gerenciar pagamentos de motoristas e despesas de veículos.
+- **Venda Direta:** Suporte a pacotes sem vínculo com agências, tratados como uma categoria financeira distinta.
 
-### Experiência do Usuário (UX)
-- **Design Responsivo:** Layout adaptado para desktop e mobile, com componentes reutilizáveis.
-- **Interface Intuitiva:** Navegação clara com barra lateral animada em desktop e menu hambúrguer em mobile.
-- **Feedback ao Usuário:** Notificações (toasts) para ações como sucesso e erro.
+### Portal da Agência
+- **Acesso Restrito:** Agências parceiras podem acessar um portal exclusivo para gerenciar suas próprias reservas.
+- **Self-Service:** As agências podem criar, visualizar e gerenciar pacotes, com a lógica de negócio garantindo que elas só acessem seus próprios dados.
+
+### Segurança e Acesso
+- **Autenticação e Autorização:** Sistema de login seguro com perfis de usuário (Administrador e Colaborador).
+- **Aprovação de Usuários:** Novos colaboradores cadastrados precisam ser ativados por um administrador.
+- **Rotas Protegidas:** O acesso às páginas internas do sistema é protegido e requer autenticação.
+
+---
+
+## 🛠️ Tech Stack
+
+O projeto utiliza um conjunto de tecnologias modernas para garantir performance, escalabilidade e qualidade de código.
+
+### Frontend
+| Tecnologia | Descrição |
+| :--- | :--- |
+| **React** | Biblioteca principal para a construção da interface de usuário. |
+| **TypeScript** | Garante a tipagem estática e a robustez do código. |
+| **Vite** | Ferramenta de build moderna e de alta performance para o desenvolvimento. |
+| **React Router** | Biblioteca para gerenciamento de rotas no lado do cliente. |
+| **Tailwind CSS** | Framework CSS utilitário para estilização rápida e responsiva. |
+| **React Hook Form**| Gerenciamento de formulários com validação via `Yup`. |
+| **Headless UI** | Componentes de UI acessíveis e não estilizados. |
+| **Framer Motion**| Biblioteca para criação de animações fluidas. |
+| **Lucide React** | Conjunto de ícones SVG leves e customizáveis. |
+
+### Backend
+| Tecnologia | Descrição |
+| :--- | :--- |
+| **Supabase** | Plataforma BaaS (Backend-as-a-Service) que provê: |
+| &nbsp;&nbsp;&nbsp;↳ **PostgreSQL** | Banco de dados relacional com suporte a real-time. |
+| &nbsp;&nbsp;&nbsp;↳ **Auth** | Gerenciamento de autenticação e autorização. |
+| &nbsp;&nbsp;&nbsp;↳ **Storage** | Armazenamento de arquivos (não utilizado atualmente). |
+| &nbsp;&nbsp;&nbsp;↳ **Edge Functions** | Funções serverless (não utilizado atualmente). |
+
+### Testes e Qualidade de Código
+| Tecnologia | Descrição |
+| :--- | :--- |
+| **Vitest** | Framework de testes unitários e de integração. |
+| **React Testing Library** | Utilitários para testar componentes React. |
+| **Playwright** | Ferramenta para testes E2E (End-to-End) e de regressão visual. |
+| **ESLint** | Ferramenta para análise estática de código e padronização. |
 
 ---
 
-## 🛠️ Tecnologias
+## 🏛️ Arquitetura do Backend com Supabase
 
-A tabela a seguir lista as principais tecnologias utilizadas no desenvolvimento do TourManager:
+A arquitetura do backend é construída inteiramente sobre os serviços do Supabase, explorando seus recursos nativos para garantir segurança, performance e escalabilidade.
 
-| Tecnologia | Versão | Descrição |
-| :--- | :--- | :--- |
-| **React** | `18.3.1` | Biblioteca principal para a construção da interface de usuário. |
-| **TypeScript** | `5.5.3` | Garante a tipagem estática e a qualidade do código. |
-| **Vite** | `6.3.6` | Ferramenta de build moderna e de alta performance. |
-| **Supabase** | `2.58.0` | Plataforma de Backend-as-a-Service para banco de dados e autenticação. |
-| **React Router** | `7.9.3` | Biblioteca para gerenciamento de rotas no lado do cliente. |
-| **Tailwind CSS** | `3.4.1` | Framework CSS utilitário para estilização rápida. |
-| **Framer Motion**| `12.23.24`| Biblioteca para criação de animações fluidas. |
-| **Lucide React** | `0.344.0` | Conjunto de ícones SVG leves e customizáveis. |
+- **Banco de Dados PostgreSQL**: O schema do banco de dados, localizado em `supabase/migrations/`, é a fonte da verdade para a estrutura de dados. Ele inclui tabelas, tipos customizados e índices para otimização de consultas.
 
----
+- **Row Level Security (RLS)**: Todas as tabelas críticas possuem políticas de RLS ativadas. Isso garante que um usuário autenticado só possa acessar ou modificar os dados que lhe são permitidos, aplicando a lógica de segurança diretamente no nível do banco de dados.
+
+- **Funções RPC (Remote Procedure Call)**: Para operações complexas ou que exigem transações atômicas (como criar um pacote e suas atividades simultaneamente), utilizamos funções PostgreSQL. Elas são expostas como endpoints de API seguros, permitindo que o frontend execute lógicas de negócio complexas com uma única chamada, reduzindo a latência e garantindo a integridade dos dados.
+
+- **Database Triggers**: Gatilhos são usados para automações. Um exemplo notável é o trigger `on_auth_user_created`, que, após a criação de um usuário no serviço de autenticação do Supabase, dispara a função `handle_new_user` para criar um perfil correspondente na tabela `public.profiles`, mantendo os dados sincronizados.
+
+- **Autenticação**: O serviço de Auth do Supabase gerencia todo o ciclo de vida do usuário, desde o cadastro até o login, utilizando JWT (JSON Web Tokens) para proteger as rotas da aplicação.
 
 ## 📋 Pré-requisitos
 
@@ -135,41 +173,63 @@ A aplicação estará disponível em **http://localhost:5173**.
 - `npm test`: Executa os testes unitários com Vitest.
 - `npm run preview`: Inicia um servidor local para visualizar a build de produção.
 
+### 🧪 Testes
+
+O projeto conta com duas suítes de testes para garantir a qualidade do código:
+
+**1. Testes Unitários e de Integração (Vitest)**
+
+Para executar os testes que validam componentes e funções de forma isolada:
+```bash
+npm test
+```
+
+**2. Testes End-to-End e de Regressão Visual (Playwright)**
+
+Esses testes simulam a interação do usuário no navegador e comparam screenshots para detectar mudanças visuais inesperadas.
+
+Primeiro, certifique-se de que o servidor de desenvolvimento está rodando:
+```bash
+npm run dev
+```
+
+Em seguida, em outro terminal, execute a suíte de testes do Playwright:
+```bash
+npx playwright test
+```
+> **Nota:** Na primeira vez que executar o Playwright, pode ser necessário instalar os navegadores com o comando: `npx playwright install`
+
 ---
 
 ## 📁 Estrutura do Projeto
 
-A estrutura de diretórios foi organizada para separar responsabilidades e facilitar a manutenção:
+A estrutura de diretórios foi organizada para separar responsabilidades e facilitar a manutenção, seguindo as melhores práticas de desenvolvimento com React e TypeScript.
 
 ```
-TourManager/
-├── api/                # Funções serverless (backend) para operações seguras
+agenda-transfer/
+├── supabase/           # Configurações e migrações do banco de dados Supabase
+├── tests/              # Testes E2E e de regressão visual com Playwright
 ├── public/             # Arquivos estáticos (ícones, imagens)
 ├── src/
-│   ├── components/     # Componentes React reutilizáveis (Common/, Layout/)
+│   ├── components/     # Componentes React reutilizáveis (Common/, Layout/, Auth/)
 │   ├── contexts/       # Contextos da aplicação (ex: AuthContext)
 │   ├── hooks/          # Hooks customizados (ex: useAuth)
-│   ├── lib/            # Configuração de clientes (Supabase) e utilitários
+│   ├── lib/            # Configuração de clientes (Supabase)
 │   ├── pages/          # Componentes que representam as páginas da aplicação
-│   ├── services/       # Lógica de comunicação com a API (ex: adminApi)
-│   └── types/          # Definições de tipos TypeScript (enums.ts, database.types.ts)
+│   ├── services/       # Lógica de comunicação com a API (ex: financeApi, availabilityService)
+│   ├── types/          # Definições de tipos TypeScript
+│   ├── utils/          # Funções utilitárias (ex: formatação de data, timezone)
+│   ├── validators/     # Schemas de validação com Yup
+│   ├── App.tsx         # Componente raiz da aplicação
+│   └── main.tsx        # Ponto de entrada da aplicação
 ├── .env.example        # Arquivo de exemplo para variáveis de ambiente
-├── eslint.config.js    # Configurações do ESLint
-├── package.json        # Dependências e scripts do projeto
-└── vite.config.ts      # Configurações do Vite
+├── playwright.config.ts# Configurações do Playwright
+├── tailwind.config.js  # Configurações do Tailwind CSS
+└── vite.config.ts      # Configurações do Vite e Vitest
 ```
 
 ---
 
-## 📊 Status do Projeto
-
-![Build Status](https://img.shields.io/github/actions/workflow/status/meuphilim/Agenda-Transfer/ci.yml?branch=main)
-![Last Commit](https://img.shields.io/github/last-commit/meuphilim/Agenda-Transfer)
-![Issues](https://img.shields.io/github/issues/meuphilim/Agenda-Transfer)
-![Pull Requests](https://img.shields.io/github/issues-pr/meuphilim/Agenda-Transfer)
-
 ## 📄 Licença
-
----
 
 Este projeto está licenciado sob a **Licença MIT**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
