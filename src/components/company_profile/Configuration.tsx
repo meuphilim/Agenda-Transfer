@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { Building } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'; // Importação da instância correta
 
 interface ConfigurationProps {
   currentProfile: CompanyProfile | null
@@ -55,9 +56,9 @@ const Configuration = ({ currentProfile, onProfileUpdate }: ConfigurationProps) 
     setPreviewUrl(logoUrl || null)
   }, [logoUrl])
 
-  const onSubmit = async (data: CompanyProfile) => {
+  const onSubmit = async (data: Partial<CompanyProfile>) => {
     try {
-      const updatedProfile = await updateCompanyProfile({ ...currentProfile, ...data })
+      const updatedProfile = await updateCompanyProfile(supabase, { ...currentProfile, ...data })
       if (updatedProfile) {
         onProfileUpdate(updatedProfile)
         toast.success('Perfil da empresa atualizado com sucesso!')
@@ -154,7 +155,7 @@ interface FormFieldProps {
   id: string
   label: string
   type?: string
-  register: ReturnType<typeof useForm>['register']
+  register: any; // Simplified for brevity
   error?: string
   required?: boolean
 }

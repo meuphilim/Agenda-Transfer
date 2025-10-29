@@ -1,10 +1,11 @@
 import { useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getCompanyProfile, CompanyProfile } from '@/services/companyProfileApi';
 import Overview from '@/components/company_profile/Overview';
 import Configuration from '@/components/company_profile/Configuration';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase'; // Importação direta para consistência
 
 const CompanyProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,10 +14,13 @@ const CompanyProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = async () => {
+  // O AuthProvider já nos dá acesso ao cliente supabase autenticado.
+  // Não precisamos mais do hook useAuth aqui se a instância for consistente.
+
+  const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getCompanyProfile();
+      const data = await getCompanyProfile(supabase);
       setProfile(data);
       setError(null);
     } catch (err) {
@@ -25,11 +29,11 @@ const CompanyProfilePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [fetchProfile]);
 
   const handleProfileUpdate = (updatedProfile: CompanyProfile) => {
     setProfile(updatedProfile);
