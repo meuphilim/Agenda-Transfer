@@ -4,8 +4,9 @@ import { getCompanyProfile, CompanyProfile } from '@/services/companyProfileApi'
 import Overview from '@/components/company_profile/Overview';
 import Configuration from '@/components/company_profile/Configuration';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase'; // Importação direta para consistência
+import { Drivers } from './Drivers';
+import { Vehicles } from './Vehicles';
 
 const CompanyProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -46,21 +47,23 @@ const CompanyProfilePage = () => {
       <Tabs value={activeTab} onValueChange={(value) => setSearchParams({ tab: value })}>
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="config">Configuração do Perfil</TabsTrigger>
+          <TabsTrigger value="config">Configuração</TabsTrigger>
+          <TabsTrigger value="drivers">Motoristas</TabsTrigger>
+          <TabsTrigger value="vehicles">Veículos</TabsTrigger>
         </TabsList>
       </Tabs>
 
       <div className="mt-4">
         {loading && <p>Carregando...</p>}
         {error && <p className="text-red-500">{error}</p>}
-        {!loading && !error && (
+        {!loading && !error && profile && (
           <>
-            {activeTab === 'overview' && (
-              <Overview profile={profile} />
-            )}
+            {activeTab === 'overview' && <Overview profile={profile} />}
             {activeTab === 'config' && (
               <Configuration currentProfile={profile} onProfileUpdate={handleProfileUpdate} />
             )}
+            {activeTab === 'drivers' && <Drivers companyId={profile.id} />}
+            {activeTab === 'vehicles' && <Vehicles companyId={profile.id} />}
           </>
         )}
       </div>

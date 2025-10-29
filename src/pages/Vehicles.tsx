@@ -6,16 +6,6 @@ import { Modal, LoadingSpinner } from '../components/Common';
 import { cn } from '../lib/utils';
 import { getVehicleOccupiedDates } from '../services/availabilityService';
 
-interface Vehicle {
-  id: string;
-  license_plate: string;
-  model: string;
-  brand: string | null;
-  capacity: number;
-  status: 'available' | 'in_use' | 'maintenance';
-  active: boolean;
-}
-
 interface VehicleFormData {
   license_plate: string;
   model: string;
@@ -25,10 +15,19 @@ interface VehicleFormData {
   active: boolean;
 }
 
-export const Vehicles: React.FC = () => {
+import { Database } from '../types/database.types';
+
+type Vehicle = Database['public']['Tables']['vehicles']['Row'];
+
+interface VehiclesProps {
+  companyId?: string;
+}
+
+export const Vehicles: React.FC<VehiclesProps> = ({ companyId }) => {
   const { data: vehicles, loading, create, update, delete: deleteVehicle } = useSupabaseData<Vehicle>({
     table: 'vehicles',
     orderBy: { column: 'license_plate' },
+    filters: { company_id: companyId },
   });
   const [occupiedDatesMap, setOccupiedDatesMap] = useState<Map<string, string[]>>(new Map());
   
@@ -75,12 +74,18 @@ export const Vehicles: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    const dataToSave: Partial<Vehicle> = { ...formData };
+    if (companyId) {
+      dataToSave.company_id = companyId;
+    }
+
     try {
       if (editingVehicle) {
-        await update(editingVehicle.id, formData);
+        await update(editingVehicle.id, dataToSave);
         toast.success('Veículo atualizado!');
       } else {
-        await create(formData);
+        await create(dataToSave);
         toast.success('Veículo cadastrado!');
       }
       handleModalClose();
