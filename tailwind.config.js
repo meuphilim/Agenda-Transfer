@@ -1,31 +1,45 @@
 /** @type {import('tailwindcss').Config} */
+import { colors } from "./src/theme/colors";
+
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: ["class"], // ou 'media', se preferir
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
   theme: {
     extend: {
       colors: {
-        'eco-primary': {
-          200: '#d9f99d',
-          500: '#84cc16',
-          700: '#65a30d',
-        },
-        'eco-secondary': '#2A3312',
-        'eco-text': {
-          900: '#111827',
-          700: '#374151',
-          500: '#6b7280',
-          300: '#d1d5db',
-        },
-        'eco-bg': {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-        },
-        'eco-feedback': {
-          success: '#22c55e',
-          warning: '#f59e0b',
-          danger: '#ef4444',
-        },
+        // 🔹 Tokens semânticos principais
+        background: colors.background,
+        foreground: colors.foreground,
+
+        card: colors.card,
+        "card-foreground": colors["card-foreground"],
+
+        primary: colors.primary,
+        "primary-dark": colors["primary-dark"],
+        "primary-light": colors["primary-light"],
+        "primary-foreground": colors["primary-foreground"],
+
+        secondary: colors.secondary,
+        "secondary-foreground": colors["secondary-foreground"],
+
+        accent: colors.accent,
+        "accent-foreground": colors["accent-foreground"],
+
+        muted: colors.muted,
+        "muted-foreground": colors["muted-foreground"],
+
+        border: colors.border,
+        input: colors.input,
+        ring: colors.ring,
+
+        // 🔹 Escalas contextuais (status / feedback)
+        info: colors.info,
+        success: colors.success,
+        warning: colors.warning,
+        danger: colors.danger,
       },
     },
   },
