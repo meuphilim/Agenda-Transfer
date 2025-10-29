@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { UploadCloud, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CompanyProfile } from '@/services/companyProfileApi'
+import { Button } from '@/components/ui/button'
 
 // --- Tipos e Constantes ---
 
@@ -187,7 +188,7 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
             <img
                 src={preview}
                 alt="Pré-visualização do logo"
-                className="h-24 w-24 rounded-full object-cover border-2 border-border"
+                className="h-24 w-24 rounded-md object-cover border-2 border-border"
             />
              <button
                 type="button"
@@ -198,9 +199,11 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
                 <X className="h-4 w-4" />
             </button>
         </div>
-        <div {...getRootProps()} className="cursor-pointer">
+        <div {...getRootProps()}>
           <input {...getInputProps()} />
-          <p className="text-sm text-primary hover:underline">Alterar logo</p>
+          <Button variant="outline" size="sm" type="button">
+            Alterar logo
+          </Button>
         </div>
       </div>
     )
