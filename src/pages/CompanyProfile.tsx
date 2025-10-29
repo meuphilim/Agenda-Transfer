@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase'; // Importação direta para consistência
 import { Drivers } from './Drivers';
 import { Vehicles } from './Vehicles';
+import { Settings } from 'lucide-react';
 
 const CompanyProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -47,9 +48,11 @@ const CompanyProfilePage = () => {
       <Tabs value={activeTab} onValueChange={(value) => setSearchParams({ tab: value })}>
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="config">Configuração</TabsTrigger>
           <TabsTrigger value="drivers">Motoristas</TabsTrigger>
           <TabsTrigger value="vehicles">Veículos</TabsTrigger>
+          <TabsTrigger value="config" aria-label="Configurações">
+            <Settings className="h-5 w-5" />
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 

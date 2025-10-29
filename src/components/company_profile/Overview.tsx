@@ -1,7 +1,5 @@
 import { CompanyProfile } from '@/services/companyProfileApi'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Link } from 'react-router-dom'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Building, Mail, Phone, MapPin, Hash, Car, User, Globe, Users, FileText, Briefcase
 } from 'lucide-react'
@@ -87,15 +85,6 @@ const Overview = ({ profile }: OverviewProps) => {
                 <InfoItem icon={<Phone />} label="Contato Direto" value={profile.responsible_phone} />
             </OverviewCard>
 
-            <Card className="border border-border/40 hover:shadow-md transition-all duration-300">
-                <CardHeader>
-                <CardTitle className="text-lg font-semibold text-foreground">Acessos Rápidos</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                <QuickAccess to="/cadastros?tab=Veículos" icon={<Car className="mr-2 h-4 w-4" />} label="Gerenciar Veículos" />
-                <QuickAccess to="/cadastros?tab=Motoristas" icon={<User className="mr-2 h-4 w-4" />} label="Gerenciar Motoristas" />
-                </CardContent>
-            </Card>
         </div>
       </div>
     </div>
@@ -142,20 +131,5 @@ const InfoItem = ({ icon, label, value, isLink }: InfoItemProps) => {
         </div>
     )
 }
-
-interface QuickAccessProps {
-  to: string
-  icon: React.ReactNode
-  label: string
-}
-
-const QuickAccess = ({ to, icon, label }: QuickAccessProps) => (
-  <Button asChild variant="secondary" className="rounded-xl shadow-sm hover:shadow-md transition-all duration-300 justify-start">
-    <Link to={to}>
-      {icon}
-      {label}
-    </Link>
-  </Button>
-)
 
 export default Overview;
