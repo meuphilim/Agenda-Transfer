@@ -12,9 +12,9 @@ import { Agency } from '../../../types/finance';
 import { FloatingActionButton } from '../../Common';
 
 const getInitialFilters = (): FinanceFiltersState => {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 30);
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   return {
     startDate: startDate.toISOString().split('T')[0],
@@ -72,7 +72,7 @@ export const PackageReports: React.FC = () => {
 
   const metrics = useMemo(() => {
     const totalReceita = packages.filter(p => p.status_pagamento === 'pago').reduce((sum, p) => sum + p.valor_receita_total, 0);
-    const totalReceitaPendente = packages.filter(p => p.status_pagamento === 'pendente').reduce((sum, p) => sum + p.valor_receita_total, 0);
+    const totalReceitaPendente = packages.reduce((sum, p) => sum + (p.valor_a_receber ?? 0), 0);
     const totalDiariasServico = packages.reduce((sum, p) => sum + p.valor_diaria_servico_calculado, 0);
     const totalNetReceita = packages.reduce((sum, p) => sum + p.valor_net_receita, 0);
     const totalDiariasMotorista = packages.reduce((sum, p) => sum + p.valor_diaria_motorista_calculado, 0);

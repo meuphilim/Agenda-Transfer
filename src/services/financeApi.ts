@@ -62,6 +62,7 @@ export interface PackageActivity {
     valor_despesas_veiculo: number;
     valor_margem_bruta: number;
     percentual_margem: number;
+    valor_a_receber: number;
 
     // Relações
     agencies: { id: string; name: string } | null;
@@ -280,15 +281,28 @@ export const financeApi = {
           const valor_margem_bruta = valor_receita_total - valor_custo_total;
           const percentual_margem = valor_receita_total > 0 ? (valor_margem_bruta / valor_receita_total) * 100 : 0;
 
-          // Lógica de status financeiro baseada nos fechamentos (settlements)
-          const paidDatesCount = activeDates.filter(date => {
-            return (settlementsData || []).some(s =>
-                s.agency_id === pkg.agency_id &&
-                date >= s.start_date &&
-                date <= s.end_date
-            );
-          }).length;
+          // Lógica de status financeiro e valor a receber
+          let valor_a_receber = 0;
+          const paidDates = new Set<string>();
 
+          activeDates.forEach(date => {
+            const isDirectSale = !pkg.agency_id;
+            const coveringSettlement = (settlementsData || []).find(s => {
+                const agencyMatch = isDirectSale ? s.agency_id === null : s.agency_id === pkg.agency_id;
+                return agencyMatch && date >= s.start_date && date <= s.end_date;
+            });
+
+            if (coveringSettlement) {
+                paidDates.add(date);
+            } else {
+                const dailyInfo = dailyBreakdown.find(d => d.date === date);
+                if (dailyInfo) {
+                    valor_a_receber += dailyInfo.dailyRevenue;
+                }
+            }
+          });
+
+          const paidDatesCount = paidDates.size;
           let status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial' = 'pendente';
           if (pkg.status === 'cancelled') {
             status_pagamento = 'cancelado';
@@ -317,6 +331,7 @@ export const financeApi = {
             valor_despesas_veiculo,
             valor_margem_bruta,
             percentual_margem,
+            valor_a_receber,
             dailyBreakdown,
           } as PackageWithRelations;
         });
