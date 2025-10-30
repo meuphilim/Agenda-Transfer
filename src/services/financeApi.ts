@@ -717,4 +717,35 @@ export const financeApi = {
       return { data: null, error };
     }
   },
+
+  getPendingSettlements: async (filters: { endDate: string }) => {
+    try {
+      const { endDate } = filters;
+
+      // Usaremos uma data de início bem antiga para pegar tudo o que está pendente até a data final do filtro.
+      const startDate = '1970-01-01';
+
+      const { data, error } = await financeApi.getAgencySettlements({
+        startDate,
+        endDate,
+        agencyId: 'all',
+      });
+
+      if (error) throw error;
+
+      const pending = data
+        .filter(item => item.totalValueToPay > 0)
+        .map(item => ({
+          agencyId: item.agencyId,
+          agencyName: item.agencyName,
+          totalValueToPay: item.totalValueToPay,
+        }));
+
+      return { data: pending, error: null };
+
+    } catch (error: any) {
+      console.error("Error fetching pending settlements:", error);
+      return { data: null, error };
+    }
+  },
 };
