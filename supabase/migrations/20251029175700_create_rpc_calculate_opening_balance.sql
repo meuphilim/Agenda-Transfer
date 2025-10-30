@@ -8,7 +8,7 @@ BEGIN
     SELECT COALESCE(SUM((details->>'totalValueToPay')::numeric), 0)
     INTO total_credits
     FROM settlements
-    WHERE end_date < p_start_date;
+    WHERE created_at < p_start_date;
 
     -- Calculate total debits from driver rates and vehicle expenses
     SELECT COALESCE(SUM(amount), 0)

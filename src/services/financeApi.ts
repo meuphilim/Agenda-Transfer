@@ -618,9 +618,9 @@ export const financeApi = {
       // 1. Fetch Credits (Settlements)
       const { data: settlements, error: settlementsError } = await supabase
         .from('settlements')
-        .select('end_date, details, agencies(name)')
-        .gte('end_date', startDate)
-        .lte('end_date', endDate);
+        .select('created_at, details, agencies(name)')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
       if (settlementsError) throw settlementsError;
 
       for (const s of settlements) {
@@ -628,7 +628,7 @@ export const financeApi = {
         const credit = details?.totalValueToPay ?? 0;
         if (credit > 0) {
           entries.push({
-            date: s.end_date,
+            date: s.created_at,
             description: s.agencies ? `Fechamento ${s.agencies.name}` : 'Fechamento Venda Direta',
             credit: credit,
             debit: null,
