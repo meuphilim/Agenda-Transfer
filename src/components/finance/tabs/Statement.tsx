@@ -73,6 +73,29 @@ export const Statement: React.FC = () => {
         hideStatusFilter
         hideAgencyFilter
       />
+
+      {/* Summary Cards */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+          <p className="text-sm text-red-600 font-semibold">Total Débitos</p>
+          <p className="text-2xl font-bold text-red-700">
+            {formatCurrency(entries.reduce((sum, e) => sum + (e.debit || 0), 0))}
+          </p>
+        </div>
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <p className="text-sm text-green-600 font-semibold">Total Créditos</p>
+          <p className="text-2xl font-bold text-green-700">
+            {formatCurrency(entries.reduce((sum, e) => sum + (e.credit || 0), 0))}
+          </p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-600 font-semibold">Saldo Final</p>
+          <p className="text-2xl font-bold text-blue-700">
+            {formatCurrency(finalBalance)}
+          </p>
+        </div>
+      </div>
+
       <div className="mt-6 overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-200">
           <thead>
