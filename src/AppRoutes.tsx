@@ -25,8 +25,8 @@ export const AppRoutes = () => {
             const isAgency = !!profile?.agency_id;
             const isStaff = !isAgency;
 
-            // Se for staff e estiver na rota de agência, redireciona para o dashboard
-            if (isStaff && (location.pathname.startsWith('/agency-portal') || location.pathname.startsWith('/agency-register'))) {
+            // Se for staff, não for admin, e estiver na rota de agência, redireciona para o dashboard
+            if (isStaff && !profile?.is_admin && (location.pathname.startsWith('/agency-portal') || location.pathname.startsWith('/agency-register'))) {
                 navigate('/');
             }
             // Se for agência e não estiver no portal, redireciona para o portal

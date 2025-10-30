@@ -35,7 +35,8 @@ const getNavigation = (isAdmin: boolean): NavigationItem[] => [
   { name: 'Perfil da Empresa', href: '/perfil-empresa', icon: Building2 },
   ...(isAdmin ? [
     { name: 'Gerenciar Usuários', href: '/usuarios', icon: Users },
-    { name: 'Financeiro', href: '/financeiro', icon: Landmark }
+    { name: 'Financeiro', href: '/financeiro', icon: Landmark },
+    { name: 'Portal da Agência', href: '/agency-portal', icon: ClipboardList }
   ] : []),
 ];
 
