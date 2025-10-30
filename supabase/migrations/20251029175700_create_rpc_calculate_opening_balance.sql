@@ -5,7 +5,7 @@ DECLARE
     total_debits numeric;
 BEGIN
     -- Calculate total credits from settlements
-    SELECT COALESCE(SUM((details->>'totalValueToPay')::numeric), 0)
+    SELECT COALESCE(SUM((details->>'totalValuePaid')::numeric), 0)
     INTO total_credits
     FROM settlements
     WHERE created_at < p_start_date;

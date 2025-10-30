@@ -625,7 +625,7 @@ export const financeApi = {
 
       for (const s of settlements) {
         const details = s.details as any;
-        const credit = details?.totalValueToPay ?? 0;
+        const credit = details?.totalValuePaid ?? 0;
         if (credit > 0) {
           entries.push({
             date: s.created_at,
