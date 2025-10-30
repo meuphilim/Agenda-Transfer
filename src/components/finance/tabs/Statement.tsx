@@ -98,36 +98,90 @@ export const Statement: React.FC = () => {
 
     try {
       const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
       const pageHeight = doc.internal.pageSize.height;
+      const margin = 14;
 
-      // 1. Cabeçalho
+      let logoBase64: string | null = null;
+
+      // Carregar logo uma única vez
       if (companyProfile.logo_url) {
         try {
           const response = await fetch(companyProfile.logo_url);
           const blob = await response.blob();
           const reader = new FileReader();
-          await new Promise<void>(resolve => {
-            reader.onloadend = () => {
-              doc.addImage(reader.result as string, 'PNG', 14, 15, 30, 15);
-              resolve();
-            };
+          logoBase64 = await new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
         } catch (e) {
-            console.error("Erro ao carregar o logo da empresa:", e);
+          console.error("Erro ao carregar logo:", e);
         }
       }
 
-      doc.setFontSize(16).setFont(undefined, 'bold');
-      doc.text(companyProfile.name || 'Nome da Empresa', 50, 20);
-      doc.setFontSize(10).setFont(undefined, 'normal');
-      doc.text(`CNPJ: ${companyProfile.cnpj || ''}`, 50, 25);
-      doc.text(`${companyProfile.address || ''}`, 50, 30);
-      doc.line(14, 35, 196, 35);
-      doc.setFontSize(12).setFont(undefined, 'bold');
-      doc.text(`Extrato Financeiro - Período de ${format(new Date(filters.startDate), 'dd/MM/yyyy')} a ${format(new Date(filters.endDate), 'dd/MM/yyyy')}`, 105, 45, { align: 'center' });
+      const userEmail = user?.email || 'Usuário não identificado';
+      const emissionDateTime = format(new Date(), 'dd/MM/yyyy HH:mm:ss');
+      const periodText = `${format(new Date(filters.startDate), 'dd/MM/yyyy')} a ${format(new Date(filters.endDate), 'dd/MM/yyyy')}`;
 
-      // 2. Corpo do Extrato
+      // Função para desenhar cabeçalho padronizado
+      const drawHeader = (pageNum: number, totalPages: number) => {
+        if (logoBase64) {
+          doc.addImage(logoBase64, 'PNG', margin, 10, 25, 12.5);
+        }
+
+        doc.setFontSize(14).setFont(undefined, 'bold');
+        doc.text(companyProfile.name || 'Nome da Empresa', margin + 30, 15);
+
+        doc.setFontSize(8).setFont(undefined, 'normal');
+        doc.text(`CNPJ: ${companyProfile.cnpj || 'N/A'}`, margin + 30, 19);
+
+        doc.setFontSize(7);
+        doc.text(companyProfile.address || '', margin + 30, 22);
+
+        // Linha divisória
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, 26, pageWidth - margin, 26);
+
+        // Título do documento
+        doc.setFontSize(11).setFont(undefined, 'bold');
+        doc.text('EXTRATO FINANCEIRO', pageWidth / 2, 32, { align: 'center' });
+
+        doc.setFontSize(9).setFont(undefined, 'normal');
+        doc.text(`Período: ${periodText}`, pageWidth / 2, 37, { align: 'center' });
+
+        // Info da página no cabeçalho
+        doc.setFontSize(7);
+        doc.text(`Pág. ${pageNum}/${totalPages}`, pageWidth - margin, 15, { align: 'right' });
+        doc.text(emissionDateTime, pageWidth - margin, 19, { align: 'right' });
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, 40, pageWidth - margin, 40);
+      };
+
+      // Função para desenhar rodapé padronizado
+      const drawFooter = (pageNum: number, totalPages: number) => {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+        doc.setFontSize(7).setFont(undefined, 'italic');
+        doc.text(`Emitido por: ${userEmail}`, margin, pageHeight - 10);
+        doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+
+        doc.setFontSize(6);
+        doc.text('Este documento é uma representação fiel dos registros contábeis', pageWidth / 2, pageHeight - 6, { align: 'center' });
+      };
+
+      // Buscar lançamentos futuros antes de gerar o PDF
+      const { data: pendingData } = await financeApi.getPendingSettlements({
+        endDate: format(new Date(), 'yyyy-MM-dd')
+      });
+
+      // Calcular total de páginas estimado
+      const estimatedPages = Math.ceil(statementWithBalance.length / 25) + (pendingData && pendingData.length > 0 ? 1 : 0);
+
+      // Primeira página - Extrato principal
+      drawHeader(1, estimatedPages);
+
       const head = [['Data', 'Descrição', 'Débito', 'Crédito', 'Saldo']];
       const body = statementWithBalance.map(e => [
         new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
@@ -138,25 +192,49 @@ export const Statement: React.FC = () => {
       ]);
 
       autoTable(doc, {
-        startY: 55,
+        startY: 44,
         head: head,
         body: body,
-        theme: 'striped',
-        headStyles: { fillColor: [22, 160, 133] },
         foot: [
-            [{ content: 'Saldo Anterior', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(openingBalance), styles: { halign: 'right', fontStyle: 'bold' } }],
-            [{ content: 'Saldo Final', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(finalBalance), styles: { halign: 'right', fontStyle: 'bold' } }]
+          [{ content: 'Saldo Anterior', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
+           { content: formatCurrency(openingBalance), styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } }],
+          [{ content: 'Saldo Final', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+           { content: formatCurrency(finalBalance), styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } }]
         ],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        footStyles: {
+          fontSize: 9,
+          textColor: 0
+        },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        margin: { left: margin, right: margin, bottom: 20 },
+        didDrawPage: (data) => {
+          const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+          if (currentPage > 1) {
+            drawHeader(currentPage, estimatedPages);
+          }
+          drawFooter(currentPage, estimatedPages);
+        }
       });
 
-      // 3. Lançamentos Futuros
-      const { data: pendingData, error: pendingError } = await financeApi.getPendingSettlements({ endDate: format(new Date(), 'yyyy-MM-dd') });
-      if (pendingError) throw new Error(pendingError.message);
-
+      // Lançamentos Futuros em nova página
       if (pendingData && pendingData.length > 0) {
         doc.addPage();
-        doc.setFontSize(12).setFont(undefined, 'bold');
-        doc.text('Lançamentos Futuros (Valores a Receber)', 105, 20, { align: 'center' });
+        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        drawHeader(currentPage, estimatedPages);
+
+        doc.setFontSize(10).setFont(undefined, 'bold');
+        doc.text('LANÇAMENTOS FUTUROS - VALORES A RECEBER', pageWidth / 2, 48, { align: 'center' });
 
         const pendingHead = [['Agência/Origem', 'Valor Pendente']];
         const pendingBody = pendingData.map(item => [
@@ -166,30 +244,64 @@ export const Statement: React.FC = () => {
         const totalPending = pendingData.reduce((sum, item) => sum + item.totalValueToPay, 0);
 
         autoTable(doc, {
-            startY: 30,
-            head: pendingHead,
-            body: pendingBody,
-            theme: 'grid',
-            headStyles: { fillColor: [231, 76, 60] },
-            foot: [
-                [{ content: 'Total Pendente', styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(totalPending), styles: { halign: 'right', fontStyle: 'bold' } }]
-            ]
+          startY: 54,
+          head: pendingHead,
+          body: pendingBody,
+          foot: [
+            [{ content: 'Total Pendente', styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
+             { content: formatCurrency(totalPending), styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } }]
+          ],
+          theme: 'grid',
+          headStyles: {
+            fillColor: [192, 57, 43],
+            textColor: 255,
+            fontStyle: 'bold',
+            fontSize: 9
+          },
+          bodyStyles: {
+            fontSize: 8,
+            cellPadding: 2
+          },
+          footStyles: {
+            fontSize: 9,
+            textColor: 0
+          },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          margin: { left: margin, right: margin, bottom: 20 }
         });
+
+        drawFooter(currentPage, estimatedPages);
       }
 
-      // 4. Rodapé
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      doc.setPage(pageCount);
-      const userEmail = user?.email || 'Usuário não identificado';
-      const emissionDate = `Emitido por: ${userEmail} em ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}`;
-      doc.setFontSize(8).setFont(undefined, 'italic');
-      doc.text(emissionDate, 14, pageHeight - 10);
-      doc.text(`Página ${pageCount}`, 196, pageHeight - 10, { align: 'right' });
+      // Corrigir numeração final de páginas
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        // Limpar área do cabeçalho/rodapé anterior
+        doc.setFillColor(255, 255, 255);
+        doc.rect(pageWidth - margin - 30, 13, 30, 8, 'F');
+        doc.rect(margin, pageHeight - 12, pageWidth - 2 * margin, 12, 'F');
+
+        // Redesenhar com numeração correta
+        doc.setFontSize(7);
+        doc.setTextColor(0);
+        doc.text(`Pág. ${i}/${totalPages}`, pageWidth - margin, 15, { align: 'right' });
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+        doc.setFontSize(7).setFont(undefined, 'italic');
+        doc.text(`Emitido por: ${userEmail}`, margin, pageHeight - 10);
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+
+        doc.setFontSize(6);
+        doc.text('Este documento é uma representação fiel dos registros contábeis', pageWidth / 2, pageHeight - 6, { align: 'center' });
+      }
 
       doc.save(`extrato_${filters.startDate}_a_${filters.endDate}.pdf`);
       toast.success("PDF gerado com sucesso!");
     } catch (error: any) {
-        toast.error(`Erro ao gerar PDF: ${error.message}`);
+      toast.error(`Erro ao gerar PDF: ${error.message}`);
     }
   };
 
