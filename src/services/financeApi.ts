@@ -657,7 +657,6 @@ export const financeApi = {
       const { data: vehicleExpenses, error: vehicleExpensesError } = await supabase
         .from('vehicle_expenses')
         .select('date, description, amount, vehicles(model, license_plate)')
-        .eq('paid', true)
         .gte('date', startDate)
         .lte('date', endDate);
       if (vehicleExpensesError) throw vehicleExpensesError;
