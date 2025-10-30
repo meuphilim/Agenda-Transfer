@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { financeApi } from '../../../services/financeApi';
 import { FinanceFilters, FinanceFiltersState } from '../FinanceFilters';
@@ -32,25 +32,25 @@ export const Statement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FinanceFiltersState>(getInitialFilters());
 
-  useEffect(() => {
-    const fetchStatementData = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await financeApi.getFinancialStatement(filters);
-        if (error) throw new Error(error.message);
-        if (data) {
-          setEntries(data.entries);
-          setOpeningBalance(data.openingBalance);
-        }
-      } catch (error: any) {
-        toast.error(`Erro ao carregar extrato: ${error.message}`);
-      } finally {
-        setLoading(false);
+  const fetchStatementData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await financeApi.getFinancialStatement(filters);
+      if (error) throw new Error(error.message);
+      if (data) {
+        setEntries(data.entries);
+        setOpeningBalance(data.openingBalance);
       }
-    };
+    } catch (error: any) {
+      toast.error(`Erro ao carregar extrato: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters.startDate, filters.endDate, filters.searchTerm]);
 
+  useEffect(() => {
     void fetchStatementData();
-  }, [filters]);
+  }, [fetchStatementData]);
 
   const { statementWithBalance, finalBalance } = useMemo(() => {
     let balance = openingBalance;
