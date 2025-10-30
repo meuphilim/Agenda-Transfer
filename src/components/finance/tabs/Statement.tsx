@@ -88,7 +88,7 @@ export const Statement: React.FC = () => {
   const formatCurrency = (value: number | null) =>
     value !== null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
 
-  const handleExportPDF = async () => {
+    const handleExportPDF = async () => {
     if (!companyProfile) {
       toast.error("Dados da empresa não carregados para gerar o PDF.");
       return;
@@ -191,6 +191,8 @@ export const Statement: React.FC = () => {
         formatCurrency(e.balance)
       ]);
 
+      let finalYPosition = 44;
+
       autoTable(doc, {
         startY: 44,
         head: head,
@@ -218,24 +220,18 @@ export const Statement: React.FC = () => {
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         margin: { left: margin, right: margin, bottom: 20 },
-        didDrawPage: (data) => {
-          const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        didDrawPage: (data: any) => {
+          const currentPage = doc.internal.pages.length -1;
           if (currentPage > 1) {
             drawHeader(currentPage, estimatedPages);
           }
           drawFooter(currentPage, estimatedPages);
+          finalYPosition = data.cursor.y;
         }
       });
 
-      // Lançamentos Futuros em nova página
+      // Lançamentos Futuros - verifica espaço disponível
       if (pendingData && pendingData.length > 0) {
-        doc.addPage();
-        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
-        drawHeader(currentPage, estimatedPages);
-
-        doc.setFontSize(10).setFont(undefined, 'bold');
-        doc.text('LANÇAMENTOS FUTUROS - VALORES A RECEBER', pageWidth / 2, 48, { align: 'center' });
-
         const pendingHead = [['Agência/Origem', 'Valor Pendente']];
         const pendingBody = pendingData.map(item => [
           item.agencyName,
@@ -243,8 +239,30 @@ export const Statement: React.FC = () => {
         ]);
         const totalPending = pendingData.reduce((sum, item) => sum + item.totalValueToPay, 0);
 
+        // Calcula espaço necessário (cabeçalho + linhas + rodapé + margem)
+        const rowHeight = 8;
+        const headerHeight = 12;
+        const footerHeight = 10;
+        const sectionTitleHeight = 15;
+        const spaceNeeded = sectionTitleHeight + headerHeight + (pendingBody.length * rowHeight) + footerHeight + 30;
+        const availableSpace = pageHeight - finalYPosition - 20;
+
+        let startYPending = finalYPosition + 12;
+
+        // Se não houver espaço, adiciona nova página
+        if (spaceNeeded > availableSpace) {
+          doc.addPage();
+          const currentPage = doc.internal.pages.length -1;
+          drawHeader(currentPage, estimatedPages);
+          startYPending = 48;
+        }
+
+        doc.setFontSize(10).setFont(undefined, 'bold');
+        doc.setTextColor(0);
+        doc.text('LANÇAMENTOS FUTUROS - VALORES A RECEBER', pageWidth / 2, startYPending, { align: 'center' });
+
         autoTable(doc, {
-          startY: 54,
+          startY: startYPending + 6,
           head: pendingHead,
           body: pendingBody,
           foot: [
@@ -267,14 +285,19 @@ export const Statement: React.FC = () => {
             textColor: 0
           },
           alternateRowStyles: { fillColor: [250, 250, 250] },
-          margin: { left: margin, right: margin, bottom: 20 }
+          margin: { left: margin, right: margin, bottom: 20 },
+          didDrawPage: (data) => {
+            const currentPage = doc.internal.pages.length -1;
+            if (currentPage > 1 && data.pageNumber > 1) {
+              drawHeader(currentPage, estimatedPages);
+            }
+            drawFooter(currentPage, estimatedPages);
+          }
         });
-
-        drawFooter(currentPage, estimatedPages);
       }
 
       // Corrigir numeração final de páginas
-      const totalPages = (doc as any).internal.getNumberOfPages();
+      const totalPages = doc.internal.pages.length -1;
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         // Limpar área do cabeçalho/rodapé anterior
