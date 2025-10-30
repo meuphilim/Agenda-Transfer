@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx - VERSÃO CORRIGIDA E OTIMIZADA
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
