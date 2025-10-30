@@ -1,5 +1,5 @@
 -- This migration REPLACES the previous function definition with a corrected one
--- that queries the newly created financial tables.
+-- that uses settled_at for a cash-basis calculation.
 
 CREATE OR REPLACE FUNCTION calculate_opening_balance(p_start_date date)
 RETURNS numeric AS $$
@@ -7,13 +7,11 @@ DECLARE
     total_credits numeric;
     total_debits numeric;
 BEGIN
-    -- Calculate total credits from paid settlements
-    -- The logic is to sum up settlements whose period has completely finished
-    -- before the start date of the current filter.
+    -- Calculate total credits from paid settlements based on when they were settled (cash basis).
     SELECT COALESCE(SUM((details->>'totalValuePaid')::numeric), 0)
     INTO total_credits
     FROM public.settlements
-    WHERE end_date < p_start_date;
+    WHERE settled_at < p_start_date;
 
     -- Calculate total debits from paid driver rates and vehicle expenses
     SELECT COALESCE(SUM(amount), 0)

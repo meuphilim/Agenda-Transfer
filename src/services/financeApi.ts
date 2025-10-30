@@ -628,7 +628,7 @@ export const financeApi = {
       });
       if (rpcError) throw rpcError;
 
-      // 2. Fetch Credits from Settlements (fechamentos)
+      // 2. Fetch Credits from Settlements (fechamentos) - now using settled_at for cash basis
       const { data: settlements, error: settlementsError } = await supabase
         .from('settlements')
         .select(`
@@ -636,12 +636,13 @@ export const financeApi = {
           start_date,
           end_date,
           created_at,
+          settled_at,
           details,
           agency_id,
           agencies(name)
         `)
-        .lte('start_date', endDate)
-        .gte('end_date', startDate);
+        .gte('settled_at', startDate)
+        .lte('settled_at', endDate);
 
       if (settlementsError) throw settlementsError;
 
@@ -651,7 +652,7 @@ export const financeApi = {
 
         if (credit > 0) {
           entries.push({
-            date: s.end_date,
+            date: s.settled_at.split('T')[0],
             description: s.agencies?.name
               ? `Fechamento: ${s.agencies.name} (${s.start_date} a ${s.end_date})`
               : `Fechamento: Venda Direta (${s.start_date} a ${s.end_date})`,
