@@ -599,5 +599,87 @@ export const financeApi = {
     } catch (error: any) {
       return { data: null, error };
     }
-  }
+  },
+
+  getFinancialStatement: async (filters: { startDate: string; endDate: string }) => {
+    try {
+      const { startDate, endDate } = filters;
+      const entries: any[] = [];
+
+      // --- Calculate Opening Balance using RPC ---
+      const { data: openingBalance, error: rpcError } = await supabase.rpc('calculate_opening_balance', {
+        p_start_date: startDate,
+      });
+
+      if (rpcError) throw rpcError;
+
+      // --- Fetch Entries for the selected period ---
+
+      // 1. Fetch Credits (Settlements)
+      const { data: settlements, error: settlementsError } = await supabase
+        .from('settlements')
+        .select('end_date, details, agencies(name)')
+        .gte('end_date', startDate)
+        .lte('end_date', endDate);
+      if (settlementsError) throw settlementsError;
+
+      for (const s of settlements) {
+        const details = s.details as any;
+        const credit = details?.totalValueToPay ?? 0;
+        if (credit > 0) {
+          entries.push({
+            date: s.end_date,
+            description: s.agencies ? `Fechamento ${s.agencies.name}` : 'Fechamento Venda Direta',
+            credit: credit,
+            debit: null,
+            type: 'revenue',
+          });
+        }
+      }
+
+      // 2. Fetch Debits (Driver Payments)
+      const { data: driverPayments, error: driverPaymentsError } = await financeApi.getDriverPaymentsStatement({
+        startDate,
+        endDate,
+        driverId: 'all',
+      });
+      if (driverPaymentsError) throw driverPaymentsError;
+
+      for (const p of driverPayments) {
+        entries.push({
+          date: p.date,
+          description: `Diária Motorista: ${p.driver_name}${p.package_title ? ` (${p.package_title})` : ''}`,
+          credit: null,
+          debit: p.amount,
+          type: 'expense',
+        });
+      }
+
+      // 3. Fetch Debits (Vehicle Expenses)
+      const { data: vehicleExpenses, error: vehicleExpensesError } = await supabase
+        .from('vehicle_expenses')
+        .select('date, description, amount')
+        .gte('date', startDate)
+        .lte('date', endDate);
+      if (vehicleExpensesError) throw vehicleExpensesError;
+
+      for (const e of vehicleExpenses) {
+        entries.push({
+          date: e.date,
+          description: `Despesa Veículo: ${e.description}`,
+          credit: null,
+          debit: e.amount,
+          type: 'expense',
+        });
+      }
+
+      // 4. Sort and return
+      const sortedEntries = entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      return { data: { entries: sortedEntries, openingBalance }, error: null };
+
+    } catch (error: any) {
+      console.error("Error fetching financial statement:", error);
+      return { data: null, error };
+    }
+  },
 };
