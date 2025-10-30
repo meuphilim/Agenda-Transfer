@@ -220,8 +220,19 @@ export const Statement: React.FC = () => {
         },
         alternateRowStyles: { fillColor: [250, 250, 250] },
         margin: { left: margin, right: margin, bottom: 20 },
+        didParseCell: (data) => {
+            if (data.section === 'body') {
+                const row = statementWithBalance[data.row.index];
+                if (data.column.dataKey === '2' && row.debit !== null && row.debit > 0) {
+                    data.cell.styles.textColor = '#e74c3c'; // Vermelho para débito
+                }
+                if (data.column.dataKey === '3' && row.credit !== null && row.credit > 0) {
+                    data.cell.styles.textColor = '#2ecc71'; // Verde para crédito
+                }
+            }
+        },
         didDrawPage: (data: any) => {
-          const currentPage = doc.internal.pages.length -1;
+          const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
           if (currentPage > 1) {
             drawHeader(currentPage, estimatedPages);
           }
@@ -252,7 +263,7 @@ export const Statement: React.FC = () => {
         // Se não houver espaço, adiciona nova página
         if (spaceNeeded > availableSpace) {
           doc.addPage();
-          const currentPage = doc.internal.pages.length -1;
+          const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
           drawHeader(currentPage, estimatedPages);
           startYPending = 48;
         }
@@ -284,10 +295,13 @@ export const Statement: React.FC = () => {
             fontSize: 9,
             textColor: 0
           },
+          columnStyles: {
+            1: { halign: 'right' } // Alinha a segunda coluna (Valor Pendente) à direita
+          },
           alternateRowStyles: { fillColor: [250, 250, 250] },
           margin: { left: margin, right: margin, bottom: 20 },
           didDrawPage: (data) => {
-            const currentPage = doc.internal.pages.length -1;
+            const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
             if (currentPage > 1 && data.pageNumber > 1) {
               drawHeader(currentPage, estimatedPages);
             }
@@ -297,7 +311,7 @@ export const Statement: React.FC = () => {
       }
 
       // Corrigir numeração final de páginas
-      const totalPages = doc.internal.pages.length -1;
+      const totalPages = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         // Limpar área do cabeçalho/rodapé anterior
