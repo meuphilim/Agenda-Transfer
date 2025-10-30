@@ -607,13 +607,13 @@ export const financeApi = {
       const { startDate, endDate } = filters;
       const entries: any[] = [];
 
-      // 1. Calculate Opening Balance using RPC
+      // 1. Calculate Opening Balance using the corrected RPC
       const { data: openingBalance, error: rpcError } = await supabase.rpc('calculate_opening_balance', {
         p_start_date: startDate,
       });
       if (rpcError) throw rpcError;
 
-      // 2. Fetch Credits (Settlements)
+      // 2. Fetch Credits from Settlements
       const { data: settlements, error: settlementsError } = await supabase
         .from('settlements')
         .select('created_at, details, agencies(name)')
@@ -627,45 +627,46 @@ export const financeApi = {
         if (credit > 0) {
           entries.push({
             date: s.created_at,
-            description: s.agencies ? `Fechamento Agência: ${s.agencies.name}` : 'Fechamento Venda Direta',
-            credit: credit,
+            description: s.agencies ? `Fechamento: ${s.agencies.name}` : 'Fechamento: Venda Direta',
+            credit,
             debit: null,
             type: 'revenue',
           });
         }
       }
 
-      // 3. Fetch Debits (Driver Payments - uses the existing detailed function)
-      const { data: driverPayments, error: driverPaymentsError } = await financeApi.getDriverPaymentsStatement({
-        startDate,
-        endDate,
-        driverId: 'all', // Fetch for all drivers for a consolidated statement
-      });
+      // 3. Fetch Debits from Driver Daily Rates
+      const { data: driverPayments, error: driverPaymentsError } = await supabase
+        .from('driver_daily_rates')
+        .select('date, amount, notes, drivers(name)')
+        .eq('paid', true)
+        .gte('date', startDate)
+        .lte('date', endDate);
       if (driverPaymentsError) throw driverPaymentsError;
 
       for (const p of driverPayments) {
         entries.push({
           date: p.date,
-          description: `Pagamento Motorista: ${p.driver_name}${p.package_title ? ` (Pacote: ${p.package_title})` : ''}`,
+          description: `Pagamento Diária: ${p.drivers?.name || 'Motorista não identificado'}${p.notes ? ` (${p.notes})` : ''}`,
           credit: null,
           debit: p.amount,
           type: 'expense',
         });
       }
 
-      // 4. Fetch Debits (Vehicle Expenses)
+      // 4. Fetch Debits from Vehicle Expenses
       const { data: vehicleExpenses, error: vehicleExpensesError } = await supabase
         .from('vehicle_expenses')
-        .select('date, description, amount, vehicles(model, license_plate)')
+        .select('date, description, amount, category, vehicles(model, license_plate)')
         .gte('date', startDate)
         .lte('date', endDate);
       if (vehicleExpensesError) throw vehicleExpensesError;
 
       for (const e of vehicleExpenses) {
-        const vehicleInfo = e.vehicles ? `${e.vehicles.model} (${e.vehicles.license_plate})` : 'Veículo não especificado';
+        const vehicleInfo = e.vehicles ? `${e.vehicles.model} (${e.vehicles.license_plate})` : 'N/A';
         entries.push({
           date: e.date,
-          description: `Despesa Veículo: ${e.description} (${vehicleInfo})`,
+          description: `Despesa Veículo: ${e.description} (${e.category || 'Outros'}) - ${vehicleInfo}`,
           credit: null,
           debit: e.amount,
           type: 'expense',
