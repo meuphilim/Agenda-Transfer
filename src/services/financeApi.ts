@@ -92,6 +92,21 @@ export interface PackageActivity {
     dailyBreakdown: DailySummary[];
   }
 
+  export interface FinancialStatementEntry {
+    date: string;
+    description: string;
+    credit: number | null;
+    debit: number | null;
+    type: 'revenue' | 'expense';
+    sourceId: string;
+    sourceType: 'settlement' | 'driver_payment' | 'vehicle_expense';
+  }
+
+  export interface FinancialStatement {
+    entries: FinancialStatementEntry[];
+    openingBalance: number;
+  }
+
 export const financeApi = {
   list: async (filters: FinanceFiltersState) => {
     try {
@@ -602,35 +617,49 @@ export const financeApi = {
     }
   },
 
-  getFinancialStatement: async (filters: { startDate: string; endDate: string; searchTerm?: string }) => {
+  getFinancialStatement: async (filters: { startDate: string; endDate: string; searchTerm?: string }): Promise<{ data: FinancialStatement | null; error: any }> => {
     try {
       const { startDate, endDate } = filters;
-      const entries: any[] = [];
+      const entries: FinancialStatementEntry[] = [];
 
-      // 1. Calculate Opening Balance using the corrected RPC
+      // 1. Calculate Opening Balance
       const { data: openingBalance, error: rpcError } = await supabase.rpc('calculate_opening_balance', {
         p_start_date: startDate,
       });
       if (rpcError) throw rpcError;
 
-      // 2. Fetch Credits from Settlements
+      // 2. Fetch Credits from Settlements (fechamentos)
       const { data: settlements, error: settlementsError } = await supabase
         .from('settlements')
-        .select('created_at, details, agencies(name)')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
+        .select(`
+          id,
+          start_date,
+          end_date,
+          created_at,
+          details,
+          agency_id,
+          agencies(name)
+        `)
+        .lte('start_date', endDate)
+        .gte('end_date', startDate);
+
       if (settlementsError) throw settlementsError;
 
-      for (const s of settlements) {
+      for (const s of settlements || []) {
         const details = s.details as any;
         const credit = details?.totalValuePaid ?? 0;
+
         if (credit > 0) {
           entries.push({
-            date: s.created_at,
-            description: s.agencies ? `Fechamento: ${s.agencies.name}` : 'Fechamento: Venda Direta',
+            date: s.end_date,
+            description: s.agencies?.name
+              ? `Fechamento: ${s.agencies.name} (${s.start_date} a ${s.end_date})`
+              : `Fechamento: Venda Direta (${s.start_date} a ${s.end_date})`,
             credit,
             debit: null,
             type: 'revenue',
+            sourceId: s.id,
+            sourceType: 'settlement',
           });
         }
       }
@@ -638,31 +667,33 @@ export const financeApi = {
       // 3. Fetch Debits from Driver Daily Rates
       const { data: driverPayments, error: driverPaymentsError } = await supabase
         .from('driver_daily_rates')
-        .select('date, amount, notes, drivers(name)')
+        .select('id, date, amount, notes, drivers(name)')
         .eq('paid', true)
         .gte('date', startDate)
         .lte('date', endDate);
       if (driverPaymentsError) throw driverPaymentsError;
 
-      for (const p of driverPayments) {
+      for (const p of driverPayments || []) {
         entries.push({
           date: p.date,
           description: `Pagamento Diária: ${p.drivers?.name || 'Motorista não identificado'}${p.notes ? ` (${p.notes})` : ''}`,
           credit: null,
           debit: p.amount,
           type: 'expense',
+          sourceId: p.id,
+          sourceType: 'driver_payment',
         });
       }
 
       // 4. Fetch Debits from Vehicle Expenses
       const { data: vehicleExpenses, error: vehicleExpensesError } = await supabase
         .from('vehicle_expenses')
-        .select('date, description, amount, category, vehicles(model, license_plate)')
+        .select('id, date, description, amount, category, vehicles(model, license_plate)')
         .gte('date', startDate)
         .lte('date', endDate);
       if (vehicleExpensesError) throw vehicleExpensesError;
 
-      for (const e of vehicleExpenses) {
+      for (const e of vehicleExpenses || []) {
         const vehicleInfo = e.vehicles ? `${e.vehicles.model} (${e.vehicles.license_plate})` : 'N/A';
         entries.push({
           date: e.date,
@@ -670,10 +701,12 @@ export const financeApi = {
           credit: null,
           debit: e.amount,
           type: 'expense',
+          sourceId: e.id,
+          sourceType: 'vehicle_expense',
         });
       }
 
-      // 5. Sort all entries chronologically and return
+      // 5. Sort all entries chronologically
       const sortedEntries = entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       return { data: { entries: sortedEntries, openingBalance: openingBalance ?? 0 }, error: null };

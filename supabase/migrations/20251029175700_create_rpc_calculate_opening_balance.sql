@@ -8,10 +8,12 @@ DECLARE
     total_debits numeric;
 BEGIN
     -- Calculate total credits from paid settlements
+    -- The logic is to sum up settlements whose period has completely finished
+    -- before the start date of the current filter.
     SELECT COALESCE(SUM((details->>'totalValuePaid')::numeric), 0)
     INTO total_credits
     FROM public.settlements
-    WHERE created_at < p_start_date;
+    WHERE end_date < p_start_date;
 
     -- Calculate total debits from paid driver rates and vehicle expenses
     SELECT COALESCE(SUM(amount), 0)
