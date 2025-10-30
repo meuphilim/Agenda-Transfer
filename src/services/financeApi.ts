@@ -62,6 +62,7 @@ export interface PackageActivity {
     valor_despesas_veiculo: number;
     valor_margem_bruta: number;
     percentual_margem: number;
+    valor_a_receber: number;
 
     // Relações
     agencies: { id: string; name: string } | null;
@@ -107,6 +108,7 @@ export const financeApi = {
             end_date,
             total_participants,
             status,
+            valor_desconto,
             valor_diaria_servico,
             considerar_diaria_motorista,
             agency_id,
@@ -148,14 +150,13 @@ export const financeApi = {
           });
         });
 
-        // Buscar despesas de veículos no período
-        const vehicleIds = packagesWithActivitiesInPeriod.map(p => p.vehicle_id).filter(Boolean);
-        const { data: expensesData } = await supabase
+        // Buscar TODAS as despesas de veículos no período para o cálculo do Custo Total geral
+        const { data: allExpensesData, error: expensesError } = await supabase
           .from('vehicle_expenses')
           .select('*')
-          .in('vehicle_id', vehicleIds)
           .gte('date', startDate)
           .lte('date', endDate);
+        if (expensesError) throw expensesError;
 
         // Buscar DIÁRIAS AVULSAS/SUBSTITUTAS no período para a lógica de substituição
         const { data: extraRatesData, error: extraRatesError } = await supabase
@@ -239,7 +240,7 @@ export const financeApi = {
 
             const hasDriverDailyCost = driverDailyCostAmount > 0;
 
-            const vehicleExpenses = (expensesData || [])
+            const vehicleExpenses = (allExpensesData || [])
               .filter(exp => exp.vehicle_id === pkg.vehicle_id && exp.date === dateStr)
               .map(exp => ({
                 description: exp.description,
@@ -267,8 +268,9 @@ export const financeApi = {
             };
           });
 
-          // Calcular totais somando diretamente os valores diários já validados
-          const valor_receita_total = dailyBreakdown.reduce((sum, day) => sum + day.dailyRevenue, 0);
+          // Calcular totais somando os valores diários e aplicando o desconto
+          const receita_bruta = dailyBreakdown.reduce((sum, day) => sum + day.dailyRevenue, 0);
+          const valor_receita_total = receita_bruta - (pkg.valor_desconto ?? 0);
           const valor_diaria_servico_calculado = dailyBreakdown.reduce((sum, day) => sum + day.dailyServiceRateAmount, 0);
           const valor_net_receita = dailyBreakdown.reduce((sum, day) => sum + day.dailyNetRevenue, 0);
 
@@ -279,15 +281,28 @@ export const financeApi = {
           const valor_margem_bruta = valor_receita_total - valor_custo_total;
           const percentual_margem = valor_receita_total > 0 ? (valor_margem_bruta / valor_receita_total) * 100 : 0;
 
-          // Lógica de status financeiro baseada nos fechamentos (settlements)
-          const paidDatesCount = activeDates.filter(date => {
-            return (settlementsData || []).some(s =>
-                s.agency_id === pkg.agency_id &&
-                date >= s.start_date &&
-                date <= s.end_date
-            );
-          }).length;
+          // Lógica de status financeiro e valor a receber
+          let valor_a_receber = 0;
+          const paidDates = new Set<string>();
 
+          activeDates.forEach(date => {
+            const isDirectSale = !pkg.agency_id;
+            const coveringSettlement = (settlementsData || []).find(s => {
+                const agencyMatch = isDirectSale ? s.agency_id === null : s.agency_id === pkg.agency_id;
+                return agencyMatch && date >= s.start_date && date <= s.end_date;
+            });
+
+            if (coveringSettlement) {
+                paidDates.add(date);
+            } else {
+                const dailyInfo = dailyBreakdown.find(d => d.date === date);
+                if (dailyInfo) {
+                    valor_a_receber += dailyInfo.dailyRevenue;
+                }
+            }
+          });
+
+          const paidDatesCount = paidDates.size;
           let status_pagamento: 'pago' | 'pendente' | 'cancelado' | 'parcial' = 'pendente';
           if (pkg.status === 'cancelled') {
             status_pagamento = 'cancelado';
@@ -316,11 +331,14 @@ export const financeApi = {
             valor_despesas_veiculo,
             valor_margem_bruta,
             percentual_margem,
+            valor_a_receber,
             dailyBreakdown,
           } as PackageWithRelations;
         });
 
-        return { data: processedPackages, error: null };
+        const totalVehicleExpensesInPeriod = (allExpensesData || []).reduce((sum, exp) => sum + exp.amount, 0);
+
+        return { data: { packages: processedPackages, totalVehicleExpensesInPeriod }, error: null };
       } catch (error: any) {
         return { data: null, error };
       }
@@ -408,9 +426,11 @@ export const financeApi = {
             description = `Diária de Serviço: ${attractionNames.join(' + ')}`;
           }
 
-          const coveringSettlement = settlementsData.find(s =>
-            s.agency_id === agencyId && date >= s.start_date && date <= s.end_date
-          );
+          const isDirectSaleCheck = agencyId === 'direct_sale';
+          const coveringSettlement = settlementsData.find(s => {
+            const agencyMatch = isDirectSaleCheck ? s.agency_id === null : s.agency_id === agencyId;
+            return agencyMatch && date >= s.start_date && date <= s.end_date;
+          });
 
           if (coveringSettlement) {
             acc[agencyId].totalValuePaid += dailyRevenue;

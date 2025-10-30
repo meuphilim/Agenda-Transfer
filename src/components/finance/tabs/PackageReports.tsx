@@ -12,9 +12,9 @@ import { Agency } from '../../../types/finance';
 import { FloatingActionButton } from '../../Common';
 
 const getInitialFilters = (): FinanceFiltersState => {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 30);
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   return {
     startDate: startDate.toISOString().split('T')[0],
@@ -35,6 +35,7 @@ const MetricCardSkeleton: React.FC = () => (
 
 export const PackageReports: React.FC = () => {
   const [packages, setPackages] = useState<PackageWithRelations[]>([]);
+  const [totalVehicleExpenses, setTotalVehicleExpenses] = useState(0);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FinanceFiltersState>(getInitialFilters());
@@ -54,7 +55,10 @@ export const PackageReports: React.FC = () => {
     try {
       const { data, error } = await financeApi.list(filters);
       if (error) throw new Error(error.message);
-      if (data) setPackages(data);
+      if (data) {
+        setPackages(data.packages);
+        setTotalVehicleExpenses(data.totalVehicleExpensesInPeriod);
+      }
     } catch (error: any) {
       toast.error(`Erro ao carregar dados: ${error.message}`);
     } finally {
@@ -68,13 +72,16 @@ export const PackageReports: React.FC = () => {
 
   const metrics = useMemo(() => {
     const totalReceita = packages.filter(p => p.status_pagamento === 'pago').reduce((sum, p) => sum + p.valor_receita_total, 0);
-    const totalReceitaPendente = packages.filter(p => p.status_pagamento === 'pendente').reduce((sum, p) => sum + p.valor_receita_total, 0);
+    const totalReceitaPendente = packages.reduce((sum, p) => sum + (p.valor_a_receber ?? 0), 0);
     const totalDiariasServico = packages.reduce((sum, p) => sum + p.valor_diaria_servico_calculado, 0);
     const totalNetReceita = packages.reduce((sum, p) => sum + p.valor_net_receita, 0);
-    const totalCustos = packages.reduce((sum, p) => sum + p.valor_custo_total, 0);
     const totalDiariasMotorista = packages.reduce((sum, p) => sum + p.valor_diaria_motorista_calculado, 0);
-    const totalDespesasVeiculo = packages.reduce((sum, p) => sum + p.valor_despesas_veiculo, 0);
-    const margemBruta = packages.reduce((sum, p) => sum + p.valor_margem_bruta, 0);
+
+    // O custo total agora é a soma das diárias de motorista (calculadas por pacote) + o total de despesas de veículos do período.
+    const totalCustos = totalDiariasMotorista + totalVehicleExpenses;
+
+    // A margem bruta também precisa ser recalculada com base no novo custo total.
+    const margemBruta = totalReceita - totalCustos;
     const margemPercentual = totalReceita > 0 ? (margemBruta / totalReceita) * 100 : 0;
 
     return {
@@ -84,12 +91,12 @@ export const PackageReports: React.FC = () => {
       totalNetReceita,
       totalCustos,
       totalDiariasMotorista,
-      totalDespesasVeiculo,
+      totalVehicleExpenses,
       margemBruta,
       margemPercentual,
       totalPacotes: packages.length,
     };
-  }, [packages]);
+  }, [packages, totalVehicleExpenses]);
 
   const handleEditPackage = (pkg: PackageWithRelations) => {
     setSelectedPackage(pkg);
@@ -163,7 +170,7 @@ export const PackageReports: React.FC = () => {
                   <p className="text-sm text-red-700 font-medium">Custos Totais</p>
                   <p className="text-2xl font-bold text-red-900">{formatCurrency(metrics.totalCustos)}</p>
                   <p className="text-xs text-red-600 mt-1">Motoristas: {formatCurrency(metrics.totalDiariasMotorista)}</p>
-                  <p className="text-xs text-red-600">Veículos: {formatCurrency(metrics.totalDespesasVeiculo)}</p>
+                  <p className="text-xs text-red-600">Veículos: {formatCurrency(metrics.totalVehicleExpenses)}</p>
                 </div>
                 <ShieldAlert className="h-8 w-8 text-red-600" />
               </div>
