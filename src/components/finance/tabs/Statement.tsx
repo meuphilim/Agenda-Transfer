@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { FinanceFilters, FinanceFiltersState } from '../FinanceFilters';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { Download } from 'lucide-react';
 
 interface StatementEntry {
   date: string;
@@ -89,141 +88,124 @@ export const Statement: React.FC = () => {
   const formatCurrency = (value: number | null) =>
     value !== null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value) : '-';
 
-    const handleExportPDF = async () => {
-      if (!companyProfile) {
-        toast.error("Dados da empresa não carregados para gerar o PDF.");
-        return;
-      }
+  const handleExportPDF = async () => {
+    if (!companyProfile) {
+      toast.error("Dados da empresa não carregados para gerar o PDF.");
+      return;
+    }
 
-      toast.info("Gerando PDF...");
+    toast.info("Gerando PDF...");
 
-      try {
-        const doc = new jsPDF();
-        const pageHeight = doc.internal.pageSize.height;
-        let finalY = 0; // Guardará a posição final da última tabela
+    try {
+      const doc = new jsPDF();
+      const pageHeight = doc.internal.pageSize.height;
 
-        // 1. Cabeçalho
-        // Adiciona o logo se existir
-        if (companyProfile.logo_url) {
-          try {
-            // A jspdf necessita que a imagem seja convertida para um formato de dados
-            const response = await fetch(companyProfile.logo_url);
-            const blob = await response.blob();
-            const reader = new FileReader();
-            await new Promise<void>(resolve => {
-              reader.onload = () => {
-                doc.addImage(reader.result as string, 'PNG', 14, 15, 30, 15);
-                resolve();
-              };
-              reader.readAsDataURL(blob);
-            });
-          } catch (e) {
-              console.error("Erro ao carregar o logo da empresa:", e);
-          }
-        }
-
-        doc.setFontSize(16).setFont(undefined, 'bold');
-        doc.text(companyProfile.name || 'Nome da Empresa', 50, 20);
-        doc.setFontSize(10).setFont(undefined, 'normal');
-        doc.text(`CNPJ: ${companyProfile.cnpj || ''}`, 50, 25);
-        doc.text(`${companyProfile.address || ''}`, 50, 30);
-        doc.line(14, 35, 196, 35); // Linha separadora
-        doc.setFontSize(12).setFont(undefined, 'bold');
-        doc.text(`Extrato Financeiro - Período de ${format(new Date(filters.startDate), 'dd/MM/yyyy')} a ${format(new Date(filters.endDate), 'dd/MM/yyyy')}`, 105, 45, { align: 'center' });
-
-
-        // 2. Corpo do Extrato
-        const head = [['Data', 'Descrição', 'Débito', 'Crédito', 'Saldo']];
-        const body = statementWithBalance.map(e => [
-          new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
-          e.description,
-          formatCurrency(e.debit),
-          formatCurrency(e.credit),
-          formatCurrency(e.balance)
-        ]);
-
-        // Tabela do extrato
-        autoTable(doc, {
-          startY: 55,
-          head: head,
-          body: body,
-          theme: 'striped',
-          headStyles: { fillColor: [22, 160, 133] },
-          foot: [
-              [{ content: 'Saldo Anterior', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(openingBalance), styles: { halign: 'right', fontStyle: 'bold' } }],
-              [{ content: 'Saldo Final', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(finalBalance), styles: { halign: 'right', fontStyle: 'bold' } }]
-          ],
-          didDrawPage: (data) => {
-              finalY = data.cursor?.y || 0;
-          }
-        });
-        finalY = (doc as any).lastAutoTable.finalY;
-
-        // 3. Lançamentos Futuros
-        const { data: pendingData, error: pendingError } = await financeApi.getPendingSettlements({ endDate: format(new Date(), 'yyyy-MM-dd') });
-        if (pendingError) throw new Error(pendingError.message);
-
-        if (pendingData && pendingData.length > 0) {
-          doc.addPage();
-          doc.setFontSize(12).setFont(undefined, 'bold');
-          doc.text('Lançamentos Futuros (Valores a Receber)', 105, 20, { align: 'center' });
-
-          const pendingHead = [['Agência/Origem', 'Valor Pendente']];
-          const pendingBody = pendingData.map(item => [
-            item.agencyName,
-            formatCurrency(item.totalValueToPay)
-          ]);
-          const totalPending = pendingData.reduce((sum, item) => sum + item.totalValueToPay, 0);
-
-          autoTable(doc, {
-              startY: 30,
-              head: pendingHead,
-              body: pendingBody,
-              theme: 'grid',
-              headStyles: { fillColor: [231, 76, 60] },
-              foot: [
-                  [{ content: 'Total Pendente', styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(totalPending), styles: { halign: 'right', fontStyle: 'bold' } }]
-              ]
+      // 1. Cabeçalho
+      if (companyProfile.logo_url) {
+        try {
+          const response = await fetch(companyProfile.logo_url);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          await new Promise<void>(resolve => {
+            reader.onloadend = () => {
+              doc.addImage(reader.result as string, 'PNG', 14, 15, 30, 15);
+              resolve();
+            };
+            reader.readAsDataURL(blob);
           });
+        } catch (e) {
+            console.error("Erro ao carregar o logo da empresa:", e);
         }
-
-        // 4. Rodapé (na última página)
-        const pageCount = (doc as any).internal.getNumberOfPages();
-        doc.setPage(pageCount);
-        const userEmail = user?.email || 'Usuário não identificado';
-        const emisiónDate = `Emitido por: ${userEmail} em ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}`;
-        doc.setFontSize(8).setFont(undefined, 'italic');
-        doc.text(emisiónDate, 14, pageHeight - 10);
-        doc.text(`Página ${pageCount}`, 196, pageHeight - 10, { align: 'right' });
-
-        doc.save(`extrato_${filters.startDate}_a_${filters.endDate}.pdf`);
-        toast.success("PDF gerado com sucesso!");
-      } catch (error: any) {
-          toast.error(`Erro ao gerar PDF: ${error.message}`);
       }
-    };
+
+      doc.setFontSize(16).setFont(undefined, 'bold');
+      doc.text(companyProfile.name || 'Nome da Empresa', 50, 20);
+      doc.setFontSize(10).setFont(undefined, 'normal');
+      doc.text(`CNPJ: ${companyProfile.cnpj || ''}`, 50, 25);
+      doc.text(`${companyProfile.address || ''}`, 50, 30);
+      doc.line(14, 35, 196, 35);
+      doc.setFontSize(12).setFont(undefined, 'bold');
+      doc.text(`Extrato Financeiro - Período de ${format(new Date(filters.startDate), 'dd/MM/yyyy')} a ${format(new Date(filters.endDate), 'dd/MM/yyyy')}`, 105, 45, { align: 'center' });
+
+      // 2. Corpo do Extrato
+      const head = [['Data', 'Descrição', 'Débito', 'Crédito', 'Saldo']];
+      const body = statementWithBalance.map(e => [
+        new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+        e.description,
+        formatCurrency(e.debit),
+        formatCurrency(e.credit),
+        formatCurrency(e.balance)
+      ]);
+
+      autoTable(doc, {
+        startY: 55,
+        head: head,
+        body: body,
+        theme: 'striped',
+        headStyles: { fillColor: [22, 160, 133] },
+        foot: [
+            [{ content: 'Saldo Anterior', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(openingBalance), styles: { halign: 'right', fontStyle: 'bold' } }],
+            [{ content: 'Saldo Final', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(finalBalance), styles: { halign: 'right', fontStyle: 'bold' } }]
+        ],
+      });
+
+      // 3. Lançamentos Futuros
+      const { data: pendingData, error: pendingError } = await financeApi.getPendingSettlements({ endDate: format(new Date(), 'yyyy-MM-dd') });
+      if (pendingError) throw new Error(pendingError.message);
+
+      if (pendingData && pendingData.length > 0) {
+        doc.addPage();
+        doc.setFontSize(12).setFont(undefined, 'bold');
+        doc.text('Lançamentos Futuros (Valores a Receber)', 105, 20, { align: 'center' });
+
+        const pendingHead = [['Agência/Origem', 'Valor Pendente']];
+        const pendingBody = pendingData.map(item => [
+          item.agencyName,
+          formatCurrency(item.totalValueToPay)
+        ]);
+        const totalPending = pendingData.reduce((sum, item) => sum + item.totalValueToPay, 0);
+
+        autoTable(doc, {
+            startY: 30,
+            head: pendingHead,
+            body: pendingBody,
+            theme: 'grid',
+            headStyles: { fillColor: [231, 76, 60] },
+            foot: [
+                [{ content: 'Total Pendente', styles: { halign: 'right', fontStyle: 'bold' } }, { content: formatCurrency(totalPending), styles: { halign: 'right', fontStyle: 'bold' } }]
+            ]
+        });
+      }
+
+      // 4. Rodapé
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      doc.setPage(pageCount);
+      const userEmail = user?.email || 'Usuário não identificado';
+      const emissionDate = `Emitido por: ${userEmail} em ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}`;
+      doc.setFontSize(8).setFont(undefined, 'italic');
+      doc.text(emissionDate, 14, pageHeight - 10);
+      doc.text(`Página ${pageCount}`, 196, pageHeight - 10, { align: 'right' });
+
+      doc.save(`extrato_${filters.startDate}_a_${filters.endDate}.pdf`);
+      toast.success("PDF gerado com sucesso!");
+    } catch (error: any) {
+        toast.error(`Erro ao gerar PDF: ${error.message}`);
+    }
+  };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <FinanceFilters
-          filters={filters}
-          onFilterChange={setFilters}
-          agencies={[]}
-          hideStatusFilter
-          hideAgencyFilter
-        />
-        <button
-          onClick={handleExportPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          <Download size={18} />
-          Exportar PDF
-        </button>
-      </div>
+      <FinanceFilters
+        filters={filters}
+        onFilterChange={setFilters}
+        onExport={handleExportPDF}
+        agencies={[]}
+        hideStatusFilter
+        hideAgencyFilter
+      />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-red-50 p-4 rounded-lg border border-red-200">
           <p className="text-sm text-red-600 font-semibold">Total Débitos</p>
           <p className="text-2xl font-bold text-red-700">
