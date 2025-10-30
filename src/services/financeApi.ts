@@ -92,6 +92,21 @@ export interface PackageActivity {
     dailyBreakdown: DailySummary[];
   }
 
+  export interface FinancialStatementEntry {
+    date: string;
+    description: string;
+    credit: number | null;
+    debit: number | null;
+    type: 'revenue' | 'expense';
+    sourceId: string;
+    sourceType: 'settlement' | 'driver_payment' | 'vehicle_expense';
+  }
+
+  export interface FinancialStatement {
+    entries: FinancialStatementEntry[];
+    openingBalance: number;
+  }
+
 export const financeApi = {
   list: async (filters: FinanceFiltersState) => {
     try {
@@ -522,6 +537,7 @@ export const financeApi = {
       let extraRatesQuery = supabase
         .from('driver_daily_rates')
         .select('*, drivers(id, name)')
+        .eq('paid', true)
         .gte('date', startDate)
         .lte('date', endDate);
 
@@ -599,5 +615,106 @@ export const financeApi = {
     } catch (error: any) {
       return { data: null, error };
     }
-  }
+  },
+
+  getFinancialStatement: async (filters: { startDate: string; endDate: string; searchTerm?: string }): Promise<{ data: FinancialStatement | null; error: any }> => {
+    try {
+      const { startDate, endDate } = filters;
+      const entries: FinancialStatementEntry[] = [];
+
+      // 1. Calculate Opening Balance
+      const { data: openingBalance, error: rpcError } = await supabase.rpc('calculate_opening_balance', {
+        p_start_date: startDate,
+      });
+      if (rpcError) throw rpcError;
+
+      // 2. Fetch Credits from Settlements (fechamentos) - now using settled_at for cash basis
+      const { data: settlements, error: settlementsError } = await supabase
+        .from('settlements')
+        .select(`
+          id,
+          start_date,
+          end_date,
+          created_at,
+          settled_at,
+          details,
+          agency_id,
+          agencies(name)
+        `)
+        .gte('settled_at', startDate)
+        .lte('settled_at', endDate);
+
+      if (settlementsError) throw settlementsError;
+
+      for (const s of settlements || []) {
+        const details = s.details as any;
+        const credit = details?.totalValuePaid ?? 0;
+
+        if (credit > 0) {
+          entries.push({
+            date: s.settled_at.split('T')[0],
+            description: s.agencies?.name
+              ? `Fechamento: ${s.agencies.name} (${s.start_date} a ${s.end_date})`
+              : `Fechamento: Venda Direta (${s.start_date} a ${s.end_date})`,
+            credit,
+            debit: null,
+            type: 'revenue',
+            sourceId: s.id,
+            sourceType: 'settlement',
+          });
+        }
+      }
+
+      // 3. Fetch Debits from Driver Daily Rates
+      const { data: driverPayments, error: driverPaymentsError } = await supabase
+        .from('driver_daily_rates')
+        .select('id, date, amount, notes, drivers(name)')
+        .eq('paid', true)
+        .gte('date', startDate)
+        .lte('date', endDate);
+      if (driverPaymentsError) throw driverPaymentsError;
+
+      for (const p of driverPayments || []) {
+        entries.push({
+          date: p.date,
+          description: `Pagamento Diária: ${p.drivers?.name || 'Motorista não identificado'}${p.notes ? ` (${p.notes})` : ''}`,
+          credit: null,
+          debit: p.amount,
+          type: 'expense',
+          sourceId: p.id,
+          sourceType: 'driver_payment',
+        });
+      }
+
+      // 4. Fetch Debits from Vehicle Expenses
+      const { data: vehicleExpenses, error: vehicleExpensesError } = await supabase
+        .from('vehicle_expenses')
+        .select('id, date, description, amount, category, vehicles(model, license_plate)')
+        .gte('date', startDate)
+        .lte('date', endDate);
+      if (vehicleExpensesError) throw vehicleExpensesError;
+
+      for (const e of vehicleExpenses || []) {
+        const vehicleInfo = e.vehicles ? `${e.vehicles.model} (${e.vehicles.license_plate})` : 'N/A';
+        entries.push({
+          date: e.date,
+          description: `Despesa Veículo: ${e.description} (${e.category || 'Outros'}) - ${vehicleInfo}`,
+          credit: null,
+          debit: e.amount,
+          type: 'expense',
+          sourceId: e.id,
+          sourceType: 'vehicle_expense',
+        });
+      }
+
+      // 5. Sort all entries chronologically
+      const sortedEntries = entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      return { data: { entries: sortedEntries, openingBalance: openingBalance ?? 0 }, error: null };
+
+    } catch (error: any) {
+      console.error("Error fetching financial statement:", error);
+      return { data: null, error };
+    }
+  },
 };

@@ -12,8 +12,10 @@ export interface FinanceFiltersState {
 interface FinanceFiltersProps {
   filters: FinanceFiltersState;
   onFilterChange: (filters: FinanceFiltersState) => void;
-  onExport: () => void;
+  onExport?: () => void;
   agencies: Agency[];
+  hideStatusFilter?: boolean;
+  hideAgencyFilter?: boolean;
 }
 
 export const FinanceFilters: React.FC<FinanceFiltersProps> = ({
@@ -21,6 +23,8 @@ export const FinanceFilters: React.FC<FinanceFiltersProps> = ({
   onFilterChange,
   onExport,
   agencies,
+  hideStatusFilter = false,
+  hideAgencyFilter = false,
 }) => {
   const handleInputChange = (
     field: keyof FinanceFiltersState,
@@ -63,36 +67,40 @@ export const FinanceFilters: React.FC<FinanceFiltersProps> = ({
         </div>
 
         {/* Status Filter */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Status</label>
-          <select
-            value={filters.status}
-            onChange={(e) => handleInputChange('status', e.target.value)}
-            className="w-full p-2 border rounded-lg"
-          >
-            <option value="all">Todos</option>
-            <option value="pago">Pago</option>
-            <option value="pendente">Pendente</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </div>
+        {!hideStatusFilter && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => handleInputChange('status', e.target.value)}
+              className="w-full p-2 border rounded-lg"
+            >
+              <option value="all">Todos</option>
+              <option value="pago">Pago</option>
+              <option value="pendente">Pendente</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+        )}
 
         {/* Agency Filter */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Agência</label>
-          <select
-            value={filters.agencyId}
-            onChange={(e) => handleInputChange('agencyId', e.target.value)}
-            className="w-full p-2 border rounded-lg"
-          >
-            <option value="all">Todas</option>
-            {agencies.map((agency) => (
-              <option key={agency.id} value={agency.id}>
-                {agency.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hideAgencyFilter && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Agência</label>
+            <select
+              value={filters.agencyId}
+              onChange={(e) => handleInputChange('agencyId', e.target.value)}
+              className="w-full p-2 border rounded-lg"
+            >
+              <option value="all">Todas</option>
+              {agencies.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Search Term */}
         <div className="lg:col-span-1">
