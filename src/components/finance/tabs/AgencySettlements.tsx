@@ -117,8 +117,8 @@ export const AgencySettlements: React.FC = () => {
       const finalAmount = totalToPay - discount;
 
       const details = {
-        totalPaid: finalAmount,
-        originalAmount: totalToPay,
+        totalValuePaid: finalAmount,
+        totalValueToPay: totalToPay,
         discount,
         activitiesCount: selectedSettlement.dailyBreakdown.filter(d => !d.isPaid).length,
       };
