@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { Agency } from '../types/database.types';
 
 const ADMIN_USERS_ENDPOINT = '/api/admin';
 
@@ -98,5 +99,19 @@ export const adminApi = {
       console.error('Error deleting user:', error);
       return { error: error instanceof Error ? error.message : 'Unknown error' };
     }
+  },
+
+  async getAllAgencies(): Promise<Pick<Agency, 'id' | 'name'>[]> {
+    const { data, error } = await supabase
+      .from('agencies')
+      .select('id, name')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error("Erro ao buscar agências:", error);
+      throw error;
+    }
+
+    return data || [];
   },
 };

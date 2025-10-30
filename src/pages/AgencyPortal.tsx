@@ -1,53 +1,76 @@
 // src/pages/AgencyPortal.tsx
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { reservationService } from '../services/reservation.service';
 import { PackageReservation } from '../types/custom';
 import { PlusCircle } from 'lucide-react';
 import { SimpleReservationForm } from '../components/agency/SimpleReservationForm';
+import { AgencySelector } from '../components/agency/AgencySelector';
 import { LoadingSpinner } from '../components/Common';
 
 export const AgencyPortal = () => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const [reservations, setReservations] = useState<PackageReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchParams] = useSearchParams();
 
-  const fetchReservations = () => {
-    if (profile?.agency_id) {
+  const agencyIdToFetch = isAdmin ? searchParams.get('agency_id') : profile?.agency_id;
+
+  const fetchReservations = useCallback(() => {
+    if (agencyIdToFetch) {
       setLoading(true);
-      reservationService.getReservationsByAgency(profile.agency_id)
+      reservationService.getReservationsByAgency(agencyIdToFetch)
         .then(setReservations)
-        .catch(console.error)
+        .catch(error => {
+          console.error("Erro ao buscar reservas:", error);
+          setReservations([]); // Limpa em caso de erro
+        })
         .finally(() => setLoading(false));
+    } else {
+      setReservations([]);
+      setLoading(false);
     }
-  };
+  }, [agencyIdToFetch]);
 
   useEffect(() => {
-    fetchReservations();
-  }, [profile]);
+    if (agencyIdToFetch) {
+      fetchReservations();
+    } else {
+      setReservations([]);
+      setLoading(false);
+    }
+  }, [agencyIdToFetch, fetchReservations]);
 
   const handleSuccess = () => {
     setIsModalOpen(false);
     fetchReservations(); // Recarrega a lista de reservas
   };
 
+  const portalTitle = isAdmin && searchParams.get('agency_name')
+    ? `Visualizando como: ${searchParams.get('agency_name')}`
+    : `Portal da Agência: ${profile?.full_name}`;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-800">Portal da Agência: {profile?.full_name}</h1>
+          <h1 className="text-xl font-bold text-gray-800">{portalTitle}</h1>
           <button onClick={signOut} className="text-sm text-blue-600 hover:underline">Sair</button>
         </div>
       </header>
 
       <main className="container mx-auto p-6">
+        {isAdmin && <AgencySelector />}
         <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-700">Minhas Reservas</h2>
-            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                <PlusCircle size={20} />
-                Nova Reserva
-            </button>
+            <h2 className="text-2xl font-semibold text-gray-700">Reservas da Agência</h2>
+            {(profile?.agency_id || (isAdmin && searchParams.get('agency_id'))) && (
+              <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  <PlusCircle size={20} />
+                  Nova Reserva
+              </button>
+            )}
         </div>
 
         {loading ? (
@@ -80,9 +103,9 @@ export const AgencyPortal = () => {
         )}
       </main>
 
-      {isModalOpen && profile?.agency_id && (
+      {isModalOpen && (
         <SimpleReservationForm
-            agencyId={profile.agency_id}
+            agencyId={agencyIdToFetch}
             onSuccess={handleSuccess}
             onClose={() => setIsModalOpen(false)}
         />

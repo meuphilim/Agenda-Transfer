@@ -292,7 +292,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('🔑 Tentando autenticar...');
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+
+      if (error) {
+        // Traduz a mensagem de erro específica de credenciais inválidas
+        if (error.message === 'Invalid login credentials') {
+          throw new Error('E-mail ou senha inválidos');
+        }
+        throw error;
+      }
+
       // O listener onAuthStateChange cuidará de atualizar o estado.
       console.log(`✅ Autenticação bem-sucedida para: ${data.user.id}`);
       return data;
