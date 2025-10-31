@@ -10,6 +10,7 @@ import { UserManagement } from './pages/UserManagement';
 import { FinanceManagement } from './pages/FinanceManagement';
 import CompanyProfilePage from './pages/CompanyProfile';
 import { AgencyRegister } from './pages/AgencyRegister';
+import { AgencyOnboarding } from './pages/AgencyOnboarding';
 import { AgencyPortal } from './pages/AgencyPortal';
 import { Login } from './components/Auth/Login';
 import { useEffect } from 'react';
@@ -45,6 +46,7 @@ export const AppRoutes = () => {
         return (
             <Routes>
                 <Route path="/agency-register" element={<AgencyRegister />} />
+                <Route path="/cadastro-agencia" element={<AgencyOnboarding />} />
                 <Route path="*" element={<Login />} />
             </Routes>
         );
