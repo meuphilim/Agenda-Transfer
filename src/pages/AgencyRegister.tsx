@@ -3,13 +3,16 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Briefcase } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
+import { createAgencyProfile } from '../services/agencyApi';
 
 export const AgencyRegister = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agencyName, setAgencyName] = useState('');
   const [phone, setPhone] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [address, setAddress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,33 +29,43 @@ export const AgencyRegister = () => {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: agencyName, // Passa o nome da agência como nome completo inicial
+          },
+        },
       });
       if (authError) throw authError;
-      if (!authData.user) throw new Error("A criação do usuário falhou.");
+      if (!authData.user) throw new Error('A criação do usuário falhou.');
 
-      // 2. Insere o registro da agência na tabela 'agencies'
-      const { error: agencyError } = await supabase.from('agencies').insert({
-        user_id: authData.user.id,
-        name: agencyName,
-        contact_email: email,
-        contact_phone: phone,
-        is_active: true,
-      });
-
-      if (agencyError) {
-        // Tenta remover o usuário Auth se a criação da agência falhar
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(authData.user.id);
-        if(deleteError) console.error("Erro ao fazer rollback do usuário Auth:", deleteError);
-        throw agencyError;
-      }
+      // 2. Chama a função de serviço para criar o perfil da agência
+      await createAgencyProfile(
+        {
+          name: agencyName,
+          cnpj,
+          address,
+          phone,
+          email,
+        },
+        authData.user.id
+      );
 
       setSuccess(true);
-      toast.success("Cadastro realizado! Verifique seu e-mail para confirmação.");
+      toast.success('Cadastro realizado! Verifique seu e-mail para confirmação.');
       setTimeout(() => navigate('/'), 3000);
-
     } catch (error: any) {
+      // Rollback: se algo der errado, tenta remover o usuário Auth criado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Esta chamada requer privilégios de administrador.
+        // A lógica de deleção pode precisar ser movida para uma função de backend segura.
+        // await supabase.auth.admin.deleteUser(user.id);
+        console.warn(
+          'O cadastro da agência falhou, mas o usuário de autenticação pode ter sido criado. Considere implementar uma rotina de limpeza no backend.'
+        );
+      }
       setError(error.message);
-      toast.error(error.message || "Falha ao cadastrar.");
+      toast.error(error.message || 'Falha ao cadastrar.');
     } finally {
       setLoading(false);
     }
@@ -78,6 +91,8 @@ export const AgencyRegister = () => {
             <input type="email" placeholder="Email de Contato *" value={email} onChange={e => setEmail(e.target.value)} required disabled={loading} className="w-full px-3 py-2 border rounded-md" />
             <input type="password" placeholder="Senha (mínimo 6 caracteres) *" value={password} onChange={e => setPassword(e.target.value)} required disabled={loading} className="w-full px-3 py-2 border rounded-md" />
             <input type="tel" placeholder="Telefone" value={phone} onChange={e => setPhone(e.target.value)} disabled={loading} className="w-full px-3 py-2 border rounded-md" />
+            <input type="text" placeholder="CNPJ" value={cnpj} onChange={e => setCnpj(e.target.value)} disabled={loading} className="w-full px-3 py-2 border rounded-md" />
+            <input type="text" placeholder="Endereço" value={address} onChange={e => setAddress(e.target.value)} disabled={loading} className="w-full px-3 py-2 border rounded-md" />
             {error && <p className="text-red-600 text-sm">{error}</p>}
             <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50" disabled={loading}>
               {loading ? 'Cadastrando...' : 'Criar Conta de Agência'}
