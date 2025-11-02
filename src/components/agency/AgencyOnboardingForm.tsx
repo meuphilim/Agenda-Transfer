@@ -6,7 +6,7 @@ import * as yup from 'yup';
 import { Loader } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { createAgencyProfile } from '../../services/agencyApi';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 
 // Schema de validação completo
 const schema = yup.object().shape({

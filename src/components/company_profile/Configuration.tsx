@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card'
-import { toast } from 'sonner'
+import { toast } from 'react-toastify'
 import { Building } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'

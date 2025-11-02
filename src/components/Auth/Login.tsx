@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from 'react-toastify';
 import { ReservationCalendar } from '../public/ReservationCalendar';
 import { AuthHeader } from './AuthHeader';
 import { AuthForm } from './AuthForm';

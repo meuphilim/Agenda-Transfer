@@ -1,6 +1,7 @@
 // src/App.tsx
 import { BrowserRouter as Router } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './contexts/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppRoutes } from './AppRoutes';
@@ -11,7 +12,17 @@ function App() {
       <Router>
         <AuthProvider>
           <AppRoutes />
-          <Toaster richColors position="top-right" />
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </AuthProvider>
       </Router>
     </ErrorBoundary>

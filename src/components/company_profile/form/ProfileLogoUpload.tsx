@@ -1,37 +1,37 @@
 // src/components/company_profile/form/ProfileLogoUpload.tsx
-import { useCallback, useState, useEffect } from 'react'
-import { useController, Control } from 'react-hook-form'
-import { useDropzone, FileRejection, Accept } from 'react-dropzone'
-import imageCompression from 'browser-image-compression'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
-import { UploadCloud, Loader2, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { CompanyProfile } from '@/services/companyProfileApi'
-import { Button } from '@/components/ui/button'
+import { useCallback, useState, useEffect } from 'react';
+import { useController, Control } from 'react-hook-form';
+import { useDropzone, FileRejection, Accept } from 'react-dropzone';
+import imageCompression from 'browser-image-compression';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'react-toastify';
+import { UploadCloud, Loader2, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { CompanyProfile } from '@/services/companyProfileApi';
+import { Button } from '@/components/ui/button';
 
 // --- Tipos e Constantes ---
 
 interface LogoUploaderProps {
-  control: Control<CompanyProfile>
-  companyId: string | undefined
+  control: Control<CompanyProfile>;
+  companyId: string | undefined;
 }
 
-const MAX_SIZE_MB = 2
-const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
-const COMPRESSION_THRESHOLD_BYTES = 500 * 1024 // 500KB
+const MAX_SIZE_MB = 2;
+const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+const COMPRESSION_THRESHOLD_BYTES = 500 * 1024; // 500KB
 const ACCEPTED_FORMATS: Accept = {
   'image/png': ['.png'],
   'image/jpeg': ['.jpeg', '.jpg'],
   'image/webp': ['.webp'],
   'image/svg+xml': ['.svg'],
-}
-const BUCKET_NAME = 'company-logos'
+};
+const BUCKET_NAME = 'company-logos';
 
 // --- Componente Principal ---
 
 const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   const {
     field: { onChange, value },
@@ -39,36 +39,35 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
     name: 'logo_url',
     control,
     defaultValue: null,
-  })
+  });
 
-  const [preview, setPreview] = useState<string | null>(value || null)
+  const [preview, setPreview] = useState<string | null>(value || null);
 
   // Sincroniza o preview com o valor do formulário
   useEffect(() => {
-    setPreview(value || null)
-  }, [value])
+    setPreview(value || null);
+  }, [value]);
 
   const getFilePathFromUrl = (url: string): string | null => {
     try {
-      const urlObject = new URL(url)
-      const pathSegments = urlObject.pathname.split('/')
-      // O caminho é o nome do bucket + nome do arquivo
-      const filePath = pathSegments.slice(pathSegments.indexOf(BUCKET_NAME) + 1).join('/')
-      return filePath
+      const urlObject = new URL(url);
+      const pathSegments = urlObject.pathname.split('/');
+      const filePath = pathSegments.slice(pathSegments.indexOf(BUCKET_NAME) + 1).join('/');
+      return filePath;
     } catch (error) {
-      console.error('URL inválida, não foi possível extrair o caminho do arquivo:', error)
-      return null
+      console.error('URL inválida, não foi possível extrair o caminho do arquivo:', error);
+      return null;
     }
-  }
+  };
 
   const handleUpload = useCallback(
     async (file: File) => {
       if (!companyId) {
-        toast.error('ID da empresa não encontrado. Salve o perfil antes de enviar o logo.')
-        return
+        toast.error('ID da empresa não encontrado. Salve o perfil antes de enviar o logo.');
+        return;
       }
-      setLoading(true)
-      const toastId = toast.loading('Enviando logo...')
+      setLoading(true);
+      const toastId = toast.loading('Enviando...');
 
       try {
         const imageFile =
@@ -78,43 +77,43 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
                 maxWidthOrHeight: 1024,
                 useWebWorker: true,
               })
-            : file
+            : file;
 
         if (value) {
-          const oldFilePath = getFilePathFromUrl(value)
+          const oldFilePath = getFilePathFromUrl(value);
           if (oldFilePath) {
-            await supabase.storage.from(BUCKET_NAME).remove([oldFilePath])
+            await supabase.storage.from(BUCKET_NAME).remove([oldFilePath]);
           }
         }
 
-        const fileExt = imageFile.name.split('.').pop()
-        const filePath = `${companyId}-${Date.now()}.${fileExt}`
+        const fileExt = imageFile.name.split('.').pop();
+        const filePath = `${companyId}-${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET_NAME)
-          .upload(filePath, imageFile)
+          .upload(filePath, imageFile);
 
-        if (uploadError) throw uploadError
+        if (uploadError) throw uploadError;
 
         const { data: publicUrlData } = supabase.storage
           .from(BUCKET_NAME)
-          .getPublicUrl(filePath)
+          .getPublicUrl(filePath);
 
         if (!publicUrlData) {
-            throw new Error('Não foi possível obter a URL pública do logo.')
+          throw new Error('Não foi possível obter a URL pública do logo.');
         }
 
-        onChange(publicUrlData.publicUrl)
-        toast.success('Logo atualizado com sucesso!', { id: toastId })
+        onChange(publicUrlData.publicUrl);
+        toast.update(toastId, { render: 'Logo atualizado com sucesso!', type: 'success', isLoading: false, autoClose: 5000 });
       } catch (error: any) {
-        console.error('Erro no upload:', error)
-        toast.error(`Falha no upload: ${error.message}`, { id: toastId })
+        console.error('Erro no upload:', error);
+        toast.update(toastId, { render: `Falha no upload: ${error.message}`, type: 'error', isLoading: false, autoClose: 5000 });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [companyId, onChange, value]
-  )
+  );
 
   const onDrop = useCallback(
     (acceptedFiles: File[], fileRejections: FileRejection[]) => {
@@ -122,45 +121,44 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
         fileRejections.forEach(({ errors }) => {
           errors.forEach((err) => {
             if (err.code === 'file-too-large') {
-              toast.error(`Arquivo muito grande. O limite é de ${MAX_SIZE_MB}MB.`)
+              toast.error(`Arquivo muito grande. O limite é de ${MAX_SIZE_MB}MB.`);
             } else if (err.code === 'file-invalid-type') {
-              toast.error('Formato de arquivo inválido.')
+              toast.error('Formato de arquivo inválido.');
             } else {
-              toast.error(err.message)
+              toast.error(err.message);
             }
-          })
-        })
-        return
+          });
+        });
+        return;
       }
 
       if (acceptedFiles.length > 0) {
-        handleUpload(acceptedFiles[0])
+        handleUpload(acceptedFiles[0]);
       }
     },
     [handleUpload]
-  )
+  );
 
   const handleRemoveLogo = async () => {
-      if (!value) return
-      setLoading(true)
-      const toastId = toast.loading('Removendo logo...')
-      try {
-          const filePath = getFilePathFromUrl(value)
-          if (!filePath) throw new Error('URL do logo inválida.')
+    if (!value) return;
+    setLoading(true);
+    const toastId = toast.loading('Removendo...');
+    try {
+      const filePath = getFilePathFromUrl(value);
+      if (!filePath) throw new Error('URL do logo inválida.');
 
-          const { error } = await supabase.storage.from(BUCKET_NAME).remove([filePath])
-          if (error) throw error
+      const { error } = await supabase.storage.from(BUCKET_NAME).remove([filePath]);
+      if (error) throw error;
 
-          onChange(null)
-          toast.success('Logo removido com sucesso!', { id: toastId })
-      } catch (error: any) {
-          console.error('Erro ao remover logo:', error)
-          toast.error(`Falha ao remover: ${error.message}`, { id: toastId })
-      } finally {
-          setLoading(false)
-      }
-  }
-
+      onChange(null);
+      toast.update(toastId, { render: 'Logo removido com sucesso!', type: 'success', isLoading: false, autoClose: 5000 });
+    } catch (error: any) {
+      console.error('Erro ao remover logo:', error);
+      toast.update(toastId, { render: `Falha ao remover: ${error.message}`, type: 'error', isLoading: false, autoClose: 5000 });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -168,7 +166,7 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
     maxSize: MAX_SIZE_BYTES,
     multiple: false,
     disabled: loading,
-  })
+  });
 
   // --- Renderização ---
 
@@ -178,26 +176,26 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="mt-2 text-sm text-muted-foreground">Processando...</p>
       </div>
-    )
+    );
   }
 
   if (preview) {
     return (
       <div className="flex flex-col items-center space-y-4">
         <div className="relative group">
-            <img
-                src={preview}
-                alt="Pré-visualização do logo"
-                className="h-24 w-24 rounded-md object-cover border-2 border-border"
-            />
-             <button
-                type="button"
-                onClick={handleRemoveLogo}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="Remover logo"
-            >
-                <X className="h-4 w-4" />
-            </button>
+          <img
+            src={preview}
+            alt="Pré-visualização do logo"
+            className="h-24 w-24 rounded-md object-cover border-2 border-border"
+          />
+          <button
+            type="button"
+            onClick={handleRemoveLogo}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Remover logo"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
         <div {...getRootProps()}>
           <input {...getInputProps()} />
@@ -206,7 +204,7 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -227,7 +225,7 @@ const ProfileLogoUpload = ({ control, companyId }: LogoUploaderProps) => {
         PNG, JPG, WEBP, SVG (máx. {MAX_SIZE_MB}MB)
       </p>
     </div>
-  )
-}
+  );
+};
 
-export default ProfileLogoUpload
+export default ProfileLogoUpload;
